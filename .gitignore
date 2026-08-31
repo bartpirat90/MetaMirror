@@ -2,3 +2,7 @@
 __pycache__/
 *.pyc
 .pytest_cache/
+
+# lokale Zugangsdaten — NIEMALS committen
+pipeline/local_secrets.json
+.env

@@ -49,6 +49,22 @@ def item_name_stub(item_id):
     return f"item:{item_id}"
 
 
+def load_credentials():
+    """WCL-Zugangsdaten: zuerst Umgebungsvariablen (CI/GitHub-Secrets),
+    sonst die gitignorierte lokale Datei pipeline/local_secrets.json."""
+    cid = os.environ.get("WCL_CLIENT_ID")
+    secret = os.environ.get("WCL_CLIENT_SECRET")
+    if cid and secret:
+        return cid, secret
+    import json
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "local_secrets.json")
+    if os.path.exists(path):
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+        return data.get("WCL_CLIENT_ID"), data.get("WCL_CLIENT_SECRET")
+    return None, None
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default="Data/MetaMirrorData.lua")
@@ -56,10 +72,10 @@ def main(argv=None):
     ap.add_argument("--min-sample", type=int, default=15)
     args = ap.parse_args(argv)
 
-    client_id = os.environ.get("WCL_CLIENT_ID")
-    client_secret = os.environ.get("WCL_CLIENT_SECRET")
+    client_id, client_secret = load_credentials()
     if not client_id or not client_secret:
-        print("WCL_CLIENT_ID / WCL_CLIENT_SECRET fehlen", file=sys.stderr)
+        print("WCL-Zugangsdaten fehlen (Umgebungsvariablen oder pipeline/local_secrets.json)",
+              file=sys.stderr)
         return 2
 
     from pipeline.wcl import WclClient
