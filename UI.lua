@@ -27,6 +27,7 @@ function MetaMirror:BuildPanel()
     Panel:SetFrameStrata("HIGH")
     Panel:EnableMouse(true)
     Panel:SetMovable(true)
+    Panel:SetClampedToScreen(true)   -- kann nie ganz aus dem Bild rutschen
     Panel:RegisterForDrag("LeftButton")
     Panel:SetScript("OnDragStart", Panel.StartMoving)
     Panel:SetScript("OnDragStop", function(self)
@@ -97,9 +98,14 @@ function MetaMirror:AnchorToCharacter()
     local p = MetaMirrorDB.pos
     Panel:ClearAllPoints()
     if p and p.rel == "custom" then
+        -- vom Nutzer frei platziert
         Panel:SetPoint(p.point, UIParent, "BOTTOMLEFT", p.x, p.y)
-    else
+    elseif CharacterFrame and CharacterFrame:IsShown() then
+        -- an das offene Charakterfenster andocken
         Panel:SetPoint("TOPLEFT", CharacterFrame, "TOPRIGHT", 4, 0)
+    else
+        -- eigenstaendig (z.B. via /mm) -> sicher mittig auf den Schirm
+        Panel:SetPoint("CENTER", UIParent, "CENTER", 220, 0)
     end
 end
 
