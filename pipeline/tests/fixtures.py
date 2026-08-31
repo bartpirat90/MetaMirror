@@ -1,14 +1,23 @@
-# Minimaler CombatantInfo-'data'-Block, wie fetch.parse_combatant_info ihn erwartet.
+# Realer CombatantInfo-'data'-Block (gekuerzt), wie ihn die WCL-API liefert.
+# Struktur 2026-08-31 gegen echte Antworten verifiziert.
 COMBATANT_INFO = {
-    "specID": 71,
-    "stats": {"Haste": {"rating": 7000}, "Crit": {"rating": 5600},
-              "Mastery": {"rating": 4200}, "Versatility": {"rating": 3120}},
-    "talentTree": [{"id": 111, "rank": 1}, {"id": 222, "rank": 2}],
+    "specID": 262, "sourceID": 25,
+    "critMelee": 1021, "critRanged": 1021, "critSpell": 1021,
+    "hasteMelee": 734, "hasteRanged": 734, "hasteSpell": 734,
+    "mastery": 936,
+    "versatilityDamageDone": 203, "versatilityDamageReduction": 203,
     "gear": [
-        {"slot": 0, "id": 21001, "permanentEnchant": 0, "gems": []},
-        {"slot": 15, "id": 21050, "permanentEnchant": 7001, "gems": [90001]},
+        {"id": 271483, "permanentEnchant": 7961, "bonusIDs": [6652]},          # 0 HEAD
+        {"id": 268265, "gems": [{"id": 240983}, {"id": 240908}]},              # 1 NECK
+        {"id": 0},                                                            # 2 leer -> skip
     ],
-    "auras": [{"ability": 431971}, {"ability": 999999}],  # 1. = Flask (Whitelist), 2. = irrelevant
+    "auras": [
+        {"ability": 1235108, "name": "Flask of the Magisters"},
+        {"ability": 1285644, "name": "Hearty Well Fed"},
+        {"ability": 6673, "name": "Battle Shout"},
+    ],
+    "talentTree": [
+        {"id": 101844, "rank": 1, "nodeID": 80978},
+        {"id": 101850, "rank": 1, "nodeID": 80981},
+    ],
 }
-
-SLOT_NAME = {0: "HEAD", 15: "MAINHAND"}

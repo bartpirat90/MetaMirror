@@ -1,48 +1,54 @@
 from pipeline.models import ParseRecord
 
-_STAT_FIELD = {"haste": "Haste", "crit": "Crit", "mastery": "Mastery", "vers": "Versatility"}
 _CONS_CATS = ["flask", "phial", "potion", "food", "oil", "rune"]
 
-# WoW-inventoryType (CombatantInfo gear[].slot) -> Vertrags-Slotname.
-DEFAULT_SLOT_NAME = {
+# CombatantInfo.gear[] steht in Ausruestungs-Reihenfolge; der Listen-Index = Slot.
+# (3 = Hemd, 17 = Wappenrock/Fernkampf -> kein Meta-Wert, ignoriert.)
+GEAR_SLOT_BY_INDEX = {
     0: "HEAD", 1: "NECK", 2: "SHOULDER", 4: "CHEST", 5: "WAIST", 6: "LEGS",
     7: "FEET", 8: "WRIST", 9: "HANDS", 10: "RING1", 11: "RING2",
     12: "TRINKET1", 13: "TRINKET2", 14: "BACK", 15: "MAINHAND", 16: "OFFHAND",
 }
 
 
-def parse_combatant_info(data, class_id, spec_id, content, season):
-    """WCL-CombatantInfo-'data' -> ParseRecord. Kapselt alle Struktur-Annahmen."""
-    slot_name = season.get("SLOT_NAME", DEFAULT_SLOT_NAME)
-    stats = {}
-    src = data.get("stats", {})
-    for key, field_name in _STAT_FIELD.items():
-        entry = src.get(field_name) or {}
-        stats[key] = int(entry.get("rating", 0))
+def _stat(event, *fields):
+    # Melee/Ranged/Spell-Varianten sind identisch; max() ist robust gegen 0-Felder.
+    return max(int(event.get(f) or 0) for f in fields)
+
+
+def parse_combatant_info(event, class_id, spec_id, content, season):
+    """Ein CombatantInfo-Event -> ParseRecord. Kapselt alle WCL-Struktur-Annahmen."""
+    stats = {
+        "haste": _stat(event, "hasteMelee", "hasteRanged", "hasteSpell"),
+        "crit": _stat(event, "critMelee", "critRanged", "critSpell"),
+        "mastery": int(event.get("mastery") or 0),
+        "vers": _stat(event, "versatilityDamageDone"),
+    }
 
     gear = []
-    for g in data.get("gear", []):
-        slot = slot_name.get(g.get("slot"))
-        if not slot or not g.get("id"):
+    for idx, g in enumerate(event.get("gear") or []):
+        slot = GEAR_SLOT_BY_INDEX.get(idx)
+        item_id = int((g or {}).get("id") or 0)
+        if not slot or not item_id:
             continue
         gear.append({
-            "slot": slot, "item_id": int(g["id"]),
+            "slot": slot,
+            "item_id": item_id,
             "enchant_id": int(g.get("permanentEnchant") or 0),
-            "gems": [int(x) for x in (g.get("gems") or []) if x],
+            "gems": [int(gem.get("id")) for gem in (g.get("gems") or []) if gem.get("id")],
         })
 
     consumables = {c: None for c in _CONS_CATS}
     whitelist = season.get("CONSUMABLE_SPELL_TO_ITEM", {})
-    for aura in data.get("auras", []):
+    for aura in event.get("auras") or []:
         info = whitelist.get(aura.get("ability"))
         if info and consumables.get(info["cat"]) is None:
             consumables[info["cat"]] = info["item"]
 
-    tree = data.get("talentTree") or []
-    talent_sig = "|".join(f"{n['id']}:{n.get('rank', 1)}" for n in tree)
+    tree = event.get("talentTree") or []
+    talent_sig = "|".join(sorted(f"{n.get('nodeID')}:{n.get('rank', 1)}" for n in tree))
 
     return ParseRecord(
         class_id=class_id, spec_id=spec_id, content=content, stats=stats,
-        talent_import=str(data.get("talentImportString", "")),
-        talent_sig=talent_sig, gear=gear, consumables=consumables,
+        talent_import="", talent_sig=talent_sig, gear=gear, consumables=consumables,
     )

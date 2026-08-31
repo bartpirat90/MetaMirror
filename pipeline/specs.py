@@ -3,6 +3,15 @@ from dataclasses import dataclass
 STAT_KEYS = ["haste", "crit", "mastery", "vers"]
 CONTENTS = ["mythicplus", "raid"]
 
+# Heiler-Specs -> Ranking-Metrik "hps" (alle anderen "dps"), damit die Rangliste
+# ueberhaupt Eintraege liefert. specIDs: Disc/HolyPr, HolyPal, RestoSham, Mistweaver,
+# RestoDruid, Preservation.
+HEALER_SPECS = {256, 257, 65, 264, 270, 105, 1468}
+
+
+def ranking_metric(spec_id):
+    return "hps" if spec_id in HEALER_SPECS else "dps"
+
 
 @dataclass(frozen=True)
 class Spec:
