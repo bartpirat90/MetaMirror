@@ -25,7 +25,8 @@ function MetaMirror.InitDB()
     if db.content == nil then db.content = "mythicplus" end  -- "mythicplus" | "raid"
     if db.tab     == nil then db.tab = "stats" end
     if db.tol     == nil then db.tol = 1.5 end               -- Toleranzband in %-Punkten
-    db.pos = db.pos or { point = "TOPLEFT", rel = "TOPRIGHT", x = 4, y = 0 }
+    -- Nur eine frei gezogene Position (custom=true) ist gueltig; altes/kaputtes Format verwerfen.
+    if db.pos and db.pos.custom ~= true then db.pos = nil end
 end
 
 local f = CreateFrame("Frame")
@@ -49,6 +50,10 @@ SlashCmdList["METAMIRROR"] = function(msg)
     msg = (msg or ""):lower():gsub("^%s+", ""):gsub("%s+$", "")
     if msg == "status" or msg == "debug" then
         if MetaMirror.Status then MetaMirror:Status() end
+    elseif msg == "reset" then
+        MetaMirrorDB.pos = nil
+        print("|cffa855f7[MM]|r Position zurueckgesetzt.")
+        if MetaMirror.AnchorToCharacter and MetaMirrorPanel then MetaMirror:AnchorToCharacter() end
     else
         if MetaMirror.Toggle then MetaMirror:Toggle() end
     end

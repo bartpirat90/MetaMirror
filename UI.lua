@@ -32,9 +32,13 @@ function MetaMirror:BuildPanel()
     Panel:SetScript("OnDragStart", Panel.StartMoving)
     Panel:SetScript("OnDragStop", function(self)
         self:StopMovingOrSizing()
-        -- freie Position merken (loest die Andockung, bis Panel neu geoeffnet)
-        local p, _, r, x, y = self:GetPoint()
-        MetaMirrorDB.pos = { point = p, rel = "custom", x = x, y = y }
+        -- freie Position in UIParent-Koordinaten merken (skalensicher), dann sauber neu ankern
+        local es, ues = self:GetEffectiveScale(), UIParent:GetEffectiveScale()
+        local x = self:GetLeft() * es / ues
+        local y = self:GetBottom() * es / ues
+        self:ClearAllPoints()
+        self:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", x, y)
+        MetaMirrorDB.pos = { custom = true, x = x, y = y }
     end)
     local bg = tex(Panel, "BACKGROUND", C.BG_MAIN); bg:SetAllPoints()
     Panel:SetBackdrop({ edgeFile = "Interface\\Buttons\\WHITE8x8", edgeSize = 1 })
@@ -97,9 +101,9 @@ end
 function MetaMirror:AnchorToCharacter()
     local p = MetaMirrorDB.pos
     Panel:ClearAllPoints()
-    if p and p.rel == "custom" then
-        -- vom Nutzer frei platziert
-        Panel:SetPoint(p.point, UIParent, "BOTTOMLEFT", p.x, p.y)
+    if p and p.custom then
+        -- vom Nutzer frei platziert (UIParent-Koordinaten)
+        Panel:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", p.x, p.y)
     elseif CharacterFrame and CharacterFrame:IsShown() then
         -- an das offene Charakterfenster andocken
         Panel:SetPoint("TOPLEFT", CharacterFrame, "TOPRIGHT", 4, 0)
