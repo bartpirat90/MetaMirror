@@ -2,7 +2,7 @@
 ## Title: MetaMirror
 ## Notes: Zeigt die Top-Spieler-Meta pro Spec und vergleicht deine Sekundaerwerte live dagegen.
 ## Author: Franz Petschull
-## Version: 0.3
+## Version: 0.4
 ## SavedVariablesPerCharacter: MetaMirrorDB
 
 Localization.lua

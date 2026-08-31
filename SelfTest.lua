@@ -35,6 +35,18 @@ end)
 test("TargetRating_zeroPct_nil", function()
     assertEqual(MetaMirror:TargetRating(0, 0, 34), nil, "no ratio")
 end)
+test("StatStatus_nil_unknown", function()
+    assertEqual(MetaMirror:StatStatus(nil, 34, 1.5), "unknown", "nil -> unknown")
+end)
+test("StatStatus_secretlike_unknown", function()
+    -- Wert, der bei Arithmetik/Vergleich wirft (simuliert einen secret value)
+    local secretlike = setmetatable({}, {
+        __sub = function() error("secret") end,
+        __lt  = function() error("secret") end,
+        __le  = function() error("secret") end,
+    })
+    assertEqual(MetaMirror:StatStatus(secretlike, 34, 1.5), "unknown", "secret -> unknown")
+end)
 test("DataFor_present", function()
     local d = MetaMirror:DataFor(1, 71, "mythicplus")
     assertEqual(d ~= nil, true, "arms mplus present")

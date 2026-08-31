@@ -22,12 +22,26 @@ function MetaMirror:CurrentSpecKey()
     return classID, specID
 end
 
--- Eigener Sekundaerwert eines Keys: { pct = <number>, rating = <number> }.
--- Nur eigene Charakterwerte -> keine secret values.
+-- Eigener Sekundaerwert eines Keys: { pct = <number|nil>, rating = <number|nil>, secret = <bool> }.
+-- Ab Patch 12.x sind diese Stat-APIs SecretWhenUnitStatsRestricted: in Kampf/Instanz
+-- liefern sie "secret values", auf denen Arithmetik/Vergleich wirft. Wir erkennen das per
+-- Arithmetik-Test in pcall und geben dann nil + secret=true zurueck (nie crashen).
 function MetaMirror:SecondaryFor(key)
     local m = STAT_MAP[key]
-    if not m then return { pct = 0, rating = 0 } end
-    local ok, pct = pcall(m.pct)
-    local rating = GetCombatRating(m.cr) or 0
-    return { pct = (ok and pct) or 0, rating = rating }
+    if not m then return { pct = 0, rating = 0, secret = false } end
+
+    local okPct, pct = pcall(m.pct)
+    if not okPct then pct = nil end
+    local okRating, rating = pcall(GetCombatRating, m.cr)
+    if not okRating then rating = nil end
+
+    -- Secret-Test: Arithmetik auf dem Wert. Schlaegt sie fehl, ist der Wert secret.
+    local pctUsable = pct ~= nil and pcall(function() return pct + 0 end)
+    local ratingUsable = rating ~= nil and pcall(function() return rating + 0 end)
+
+    return {
+        pct = pctUsable and pct or nil,
+        rating = ratingUsable and rating or nil,
+        secret = (not pctUsable) or (not ratingUsable),
+    }
 end

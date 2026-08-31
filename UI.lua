@@ -197,7 +197,7 @@ local function getRow(i)
     return r
 end
 
-local STATUS_COL = { under = "AMBER", over = "BLUE", on = "GREEN" }
+local STATUS_COL = { under = "AMBER", over = "BLUE", on = "GREEN", unknown = "DIM" }
 
 local function renderStats(self, data)
     local tol = MetaMirrorDB.tol
@@ -208,29 +208,43 @@ local function renderStats(self, data)
         r:ClearAllPoints(); r:SetPoint("TOPLEFT", 0, -(i-1) * 44)
         local cur = self:SecondaryFor(entry.key)
         local status = self:StatStatus(cur.pct, entry.pct, tol)
-        local col = C[STATUS_COL[status]]
-        local tRating = self:TargetRating(cur.rating, cur.pct, entry.pct)
+        local col = C[STATUS_COL[status]] or C.DIM
 
         r.name:SetText(L["stat_" .. entry.key])
-        if status == "under" then
-            r.chip:SetText(string.format(L.need, math.floor(entry.pct - cur.pct + 0.5)))
-            r.chip:SetTextColor(unpack(C.AMBER))
-        elseif status == "over" then
-            r.chip:SetText(string.format(L.over, math.floor(cur.pct - entry.pct + 0.5)))
-            r.chip:SetTextColor(unpack(C.BLUE))
-        else
-            r.chip:SetText(L.on_target); r.chip:SetTextColor(unpack(C.GREEN))
-        end
-        r.nums:SetText(string.format("%.0f%% (%d) \194\183 %s %.0f%% (%s)",
-            cur.pct, cur.rating, L.target, entry.pct, tRating and tostring(tRating) or "?"))
 
-        -- Balken: Fuellung = Ist relativ zu einer Skala (max der beiden * 1.4), Marke = Ziel
-        local scale = math.max(cur.pct, entry.pct) * 1.4
-        if scale <= 0 then scale = 1 end
-        r.fill:SetColorTexture(col[1], col[2], col[3], 1)
-        r.fill:SetWidth(math.max(1, 336 * (cur.pct / scale)))
-        r.mark:ClearAllPoints()
-        r.mark:SetPoint("TOP", r.track, "TOPLEFT", 336 * (entry.pct / scale), 3)
+        if status == "unknown" then
+            -- Kampf/Instanz: eigener Wert ist geschuetzt (secret) -> nur das Ziel zeigen
+            r.chip:SetText(L.secret_chip); r.chip:SetTextColor(unpack(C.DIM))
+            r.nums:SetText(string.format("%s %.0f%%", L.target, entry.pct))
+            local scale = entry.pct * 1.4
+            if scale <= 0 then scale = 1 end
+            r.fill:SetColorTexture(col[1], col[2], col[3], 1)
+            r.fill:SetWidth(1)
+            r.mark:ClearAllPoints()
+            r.mark:SetPoint("TOP", r.track, "TOPLEFT", 336 * (entry.pct / scale), 3)
+        else
+            local tRating = self:TargetRating(cur.rating, cur.pct, entry.pct)
+            if status == "under" then
+                r.chip:SetText(string.format(L.need, math.floor(entry.pct - cur.pct + 0.5)))
+                r.chip:SetTextColor(unpack(C.AMBER))
+            elseif status == "over" then
+                r.chip:SetText(string.format(L.over, math.floor(cur.pct - entry.pct + 0.5)))
+                r.chip:SetTextColor(unpack(C.BLUE))
+            else
+                r.chip:SetText(L.on_target); r.chip:SetTextColor(unpack(C.GREEN))
+            end
+            r.nums:SetText(string.format("%.0f%% (%s) \194\183 %s %.0f%% (%s)",
+                cur.pct, cur.rating and tostring(cur.rating) or "?",
+                L.target, entry.pct, tRating and tostring(tRating) or "?"))
+
+            -- Balken: Fuellung = Ist relativ zu einer Skala (max der beiden * 1.4), Marke = Ziel
+            local scale = math.max(cur.pct, entry.pct) * 1.4
+            if scale <= 0 then scale = 1 end
+            r.fill:SetColorTexture(col[1], col[2], col[3], 1)
+            r.fill:SetWidth(math.max(1, 336 * (cur.pct / scale)))
+            r.mark:ClearAllPoints()
+            r.mark:SetPoint("TOP", r.track, "TOPLEFT", 336 * (entry.pct / scale), 3)
+        end
         r:Show()
     end
     for j = i + 1, #rows do rows[j]:Hide() end
