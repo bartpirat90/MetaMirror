@@ -8,3 +8,6 @@
 Localization.lua
 MetaMirror.lua
 Data\SampleData.lua
+Logic.lua
+Player.lua
+SelfTest.lua
