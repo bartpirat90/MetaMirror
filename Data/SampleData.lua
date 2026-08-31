@@ -76,5 +76,42 @@ MetaMirrorData = {
                 },
             },
         },
+        [9] = { -- Hexenmeister
+            [266] = { -- Daemonologie
+                mythicplus = {
+                    sampleSize = 100,
+                    stats = {
+                        { key = "haste",   pct = 30.0 },
+                        { key = "crit",    pct = 24.0 },
+                        { key = "mastery", pct = 28.0 },
+                        { key = "vers",    pct = 18.0 },
+                    },
+                    talents = { { importString = "SAMPLE-DEMO-MPLUS", usagePct = 70 } },
+                    gear = {
+                        { slot = "HEAD", itemID = 0, name = "Demo-Kapuze" },
+                        { slot = "NECK", itemID = 0, name = "Demo-Amulett" },
+                    },
+                    gems     = { { slot = "RING1", itemID = 0, name = "+Tempo" } },
+                    enchants = { { slot = "WEAPON", id = 0, name = "Waffe: Intelligenz" } },
+                    consumables = { flask = 0, potion = 0, food = 0, rune = 0 },
+                },
+                raid = {
+                    sampleSize = 100,
+                    stats = {
+                        { key = "haste",   pct = 27.0 },
+                        { key = "crit",    pct = 22.0 },
+                        { key = "mastery", pct = 33.0 },
+                        { key = "vers",    pct = 16.0 },
+                    },
+                    talents = { { importString = "SAMPLE-DEMO-RAID", usagePct = 64 } },
+                    gear = {
+                        { slot = "HEAD", itemID = 0, name = "Demo-Raidkapuze" },
+                    },
+                    gems     = { { slot = "RING1", itemID = 0, name = "+Meisterschaft" } },
+                    enchants = { { slot = "WEAPON", id = 0, name = "Waffe: Intelligenz" } },
+                    consumables = { flask = 0, potion = 0, food = 0, rune = 0 },
+                },
+            },
+        },
     },
 }
