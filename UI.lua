@@ -94,6 +94,12 @@ function MetaMirror:BuildPanel()
     CharacterFrame:HookScript("OnShow", function() MetaMirror:OnCharShow() end)
     CharacterFrame:HookScript("OnHide", function() Panel:Hide() end)
 
+    -- Quellen-Attribution (RPGLogs-API-ToS verlangt Nennung)
+    local attrText = (MetaMirrorData and MetaMirrorData.attribution) or "Data from Warcraft Logs"
+    local footer = fs(Panel, "GameFontDisableSmall", C.DIM)
+    footer:SetPoint("BOTTOMRIGHT", -8, 6)
+    footer:SetText(attrText)
+
     Panel:Hide()
     MetaMirror:Refresh()
 end
@@ -267,6 +273,81 @@ local function hideTalents()
     if TalentBox then TalentBox:Hide(); TalentBox.hint:Hide(); TalentBox.usage:Hide() end
 end
 
+-- Verbrauchsgueter als klickbare Item-Links (Shift-Klick -> Chat / AH-Suche).
+local consRows = {}
+local function getConsRow(i)
+    if consRows[i] then return consRows[i] end
+    local b = CreateFrame("Button", nil, Body)
+    b:SetSize(320, 20)
+    b:RegisterForClicks("AnyUp")
+    b.icon = b:CreateTexture(nil, "ARTWORK"); b.icon:SetSize(18, 18); b.icon:SetPoint("TOPLEFT", 0, 0)
+    b.label = fs(b, "GameFontHighlightSmall", C.TXT); b.label:SetPoint("LEFT", b.icon, "RIGHT", 6, 0)
+    b:SetScript("OnEnter", function(self)
+        if not self.link then return end
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetHyperlink(self.link)
+        GameTooltip:Show()
+    end)
+    b:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    b:SetScript("OnClick", function(self, button)
+        if not self.link then return end
+        -- Blizzard-Standard: Shift -> Chat/AH-Suche; sonst Item-Link-Popup
+        if not HandleModifiedItemClick(self.link) then
+            SetItemRef(self.link, self.link, button, self)
+        end
+    end)
+    consRows[i] = b
+    return b
+end
+
+local function setConsRow(b, label, itemID)
+    if itemID and itemID ~= 0 then
+        b.link = nil
+        b.icon:SetTexture(134400)   -- Fragezeichen-Platzhalter bis geladen
+        b.label:SetText(label .. ": ...")
+        local item = Item:CreateFromItemID(itemID)
+        item:ContinueOnItemLoad(function()
+            b.link = item:GetItemLink()
+            b.icon:SetTexture(item:GetItemIcon())
+            b.label:SetText(label .. ": " .. (item:GetItemName() or ("item:" .. itemID)))
+        end)
+    else
+        b.link = nil
+        b.icon:SetTexture(nil)
+        b.label:SetText(label .. ": -")
+    end
+    b:Show()
+end
+
+local CONS_ORDER = {
+    { key = "flask",  label = "Flask"  },
+    { key = "phial",  label = "Phiole" },
+    { key = "potion", label = "Pott"   },
+    { key = "food",   label = "Food"   },
+    { key = "oil",    label = "Oel"    },
+    { key = "rune",   label = "Rune"   },
+}
+
+local function hideCons()
+    for j = 1, #consRows do consRows[j]:Hide() end
+end
+
+local function renderConsumables(data)
+    for j = 1, #rows do rows[j]:Hide() end
+    if Body.msg then Body.msg:Hide() end
+    local c = data.consumables or {}
+    local i = 0
+    for _, cat in ipairs(CONS_ORDER) do
+        if c[cat.key] ~= nil then
+            i = i + 1
+            local b = getConsRow(i)
+            b:ClearAllPoints(); b:SetPoint("TOPLEFT", 0, -(i - 1) * 22)
+            setConsRow(b, cat.label, c[cat.key])
+        end
+    end
+    for j = i + 1, #consRows do consRows[j]:Hide() end
+end
+
 function MetaMirror.RenderBody(self, classID, specID)
     if not Body.msg then
         Body.msg = fs(Body, "GameFontHighlight", C.DIM)
@@ -276,11 +357,13 @@ function MetaMirror.RenderBody(self, classID, specID)
     if not data then
         for j = 1, #rows do rows[j]:Hide() end
         hideTalents()
+        hideCons()
         Body.msg:Show(); Body.msg:SetText(L.no_data)
         return
     end
     Body.msg:Hide()
     hideTalents()
+    hideCons()
     if MetaMirrorDB.tab == "stats" then
         renderStats(self, data)
     elseif MetaMirrorDB.tab == "talents" then
@@ -295,11 +378,6 @@ function MetaMirror.RenderBody(self, classID, specID)
         for _, e in ipairs(data.enchants or {}) do lines[#lines+1] = e.slot .. ": " .. e.name end
         renderLines(#lines > 0 and lines or { L.no_data })
     else -- cons
-        local c = data.consumables or {}
-        renderLines({
-            "Flask: "  .. (c.flask  ~= 0 and c.flask  or "-"),
-            "Potion: " .. (c.potion ~= 0 and c.potion or "-"),
-            "Food: "   .. (c.food   ~= 0 and c.food   or "-"),
-        })
+        renderConsumables(data)
     end
 end
