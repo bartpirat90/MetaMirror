@@ -1,0 +1,10 @@
+## Interface: 120100
+## Title: MetaMirror
+## Notes: Zeigt die Top-Spieler-Meta pro Spec und vergleicht deine Sekundaerwerte live dagegen.
+## Author: Franz Petschull
+## Version: 0.1
+## SavedVariablesPerCharacter: MetaMirrorDB
+
+Localization.lua
+MetaMirror.lua
+Data\SampleData.lua
