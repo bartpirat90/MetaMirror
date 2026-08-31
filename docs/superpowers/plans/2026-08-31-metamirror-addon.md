@@ -333,7 +333,7 @@ end
 cp "E:/claude-projekt/MetaMirror/Logic.lua" "D:/Battle.net/World of Warcraft/_retail_/Interface/AddOns/MetaMirror/"
 ```
 Run: `/run print(MetaMirror:StatStatus(28,34,1.5), MetaMirror:StatStatus(34,34,1.5), MetaMirror:TargetRating(8420,28,34))`
-Erwartet: `under  on  10230`.
+Erwartet: `under  on  10224`.
 
 - [ ] **Step 3: Commit**
 ```bash
@@ -441,7 +441,7 @@ test("StatStatus_exact", function()
     assertEqual(MetaMirror:StatStatus(22, 22, 1.5), "on", "exact")
 end)
 test("TargetRating_scales", function()
-    assertEqual(MetaMirror:TargetRating(8420, 28, 34), 10230, "scale up")
+    assertEqual(MetaMirror:TargetRating(8420, 28, 34), 10224, "scale up")
 end)
 test("TargetRating_zeroPct_nil", function()
     assertEqual(MetaMirror:TargetRating(0, 0, 34), nil, "no ratio")
