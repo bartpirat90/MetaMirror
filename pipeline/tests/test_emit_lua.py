@@ -5,7 +5,7 @@ from pipeline.emit_lua import emit_lua
 def _agg():
     return AggregatedSpec(
         sample_size=42,
-        stats=[{"key": "haste", "pct": 34.0}, {"key": "crit", "pct": 28.0}],
+        stats=[{"key": "haste", "rating": 961}, {"key": "crit", "rating": 1371}],
         talents=[{"importString": "ABC=", "usagePct": 68}],
         gear=[{"slot": "HEAD", "itemID": 21001, "name": "Helm"}],
         gems=[{"slot": "RING1", "itemID": 90001, "name": "+Haste"}],
@@ -23,7 +23,7 @@ def test_emit_structure_and_values():
     assert "[1] = {" in out and "[71] = {" in out
     assert "mythicplus = {" in out and "raid = {" in out
     assert 'sampleSize = 42' in out
-    assert '{ key = "haste", pct = 34.0 }' in out
+    assert '{ key = "haste", rating = 961 }' in out
     assert 'importString = "ABC="' in out
     assert 'itemID = 21001' in out
     assert 'flask = 212283' in out

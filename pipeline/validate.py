@@ -14,8 +14,8 @@ def validate(data, min_sample=15):
                 if keys != set(STAT_KEYS):
                     errors.append(f"{tag} stats keys unvollstaendig: {sorted(keys)}")
                 for s in agg.stats:
-                    if not (0.0 <= s["pct"] <= 100.0):
-                        errors.append(f"{tag} pct ausserhalb 0..100: {s['key']}={s['pct']}")
+                    if not (isinstance(s["rating"], int) and s["rating"] >= 0):
+                        errors.append(f"{tag} rating ungueltig: {s['key']}={s['rating']}")
                 if not agg.gear:
                     errors.append(f"{tag} gear leer")
                 for g in agg.gear:

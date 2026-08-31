@@ -9,24 +9,15 @@ function MetaMirror:DataFor(classID, specID, content)
 end
 
 -- Status eines Stats: "under" | "on" | "over" | "unknown".
--- "unknown", wenn der eigene Wert nil oder ein secret value ist (Kampf/Instanz).
-function MetaMirror:StatStatus(currentPct, targetPct, tol)
+-- Vergleicht Ratings (eigenes vs. Meta-Ziel). "unknown", wenn der eigene Wert
+-- nil oder ein secret value ist (Kampf/Instanz). tol = Rating-Toleranzband.
+function MetaMirror:StatStatus(current, target, tol)
     tol = tol or 0
-    if currentPct == nil then return "unknown" end
+    if current == nil then return "unknown" end
     local ok, res = pcall(function()
-        if math.abs(currentPct - targetPct) <= tol then return "on" end
-        if currentPct < targetPct then return "under" end
+        if math.abs(current - target) <= tol then return "on" end
+        if current < target then return "under" end
         return "over"
     end)
     return ok and res or "unknown"
-end
-
--- Ziel-Wertung aus dem aktuellen Verhaeltnis rating/pct hochrechnen.
--- Ohne gueltiges Verhaeltnis (pct <= 0, oder nil/secret) nicht bestimmbar -> nil.
-function MetaMirror:TargetRating(currentRating, currentPct, targetPct)
-    if not currentRating or not currentPct or currentPct <= 0 then return nil end
-    local ok, res = pcall(function()
-        return math.floor((currentRating / currentPct) * targetPct + 0.5)
-    end)
-    return ok and res or nil
 end

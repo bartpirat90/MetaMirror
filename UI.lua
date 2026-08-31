@@ -200,50 +200,49 @@ end
 local STATUS_COL = { under = "AMBER", over = "BLUE", on = "GREEN", unknown = "DIM" }
 
 local function renderStats(self, data)
-    local tol = MetaMirrorDB.tol
     local i = 0
     for _, entry in ipairs(data.stats) do
         i = i + 1
         local r = getRow(i)
         r:ClearAllPoints(); r:SetPoint("TOPLEFT", 0, -(i-1) * 44)
         local cur = self:SecondaryFor(entry.key)
-        local status = self:StatStatus(cur.pct, entry.pct, tol)
+        local target = entry.rating or 0
+        local tol = math.max(1, target * 0.05)          -- 5%-Toleranzband (Rating)
+        local status = self:StatStatus(cur.rating, target, tol)
         local col = C[STATUS_COL[status]] or C.DIM
 
         r.name:SetText(L["stat_" .. entry.key])
 
         if status == "unknown" then
-            -- Kampf/Instanz: eigener Wert ist geschuetzt (secret) -> nur das Ziel zeigen
+            -- Kampf/Instanz: eigenes Rating ist geschuetzt (secret) -> nur das Ziel zeigen
             r.chip:SetText(L.secret_chip); r.chip:SetTextColor(unpack(C.DIM))
-            r.nums:SetText(string.format("%s %.0f%%", L.target, entry.pct))
-            local scale = entry.pct * 1.4
+            r.nums:SetText(string.format("%s %d", L.target, target))
+            local scale = target * 1.4
             if scale <= 0 then scale = 1 end
             r.fill:SetColorTexture(col[1], col[2], col[3], 1)
             r.fill:SetWidth(1)
             r.mark:ClearAllPoints()
-            r.mark:SetPoint("TOP", r.track, "TOPLEFT", 336 * (entry.pct / scale), 3)
+            r.mark:SetPoint("TOP", r.track, "TOPLEFT", 336 * (target / scale), 3)
         else
-            local tRating = self:TargetRating(cur.rating, cur.pct, entry.pct)
+            local cr = cur.rating
             if status == "under" then
-                r.chip:SetText(string.format(L.need, math.floor(entry.pct - cur.pct + 0.5)))
+                r.chip:SetText(string.format(L.need, target - cr))
                 r.chip:SetTextColor(unpack(C.AMBER))
             elseif status == "over" then
-                r.chip:SetText(string.format(L.over, math.floor(cur.pct - entry.pct + 0.5)))
+                r.chip:SetText(string.format(L.over, cr - target))
                 r.chip:SetTextColor(unpack(C.BLUE))
             else
                 r.chip:SetText(L.on_target); r.chip:SetTextColor(unpack(C.GREEN))
             end
-            r.nums:SetText(string.format("%.0f%% (%s) \194\183 %s %.0f%% (%s)",
-                cur.pct, cur.rating and tostring(cur.rating) or "?",
-                L.target, entry.pct, tRating and tostring(tRating) or "?"))
+            r.nums:SetText(string.format("%d \194\183 %s %d", cr, L.target, target))
 
-            -- Balken: Fuellung = Ist relativ zu einer Skala (max der beiden * 1.4), Marke = Ziel
-            local scale = math.max(cur.pct, entry.pct) * 1.4
+            -- Balken: Fuellung = eigenes Rating relativ zur Skala (max*1.2), Marke = Ziel
+            local scale = math.max(cr, target) * 1.2
             if scale <= 0 then scale = 1 end
             r.fill:SetColorTexture(col[1], col[2], col[3], 1)
-            r.fill:SetWidth(math.max(1, 336 * (cur.pct / scale)))
+            r.fill:SetWidth(math.max(1, 336 * (cr / scale)))
             r.mark:ClearAllPoints()
-            r.mark:SetPoint("TOP", r.track, "TOPLEFT", 336 * (entry.pct / scale), 3)
+            r.mark:SetPoint("TOP", r.track, "TOPLEFT", 336 * (target / scale), 3)
         end
         r:Show()
     end

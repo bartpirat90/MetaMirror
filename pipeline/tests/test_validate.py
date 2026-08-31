@@ -5,8 +5,8 @@ from pipeline.validate import validate
 def _good():
     return AggregatedSpec(
         sample_size=30,
-        stats=[{"key": "haste", "pct": 34.0}, {"key": "crit", "pct": 28.0},
-               {"key": "mastery", "pct": 22.0}, {"key": "vers", "pct": 16.0}],
+        stats=[{"key": "haste", "rating": 961}, {"key": "crit", "rating": 1371},
+               {"key": "mastery", "rating": 590}, {"key": "vers", "rating": 110}],
         talents=[{"importString": "ABC=", "usagePct": 68}],
         gear=[{"slot": "HEAD", "itemID": 21001, "name": "Helm"}],
         gems=[], enchants=[], consumables={"flask": 212283},
@@ -23,10 +23,10 @@ def test_low_sample_flagged():
     assert any("sampleSize" in e for e in errs)
 
 
-def test_out_of_range_pct_flagged():
-    a = _good(); a.stats[0]["pct"] = 150.0
+def test_negative_rating_flagged():
+    a = _good(); a.stats[0]["rating"] = -5
     errs = validate({1: {71: {"raid": a}}}, min_sample=15)
-    assert any("pct" in e for e in errs)
+    assert any("rating" in e for e in errs)
 
 
 def test_empty_gear_flagged():

@@ -19,7 +19,7 @@ class ParseRecord:
 class AggregatedSpec:
     """Aggregiertes Ergebnis pro Spec x Content — entspricht 1:1 dem Lua-Datenvertrag."""
     sample_size: int
-    stats: list                     # [{"key": "haste", "pct": float}, ..] absteigend nach pct
+    stats: list                     # [{"key": "haste", "rating": int}, ..] absteigend nach rating
     talents: list                   # [{"importString": str, "usagePct": int}]
     gear: list                      # [{"slot": str, "itemID": int, "name": str}]
     gems: list                      # [{"slot": str, "itemID": int, "name": str}]

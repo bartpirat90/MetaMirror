@@ -5,10 +5,6 @@ def _q(s):
     return '"' + str(s).replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
-def _pct(v):
-    return f"{float(v):.1f}"
-
-
 def _spec_block(agg, indent):
     p = " " * indent
     p2 = " " * (indent + 4)
@@ -16,7 +12,7 @@ def _spec_block(agg, indent):
 
     lines.append(f"{p}stats = {{")
     for s in agg.stats:
-        lines.append(f'{p2}{{ key = {_q(s["key"])}, pct = {_pct(s["pct"])} }},')
+        lines.append(f'{p2}{{ key = {_q(s["key"])}, rating = {int(s["rating"])} }},')
     lines.append(f"{p}}},")
 
     lines.append(f"{p}talents = {{")

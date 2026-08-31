@@ -6,14 +6,6 @@ from pipeline.specs import STAT_KEYS
 _CONS_CATS = ["flask", "phial", "potion", "food", "oil", "rune"]
 
 
-def rating_to_pct(stat, rating, spec_id, season):
-    per_pct = season["RATING_PER_PCT"][stat]
-    pct = rating / per_pct
-    if stat == "mastery":
-        pct *= season.get("MASTERY_COEFF", {}).get(spec_id, 1.0)
-    return round(pct, 1)
-
-
 def _most_common(values):
     values = [v for v in values if v]
     if not values:
@@ -29,8 +21,8 @@ def aggregate(records, spec_id, season, item_name):
     stats = []
     for key in STAT_KEYS:
         med = median([r.stats.get(key, 0) for r in records])
-        stats.append({"key": key, "pct": rating_to_pct(key, med, spec_id, season)})
-    stats.sort(key=lambda s: s["pct"], reverse=True)
+        stats.append({"key": key, "rating": int(round(med))})
+    stats.sort(key=lambda s: s["rating"], reverse=True)
 
     sig, cnt = _most_common([r.talent_sig for r in records])
     imports = [r.talent_import for r in records if r.talent_sig == sig and r.talent_import]
