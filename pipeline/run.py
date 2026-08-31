@@ -10,17 +10,27 @@ from pipeline.emit_lua import emit_lua
 from pipeline.validate import validate
 
 
-def build_and_write(records, season, version, season_name, out_path, item_name, min_sample=15):
-    """records -> aggregieren -> validieren -> nur bei gruen schreiben. Gibt Fehlerliste zurueck."""
+def build_and_write(records, season, version, season_name, out_path, item_name,
+                    min_sample=15, log=print):
+    """records -> aggregieren -> duenne Specs droppen -> validieren -> nur bei gruen schreiben.
+    Gibt Fehlerliste zurueck (leer = geschrieben)."""
     grouped = defaultdict(list)
     for r in records:
         grouped[(r.class_id, r.spec_id, r.content)].append(r)
 
     data = defaultdict(lambda: defaultdict(dict))
     for (cid, sid, content), recs in grouped.items():
-        data[cid][sid][content] = aggregate(recs, spec_id=sid, season=season, item_name=item_name)
+        agg = aggregate(recs, spec_id=sid, season=season, item_name=item_name)
+        if agg.sample_size < min_sample:
+            log(f"  uebersprungen (zu wenig Daten): {cid}/{sid}/{content} n={agg.sample_size}")
+            continue
+        data[cid][sid][content] = agg
 
-    plain = {cid: {sid: dict(c) for sid, c in specs.items()} for cid, specs in data.items()}
+    plain = {cid: {sid: dict(c) for sid, c in specs.items() if c} for cid, specs in data.items()}
+    plain = {cid: specs for cid, specs in plain.items() if specs}
+    if not plain:
+        return ["keine Spec hat genug Daten (min_sample zu hoch oder API leer)"]
+
     errors = validate(plain, min_sample=min_sample)
     if errors:
         return errors
