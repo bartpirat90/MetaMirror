@@ -105,13 +105,19 @@ end
 
 function MetaMirror:OnCharShow()
     self:AnchorToCharacter()
+    Panel:Show()          -- zuerst zeigen: ein Render-Fehler darf das Fenster nicht verschlucken
     self:Refresh()
-    Panel:Show()
 end
 
 function MetaMirror:Toggle()
     if not Panel then self:BuildPanel() end
-    if Panel:IsShown() then Panel:Hide() else self:AnchorToCharacter(); self:Refresh(); Panel:Show() end
+    if Panel:IsShown() then
+        Panel:Hide()
+    else
+        self:AnchorToCharacter()
+        Panel:Show()
+        self:Refresh()
+    end
 end
 
 -- Kopf/Tabs/Kontext spiegeln + aktiven Tab rendern.
