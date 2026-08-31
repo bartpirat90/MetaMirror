@@ -45,6 +45,11 @@ end)
 
 SLASH_METAMIRROR1 = "/mm"
 SLASH_METAMIRROR2 = "/metamirror"
-SlashCmdList["METAMIRROR"] = function()
-    if MetaMirror.Toggle then MetaMirror:Toggle() end
+SlashCmdList["METAMIRROR"] = function(msg)
+    msg = (msg or ""):lower():gsub("^%s+", ""):gsub("%s+$", "")
+    if msg == "status" or msg == "debug" then
+        if MetaMirror.Status then MetaMirror:Status() end
+    else
+        if MetaMirror.Toggle then MetaMirror:Toggle() end
+    end
 end

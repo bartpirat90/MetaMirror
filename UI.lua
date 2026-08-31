@@ -103,10 +103,15 @@ function MetaMirror:AnchorToCharacter()
     end
 end
 
+local function safeRefresh()
+    local ok, err = pcall(function() MetaMirror:Refresh() end)
+    if not ok then print("|cffff5555[MM] Refresh-Fehler:|r " .. tostring(err)) end
+end
+
 function MetaMirror:OnCharShow()
     self:AnchorToCharacter()
     Panel:Show()          -- zuerst zeigen: ein Render-Fehler darf das Fenster nicht verschlucken
-    self:Refresh()
+    safeRefresh()
 end
 
 function MetaMirror:Toggle()
@@ -116,8 +121,25 @@ function MetaMirror:Toggle()
     else
         self:AnchorToCharacter()
         Panel:Show()
-        self:Refresh()
+        safeRefresh()
     end
+end
+
+-- Diagnose: /mm status
+function MetaMirror:Status()
+    if not Panel then
+        print("|cffa855f7[MM]|r Panel = nil  ->  BuildPanel lief nicht (UI.lua-Ladefehler?)")
+        return
+    end
+    print(string.format("|cffa855f7[MM]|r shown=%s visible=%s alpha=%.2f scale=%.2f",
+        tostring(Panel:IsShown()), tostring(Panel:IsVisible()), Panel:GetAlpha(), Panel:GetEffectiveScale()))
+    local l, b = Panel:GetLeft(), Panel:GetBottom()
+    print(string.format("|cffa855f7[MM]|r left=%s bottom=%s w=%s h=%s  (Bildschirm ~%dx%d)",
+        tostring(l and math.floor(l)), tostring(b and math.floor(b)),
+        math.floor(Panel:GetWidth()), math.floor(Panel:GetHeight()),
+        math.floor(UIParent:GetWidth()), math.floor(UIParent:GetHeight())))
+    print("|cffa855f7[MM]|r CharacterFrame=" .. tostring(CharacterFrame ~= nil)
+        .. "  strata=" .. tostring(Panel:GetFrameStrata()))
 end
 
 -- Kopf/Tabs/Kontext spiegeln + aktiven Tab rendern.
