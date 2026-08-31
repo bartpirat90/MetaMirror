@@ -1,0 +1,55 @@
+name: Update MetaMirror data
+on:
+  schedule:
+    - cron: "0 6 * * 1"      # jeden Montag 06:00 UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install deps
+        run: pip install -r pipeline/requirements.txt
+
+      - name: Unit tests
+        run: python -m pytest pipeline/ -q
+
+      - name: Generate data
+        env:
+          WCL_CLIENT_ID: ${{ secrets.WCL_CLIENT_ID }}
+          WCL_CLIENT_SECRET: ${{ secrets.WCL_CLIENT_SECRET }}
+        run: python -m pipeline.run --out Data/MetaMirrorData.lua
+
+      - name: Lua syntax gate
+        run: |
+          sudo apt-get update && sudo apt-get install -y lua5.1
+          luac5.1 -p Data/MetaMirrorData.lua
+
+      - name: Commit data
+        run: |
+          git config user.name "metamirror-bot"
+          git config user.email "bot@users.noreply.github.com"
+          if ! git diff --quiet Data/MetaMirrorData.lua; then
+            git add Data/MetaMirrorData.lua
+            git commit -m "chore(data): weekly meta refresh $(date -u +%F)"
+            git push
+          else
+            echo "keine Aenderung"
+          fi
+
+      - name: Publish to CurseForge (gated)
+        if: ${{ vars.CF_PUBLISH == 'true' }}
+        env:
+          CURSEFORGE_TOKEN: ${{ secrets.CURSEFORGE_TOKEN }}
+        run: |
+          echo "CurseForge-Upload aktiv — erst nach ToS-Klaerung + Projekt-ID einschalten."
+          # Upload-Schritt (z.B. Zip bauen + CurseForge-Upload-API) hier ergaenzen.
