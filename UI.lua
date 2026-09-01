@@ -406,9 +406,12 @@ end
 -- fallback: Text, wenn kein Item aufloesbar ist; enchantID: optional in den
 -- Item-Link injiziert; bonusIDs: Upgrade-/Sockel-Bonusliste -> voller Link mit
 -- korrekter Maximalstufe und Sockelplaetzen (sonst rendert der Client die Grundform).
-local function setItemRow(b, label, itemID, fallback, enchantID, bonusIDs)
+local function setItemRow(b, label, itemID, fallback, enchantID, bonusIDs, suffix)
     -- Leeres/fehlendes Label -> nur der Item-Name (z.B. Edelsteine ohne Slot-Bezug).
     local prefix = (label and label ~= "") and (label .. ": ") or ""
+    -- Suffix (z.B. Trinket-Stat-Modus "(Tempo)"): unterscheidet Varianten mit gleicher
+    -- itemID, die WoW sonst identisch benennt (Rubinwelpenschale in 4 Modi).
+    local suff = (suffix and suffix ~= "") and ("  |cff8b7bb8(" .. suffix .. ")|r") or ""
     if itemID and itemID ~= 0 then
         b.link = nil
         b.icon:SetTexture(134400)   -- Fragezeichen-Platzhalter bis geladen
@@ -436,7 +439,7 @@ local function setItemRow(b, label, itemID, fallback, enchantID, bonusIDs)
                 end
                 b.link = link
                 b.icon:SetTexture(item:GetItemIcon())
-                b.label:SetText(prefix .. stripQualityIcon(link))
+                b.label:SetText(prefix .. stripQualityIcon(link) .. suff)
             end)
         else
             local item = Item:CreateFromItemID(itemID)
@@ -450,13 +453,13 @@ local function setItemRow(b, label, itemID, fallback, enchantID, bonusIDs)
                 b.link = link
                 b.icon:SetTexture(item:GetItemIcon())
                 -- Vollen Link als Text -> WoW rendert ihn farbig in eckigen Klammern.
-                b.label:SetText(prefix .. (stripQualityIcon(link) or ("[" .. name .. "]")))
+                b.label:SetText(prefix .. (stripQualityIcon(link) or ("[" .. name .. "]")) .. suff)
             end)
         end
     else
         b.link = nil
         b.icon:SetTexture(nil)
-        b.label:SetText(prefix .. (fallback or "-"))
+        b.label:SetText(prefix .. (fallback or "-") .. suff)
     end
     b:Show()
 end
@@ -868,11 +871,27 @@ local TRINKET_VIEWS = { "overall", "raid", "dungeon" }
 local TRINKET_VIEW_LABEL = { overall = "trinket_overall", raid = "trinket_raid",
                              dungeon = "trinket_dungeon" }
 
+-- Stat-Modus eines Trinkets (Bloodmallet-Klammer-Suffix) -> lokalisierte Kurzform.
+-- Dieselbe itemID kann in mehreren Modi auftauchen (Rubinwelpenschale 4x); der Modus
+-- in Klammern hinter dem Namen sagt, welcher Sekundaerwert welchen Platz belegt.
+local deDE = (GetLocale() == "deDE")
+local TRINKET_MODE_LABEL = deDE and {
+    Crit = "Krit", Haste = "Tempo", Mastery = "Meisterschaft",
+    Vers = "Vielseitigkeit", Versatility = "Vielseitigkeit",
+    St = "Einzelziel", Aoe = "AoE", Cleave = "Cleave",
+} or {
+    St = "Single", Aoe = "AoE",
+}
+local function trinketModeLabel(mode)
+    if not mode or mode == "" then return nil end
+    return TRINKET_MODE_LABEL[mode] or mode
+end
+
 local function trinketData(specID)
-    -- Quelle: WCL-Nutzung (Teil des MetaMirrorData-Datensatzes), nicht mehr Bloodmallet.
-    local root = _G.MetaMirrorData
-    if not (root and root.trinkets and specID) then return nil end
-    return root.trinkets[specID]
+    -- Quelle: Bloodmallet-Sim-BiS (Data/MetaMirrorTrinkets.lua), unabhaengig von WCL.
+    local root = _G.MetaMirrorTrinkets
+    if not (root and root.specs and specID) then return nil end
+    return root.specs[specID]
 end
 
 -- Trinket-Zeile: [Tier] [Icon] [Name] .......... [Quelle]. Feldnamen (icon/src/label)
@@ -985,13 +1004,19 @@ local function renderTrinkets(self, specID)
         b.tier:SetText(""); b.icon:SetTexture(nil); b.link = nil
         b.src.srcData = nil; b.src.text:SetText(""); b.src:Hide()
         boundLabel(b, false)
-        b.label:SetText(DIM_HEX .. L.trinket_no_data .. "|r")
+        -- Ganze Spec ohne Bloodmallet-Daten -> ehrlicher Hinweis; die Liste fuellt sich,
+        -- sobald Bloodmallet fuer diese Spec Profile liefert (Nachschub).
+        b.label:SetText(DIM_HEX .. L.trinket_no_bm .. "|r")
+        b.label:SetWordWrap(true)
         b:Show()
-        child:SetHeight(28)
+        child:SetHeight(48)
         return
     end
-    -- Hinweis: Tiers = Nutzungshaeufigkeit der Top-Parses (empirisch), kein Sim-DPS.
-    Body.tkNote:SetText(DIM_HEX .. L.trinket_note .. "|r"); Body.tkNote:Show()
+    -- Hinweis: Tiers = Sim-DPS-Rueckstand (bloodmallet.com). Fehlt eine Dungeon-Sim,
+    -- steht "nur Einzelziel" dabei (Gesamt/Raid/Dungeon zeigen dann dieselbe Rangliste).
+    local note = L.trinket_note
+    if spec.singleSource then note = note .. " " .. L.trinket_single end
+    Body.tkNote:SetText(DIM_HEX .. note .. "|r"); Body.tkNote:Show()
 
     local list = spec[view] or {}
     local y, i = 0, 0
@@ -999,11 +1024,14 @@ local function renderTrinkets(self, specID)
         i = i + 1
         local b = getTkRow(child, i)
         b:ClearAllPoints(); b:SetPoint("TOPLEFT", 8, -y)
+        b.label:SetWordWrap(false)
         -- Wie im Gear-Tab auf Maximalstufe anzeigen: Mythos-6/6-Upgrade-Bonus in den
         -- Item-Link injizieren -> Raid-/Dungeon-Drops erscheinen auf hoechster Stufe.
         -- Bei Handwerks-/PvP-Trinkets (nicht auf dem Upgrade-Track) ignoriert der Client
         -- den Bonus und zeigt die Grundform -> kein kaputter Link.
-        setItemRow(b, nil, e.itemID, nil, nil, { MYTH_6_6_BONUS })
+        -- Stat-Modus (falls vorhanden) als "(Tempo)" o.ae. hinter den Namen -> so bleiben
+        -- die vier Rubinwelpenschale-Varianten (gleiche itemID) unterscheidbar.
+        setItemRow(b, nil, e.itemID, nil, nil, { MYTH_6_6_BONUS }, trinketModeLabel(e.mode))
         b.tier:SetText(e.tier or "")
         b.tier:SetTextColor(unpack(TIER_COLOR[e.tier] or C.DIM))
         applyRowSource(b, e.itemID)            -- Quelle rechts (Boss/Klassenset)
