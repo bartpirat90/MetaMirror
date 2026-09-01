@@ -187,17 +187,30 @@ local function getRow(i)
     if rows[i] then return rows[i] end
     local r = CreateFrame("Frame", nil, Body)
     r:SetSize(336, 40)
+    -- Class-Codex-Layout: Name links; rechts Prozent + "aktuell / Ziel" + Status-Pfeil.
     r.name  = fs(r, "GameFontNormalSmall", C.TXT);   r.name:SetPoint("TOPLEFT", 0, 0)
-    r.chip  = fs(r, "GameFontNormalSmall");           r.chip:SetPoint("LEFT", r.name, "RIGHT", 8, 0)
-    r.nums  = fs(r, "GameFontHighlightSmall", C.DIM); r.nums:SetPoint("TOPRIGHT", 0, 0)
-    r.track = tex(r, "BORDER", C.PANEL2); r.track:SetPoint("TOPLEFT", 0, -20); r.track:SetSize(336, 12)
-    r.fill  = r:CreateTexture(nil, "ARTWORK"); r.fill:SetPoint("TOPLEFT", 0, -20); r.fill:SetHeight(12)
-    r.mark  = r:CreateTexture(nil, "OVERLAY"); r.mark:SetColorTexture(unpack(C.GOLD)); r.mark:SetSize(2, 18)
+    r.arrow = r:CreateTexture(nil, "OVERLAY");        r.arrow:SetSize(12, 12)
+    r.arrow:SetPoint("TOPRIGHT", 0, -1)
+    r.nums  = fs(r, "GameFontHighlightSmall", C.TXT); r.nums:SetPoint("RIGHT", r.arrow, "LEFT", -6, 0)
+    r.track = tex(r, "BORDER", C.PANEL2); r.track:SetPoint("TOPLEFT", 0, -20); r.track:SetSize(336, 13)
+    r.fill  = r:CreateTexture(nil, "ARTWORK"); r.fill:SetPoint("TOPLEFT", 0, -20); r.fill:SetHeight(13)
+    r.mark  = r:CreateTexture(nil, "OVERLAY"); r.mark:SetColorTexture(unpack(C.GOLD)); r.mark:SetSize(2, 17)
     rows[i] = r
     return r
 end
 
-local STATUS_COL = { under = "AMBER", over = "BLUE", on = "GREEN", unknown = "DIM" }
+local STATUS_COL = { under = "CORAL", over = "BLUE", on = "GREEN", unknown = "DIM" }
+
+-- Blizzard-Texturen fuer den Status (der WoW-Font hat keine Pfeil-/Haken-Glyphen).
+-- Pfeile sind graustufig -> per SetVertexColor einfaerbbar; der Haken ist nativ gruen.
+local ARROW_TEX = {
+    under = "Interface\\Buttons\\Arrow-Down-Up",   -- zeigt nach unten = unter Ziel
+    over  = "Interface\\Buttons\\Arrow-Up-Up",     -- zeigt nach oben  = ueber Ziel
+    on    = "Interface\\RaidFrame\\ReadyCheck-Ready",
+}
+
+-- Farbcode fuer den gedaempften "/ Ziel"-Teil der Zahlenzeile (entspricht C.DIM).
+local DIM_CODE = "|cff9a92c0"
 
 local function renderStats(self, data)
     local i = 0
@@ -214,40 +227,41 @@ local function renderStats(self, data)
         r.name:SetText(L["stat_" .. entry.key])
 
         if status == "unknown" then
-            -- Kampf/Instanz: eigenes Rating ist geschuetzt (secret) -> nur das Ziel zeigen
-            r.chip:SetText(L.secret_chip); r.chip:SetTextColor(unpack(C.DIM))
-            r.nums:SetText(string.format("%s %d", L.target, target))
+            -- Kampf/Instanz: eigenes Rating ist geschuetzt (secret) -> nur das Ziel zeigen.
+            r.arrow:Hide()
+            r.nums:SetText(string.format("%s%s / %d|r", DIM_CODE, L.secret_chip, target))
+            r.nums:SetTextColor(unpack(C.DIM))
             local scale = target * 1.4
             if scale <= 0 then scale = 1 end
             r.fill:SetColorTexture(col[1], col[2], col[3], 1)
             r.fill:SetWidth(1)
             r.mark:ClearAllPoints()
-            r.mark:SetPoint("TOP", r.track, "TOPLEFT", 336 * (target / scale), 3)
+            r.mark:SetPoint("TOP", r.track, "TOPLEFT", 336 * (target / scale), 2)
         else
             local cr = cur.rating
-            -- Status ueber Farbe + Text (keine Unicode-Pfeile: der WoW-Font rendert
-            -- Dreiecke/Haken als leere "Tofu"-Kaesten).
+            -- Status als farbiger Textur-Pfeil rechts (runter=unter, hoch=ueber, Haken=im Ziel).
             if status == "under" then
-                r.chip:SetText(string.format(L.need, target - cr))
-                r.chip:SetTextColor(unpack(C.AMBER))
+                r.arrow:SetTexture(ARROW_TEX.under); r.arrow:SetVertexColor(unpack(C.CORAL))
             elseif status == "over" then
-                r.chip:SetText(string.format(L.over, cr - target))
-                r.chip:SetTextColor(unpack(C.BLUE))
+                r.arrow:SetTexture(ARROW_TEX.over); r.arrow:SetVertexColor(unpack(C.BLUE))
             else
-                r.chip:SetText(L.on_target); r.chip:SetTextColor(unpack(C.GREEN))
+                r.arrow:SetTexture(ARROW_TEX.on); r.arrow:SetVertexColor(1, 1, 1)
             end
-            -- Eigener Live-Prozentwert (sicher lesbar ausserhalb Kampf) + Rating vs. Meta-Ziel.
-            -- pct kann fehlen, obwohl das Rating nutzbar ist -> defensiv weglassen.
-            local pctStr = cur.pct and string.format("%.1f%% \194\183 ", cur.pct) or ""
-            r.nums:SetText(string.format("%s%d \194\183 %s %d", pctStr, cr, L.target, target))
+            r.arrow:Show()
 
-            -- Balken: Fuellung = eigenes Rating relativ zur Skala (max*1.2), Marke = Ziel
+            -- Zahlen rechts: eigener Live-Prozent (falls lesbar) + "aktuell / Ziel".
+            -- "/ Ziel" gedaempft; pct kann fehlen (secret) -> dann weglassen.
+            r.nums:SetTextColor(unpack(C.TXT))
+            local pctStr = cur.pct and string.format("%.1f%%  ", cur.pct) or ""
+            r.nums:SetText(string.format("%s%d %s/ %d|r", pctStr, cr, DIM_CODE, target))
+
+            -- Balken: Fuellung = eigenes Rating relativ zur Skala (max*1.2), Marke = Ziel.
             local scale = math.max(cr, target) * 1.2
             if scale <= 0 then scale = 1 end
             r.fill:SetColorTexture(col[1], col[2], col[3], 1)
             r.fill:SetWidth(math.max(1, 336 * (cr / scale)))
             r.mark:ClearAllPoints()
-            r.mark:SetPoint("TOP", r.track, "TOPLEFT", 336 * (target / scale), 3)
+            r.mark:SetPoint("TOP", r.track, "TOPLEFT", 336 * (target / scale), 2)
         end
         r:Show()
     end
