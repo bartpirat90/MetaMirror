@@ -17,7 +17,16 @@ def _spec_block(agg, indent):
 
     lines.append(f"{p}talents = {{")
     for t in agg.talents:
-        lines.append(f'{p2}{{ importString = {_q(t["importString"])}, usagePct = {int(t["usagePct"])} }},')
+        nodes = t.get("nodes") or []
+        node_str = ", ".join(
+            f'{{ nodeID = {int(nd["nodeID"])}, entryID = {int(nd.get("entryID") or 0)}, '
+            f'rank = {int(nd.get("rank") or 1)} }}'
+            for nd in nodes
+        )
+        lines.append(
+            f'{p2}{{ importString = {_q(t["importString"])}, usagePct = {int(t["usagePct"])}, '
+            f'nodes = {{ {node_str} }} }},'
+        )
     lines.append(f"{p}}},")
 
     lines.append(f"{p}gear = {{")

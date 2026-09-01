@@ -40,3 +40,14 @@ def test_talent_signature_sorted_by_node():
                                content="raid", season=SEASON)
     assert rec.talent_sig == "80978:1|80981:1"
     assert rec.talent_import == ""
+
+
+def test_talent_nodes_capture_entry_id():
+    # id aus WCL = gewaehlte Entry-ID -> muss pro Node mit nodeID/rank erhalten bleiben,
+    # damit das Addon Choice-Nodes korrekt serialisieren kann.
+    rec = parse_combatant_info(COMBATANT_INFO, class_id=7, spec_id=262,
+                               content="raid", season=SEASON)
+    assert rec.talent_nodes == [
+        {"nodeID": 80978, "entryID": 101844, "rank": 1},
+        {"nodeID": 80981, "entryID": 101850, "rank": 1},
+    ]

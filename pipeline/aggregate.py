@@ -83,8 +83,13 @@ def aggregate(records, spec_id, season, item_name):
 
     sig, cnt = _most_common([r.talent_sig for r in records])
     imports = [r.talent_import for r in records if r.talent_sig == sig and r.talent_import]
+    # Repraesentanten des meistgenutzten Builds nehmen -> seine Knoten (nodeID/entryID/rank)
+    # emittieren; daraus baut das Addon in-game den Aktivieren-Import-String.
+    rep_nodes = next((r.talent_nodes for r in records
+                      if r.talent_sig == sig and r.talent_nodes), [])
     talents = [{"importString": imports[0] if imports else "",
-                "usagePct": round(100 * cnt / n) if n else 0}]
+                "usagePct": round(100 * cnt / n) if n else 0,
+                "nodes": rep_nodes}]
 
     slot_gear = {}
     slot_enchant = {}

@@ -305,22 +305,50 @@ local function renderTalents(data)
         TalentBox.usage:SetPoint("TOPLEFT", 4, -48)
         TalentBox.hint = fs(Body, "GameFontHighlightSmall", C.DIM)
         TalentBox.hint:SetPoint("TOPLEFT", 4, -104)
+        -- „Aktivieren"-Button: erzeugt den Import-String in-game und markiert ihn zum Kopieren.
+        local btn = CreateFrame("Button", nil, Body, "UIPanelButtonTemplate")
+        btn:SetSize(150, 22); btn:SetPoint("TOPLEFT", 4, -128)
+        btn:SetText(L.talent_activate)
+        btn:SetScript("OnClick", function()
+            local box = TalentBox
+            if box.built and box.built ~= "" then
+                box:Show(); box:SetText(box.built); box:SetCursorPosition(0)
+                box:SetFocus(); box:HighlightText()
+                TalentBox.hint:SetText(L.talent_copy_hint)
+            end
+        end)
+        TalentBox.actBtn = btn
     end
     local t = data.talents and data.talents[1]
-    local imp = t and t.importString or ""
     TalentBox.title:Show(); TalentBox.title:SetText(L.talent_meta_title)
     TalentBox.sub:Show(); TalentBox.sub:SetText(L.talent_meta_sub)
     TalentBox.usage:Show()
     TalentBox.usage:SetText(t and string.format(L.usage, t.usagePct) or "")
-    if imp ~= "" then
-        -- Kopierbarer Import-String (sobald die Datenquelle einen liefert).
+
+    -- Bevorzugt: aus den Meta-Build-Knoten (nodeID/entryID/rank) in-game einen Import-String
+    -- bauen (Kopf aus eigener Spec). Fallback: mitgelieferter importString. Sonst Hinweis.
+    local built
+    if t and t.nodes and #t.nodes > 0 and MetaMirror.BuildLoadoutFromMap then
+        local map = {}
+        for _, nd in ipairs(t.nodes) do
+            if nd.nodeID then map[nd.nodeID] = { entryID = nd.entryID, rank = nd.rank } end
+        end
+        built = MetaMirror:BuildLoadoutFromMap(map)   -- nil bei API-/Spec-Fehler
+    end
+    if not built or built == "" then
+        built = (t and t.importString ~= "" and t.importString) or nil
+    end
+    TalentBox.built = built or ""
+
+    if built and built ~= "" then
         TalentBox:Show(); TalentBox.hint:Show()
         TalentBox.hint:SetText(L.copy_hint)
-        TalentBox:SetText(imp)
-        TalentBox:SetCursorPosition(0)
+        TalentBox:SetText(built); TalentBox:SetCursorPosition(0)
+        TalentBox.actBtn:Show()
     else
-        -- WCL liefert (noch) keinen Blizzard-Import-String -> ehrlich benennen.
+        -- Keine Knoten und kein Import-String (z.B. Datensatz noch ohne nodes) -> Hinweis.
         TalentBox:Hide()
+        TalentBox.actBtn:Hide()
         TalentBox.hint:Show()
         TalentBox.hint:SetText(L.talent_no_import)
     end
@@ -330,6 +358,7 @@ local function hideTalents()
         TalentBox:Hide(); TalentBox.hint:Hide(); TalentBox.usage:Hide()
         if TalentBox.title then TalentBox.title:Hide() end
         if TalentBox.sub then TalentBox.sub:Hide() end
+        if TalentBox.actBtn then TalentBox.actBtn:Hide() end
     end
 end
 

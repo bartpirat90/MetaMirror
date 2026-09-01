@@ -50,8 +50,15 @@ def parse_combatant_info(event, class_id, spec_id, content, season):
 
     tree = event.get("talentTree") or []
     talent_sig = "|".join(sorted(f"{n.get('nodeID')}:{n.get('rank', 1)}" for n in tree))
+    # id = gewaehlte Entry-ID (bei Choice-Nodes entscheidend); nodeID = Baumknoten.
+    talent_nodes = [
+        {"nodeID": int(n["nodeID"]), "entryID": int(n.get("id") or 0),
+         "rank": int(n.get("rank") or 1)}
+        for n in tree if n.get("nodeID")
+    ]
 
     return ParseRecord(
         class_id=class_id, spec_id=spec_id, content=content, stats=stats,
         talent_import="", talent_sig=talent_sig, gear=gear, consumables=consumables,
+        talent_nodes=talent_nodes,
     )
