@@ -305,52 +305,49 @@ local function renderTalents(data)
         TalentBox.usage:SetPoint("TOPLEFT", 4, -48)
         TalentBox.hint = fs(Body, "GameFontHighlightSmall", C.DIM)
         TalentBox.hint:SetPoint("TOPLEFT", 4, -104)
-        -- „Aktivieren"-Button: erzeugt den Import-String in-game und markiert ihn zum Kopieren.
+        -- „Build aktivieren"-Button: skillt die Talente per Klick direkt um (kein Copy-String).
         local btn = CreateFrame("Button", nil, Body, "UIPanelButtonTemplate")
-        btn:SetSize(150, 22); btn:SetPoint("TOPLEFT", 4, -128)
+        btn:SetSize(170, 24); btn:SetPoint("TOPLEFT", 4, -74)
         btn:SetText(L.talent_activate)
-        btn:SetScript("OnClick", function()
-            local box = TalentBox
-            if box.built and box.built ~= "" then
-                box:Show(); box:SetText(box.built); box:SetCursorPosition(0)
-                box:SetFocus(); box:HighlightText()
-                TalentBox.hint:SetText(L.talent_copy_hint)
+        btn:SetScript("OnClick", function(self)
+            local map = self.nodeMap
+            if not (map and MetaMirror.ActivateBuild) then return end
+            local ok, why = MetaMirror:ActivateBuild(map)
+            if ok then
+                TalentBox.hint:SetTextColor(unpack(C.GREEN))
+                TalentBox.hint:SetText(L.talent_activated)
+            else
+                TalentBox.hint:SetTextColor(unpack(C.CORAL))
+                TalentBox.hint:SetText((L.talent_activate_fail or "Fehler") .. ": " .. tostring(why))
             end
         end)
         TalentBox.actBtn = btn
     end
     local t = data.talents and data.talents[1]
+    -- EditBox aus der alten Copy-String-Loesung wird nicht mehr gebraucht.
+    TalentBox:Hide()
     TalentBox.title:Show(); TalentBox.title:SetText(L.talent_meta_title)
     TalentBox.sub:Show(); TalentBox.sub:SetText(L.talent_meta_sub)
     TalentBox.usage:Show()
     TalentBox.usage:SetText(t and string.format(L.usage, t.usagePct) or "")
+    TalentBox.hint:SetTextColor(unpack(C.DIM))
 
-    -- Bevorzugt: aus den Meta-Build-Knoten (nodeID/entryID/rank) in-game einen Import-String
-    -- bauen (Kopf aus eigener Spec). Fallback: mitgelieferter importString. Sonst Hinweis.
-    local built
-    if t and t.nodes and #t.nodes > 0 and MetaMirror.BuildLoadoutFromMap then
-        local map = {}
+    -- Meta-Build-Knoten (nodeID/entryID/rank) vorhanden? -> Aktivieren-Button scharf schalten.
+    local map
+    if t and t.nodes and #t.nodes > 0 then
+        map = {}
         for _, nd in ipairs(t.nodes) do
             if nd.nodeID then map[nd.nodeID] = { entryID = nd.entryID, rank = nd.rank } end
         end
-        built = MetaMirror:BuildLoadoutFromMap(map)   -- nil bei API-/Spec-Fehler
     end
-    if not built or built == "" then
-        built = (t and t.importString ~= "" and t.importString) or nil
-    end
-    TalentBox.built = built or ""
-
-    if built and built ~= "" then
-        TalentBox:Show(); TalentBox.hint:Show()
-        TalentBox.hint:SetText(L.copy_hint)
-        TalentBox:SetText(built); TalentBox:SetCursorPosition(0)
+    if map then
+        TalentBox.actBtn.nodeMap = map
         TalentBox.actBtn:Show()
+        TalentBox.hint:Show(); TalentBox.hint:SetText(L.talent_activate_hint)
     else
-        -- Keine Knoten und kein Import-String (z.B. Datensatz noch ohne nodes) -> Hinweis.
-        TalentBox:Hide()
+        -- Datensatz noch ohne nodes (WCL-Re-Run ausstehend) -> Button aus, Hinweis.
         TalentBox.actBtn:Hide()
-        TalentBox.hint:Show()
-        TalentBox.hint:SetText(L.talent_no_import)
+        TalentBox.hint:Show(); TalentBox.hint:SetText(L.talent_no_import)
     end
 end
 local function hideTalents()

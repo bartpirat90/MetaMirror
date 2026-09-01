@@ -159,6 +159,87 @@ function MetaMirror:BuildLoadoutFromMap(nodeMap)
     return encodeBits(bits), nil, native
 end
 
+-- ===== Talente per Klick anwenden (echtes Umskillen, kein Copy-String) =====
+-- Wendet einen Meta-Build (nodeMap = {[nodeID]={entryID,rank}}) auf die aktive Konfig an:
+-- Baum zuruecksetzen -> in mehreren Durchgaengen SetSelection + PurchaseRank (Gating!) ->
+-- CommitConfig. Nur ausserhalb des Kampfes; bei Fehler Rollback. Gibt (true) oder
+-- (false, grund) zurueck. Etwaige Talent-Punkte-Ueberschreitung faengt der Commit ab.
+function MetaMirror:ActivateBuild(nodeMap)
+    if not (C_ClassTalents and C_Traits) then return false, "C_Traits API fehlt" end
+    if InCombatLockdown() then return false, "im Kampf nicht moeglich" end
+    local configID = C_ClassTalents.GetActiveConfigID and C_ClassTalents.GetActiveConfigID()
+    if not configID then return false, "keine aktive configID" end
+    local info = C_Traits.GetConfigInfo(configID)
+    local treeID = info and info.treeIDs and info.treeIDs[1]
+    if not treeID then return false, "keine treeID" end
+    local nodes = C_Traits.GetTreeNodes(treeID)
+
+    -- 1) Baum leeren: bevorzugt ResetTree, sonst Rang-Rueckerstattung pro Knoten.
+    if C_Traits.ResetTree then
+        pcall(C_Traits.ResetTree, configID, treeID)
+    elseif C_Traits.RefundAllRanks then
+        for _, nodeID in ipairs(nodes) do pcall(C_Traits.RefundAllRanks, configID, nodeID) end
+    end
+
+    -- 2) Mehrere Durchgaenge: Voraussetzungen muessen erst gekauft sein, bevor spaetere
+    --    Knoten kaufbar werden. Solange ein Durchgang Fortschritt bringt, weitermachen.
+    for _ = 1, 15 do
+        local progressed = false
+        for _, nodeID in ipairs(nodes) do
+            local sel = nodeMap[nodeID]
+            if sel then
+                local node = C_Traits.GetNodeInfo(configID, nodeID)
+                if isChoiceNode(node) and sel.entryID then
+                    local cur = node.activeEntry and node.activeEntry.entryID
+                    if cur ~= sel.entryID then
+                        local ok = pcall(C_Traits.SetSelection, configID, nodeID, sel.entryID)
+                        if ok then progressed = true end
+                    end
+                end
+                local target = sel.rank or 1
+                local have = (C_Traits.GetNodeInfo(configID, nodeID).ranksPurchased) or 0
+                while have < target do
+                    local ok, bought = pcall(C_Traits.PurchaseRank, configID, nodeID)
+                    if not (ok and bought) then break end
+                    progressed = true
+                    have = have + 1
+                end
+            end
+        end
+        if not progressed then break end
+    end
+
+    -- 3) Uebernehmen; bei Ablehnung sauberer Rollback.
+    local ok, committed = pcall(C_ClassTalents.CommitConfig, configID)
+    if not (ok and committed) then
+        if C_Traits.RollbackConfig then pcall(C_Traits.RollbackConfig, configID) end
+        return false, "Commit abgelehnt (Punkte/Reihenfolge)"
+    end
+    return true
+end
+
+-- /mm apitalents: listet, welche fuer das Umskillen noetigen API-Funktionen existieren.
+-- Damit laesst sich ein Fehlschlag von ActivateBuild in einem Lauf diagnostizieren.
+function MetaMirror:DumpTalentAPI()
+    local checks = {
+        "C_ClassTalents.GetActiveConfigID", "C_ClassTalents.CommitConfig",
+        "C_ClassTalents.LoadConfig", "C_ClassTalents.ImportLoadout",
+        "C_Traits.GetConfigInfo", "C_Traits.GetTreeNodes", "C_Traits.GetNodeInfo",
+        "C_Traits.ResetTree", "C_Traits.RefundAllRanks", "C_Traits.RefundRank",
+        "C_Traits.PurchaseRank", "C_Traits.SetSelection", "C_Traits.RollbackConfig",
+        "C_Traits.CanPurchaseRank", "C_Traits.GetTreeInfo",
+    }
+    local lines = { "Talent-API-Check:" }
+    for _, path in ipairs(checks) do
+        local tbl, fn = path:match("^(.-)%.(.+)$")
+        local t = _G[tbl]
+        local exists = t and type(t[fn]) == "function"
+        lines[#lines + 1] = (exists and "  [x] " or "  [ ] ") .. path
+    end
+    print("|cffa855f7[MM]|r " .. table.concat(lines, "\n"))
+    if self.ShowCopy then self:ShowCopy(table.concat(lines, "\n"), "Talent-API") end
+end
+
 -- Parst einen Loadout-String (nach dem 152-Bit-Kopf) in Knoten-Records -- generisch aus
 -- dem Bitstrom, also die WAHRHEIT je Knoten (unabhaengig von meiner Ableitung).
 local function parseLoadout(str)

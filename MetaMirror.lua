@@ -67,6 +67,8 @@ SlashCmdList["METAMIRROR"] = function(msg)
         if MetaMirror.DiffTalentString then MetaMirror:DiffTalentString() end
     elseif msg == "testmetatalent" then
         if MetaMirror.TestMetaTalentString then MetaMirror:TestMetaTalentString() end
+    elseif msg == "apitalents" then
+        if MetaMirror.DumpTalentAPI then MetaMirror:DumpTalentAPI() end
     elseif msg == "reset" then
         MetaMirrorDB.pos = nil
         print("|cffa855f7[MM]|r Position zurueckgesetzt.")
