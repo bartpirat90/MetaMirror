@@ -8,8 +8,7 @@ def _rec(spec_id, content, t1, t2):
         {"slot": "TRINKET2", "item_id": t2, "item_level": 300, "enchant_id": 0, "gems": [], "bonus_ids": []},
     ]
     return ParseRecord(class_id=9, spec_id=spec_id, content=content, stats={},
-                       talent_import="", talent_sig="A", gear=gear,
-                       consumables={})
+                       gear=gear, consumables={})
 
 
 def _name(i):

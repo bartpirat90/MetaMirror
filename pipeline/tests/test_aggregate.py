@@ -2,10 +2,9 @@ from pipeline.models import ParseRecord
 from pipeline.aggregate import aggregate
 
 
-def _rec(stats, sig="A", gear=None, cons=None):
+def _rec(stats, gear=None, cons=None):
     return ParseRecord(
         class_id=1, spec_id=71, content="raid", stats=stats,
-        talent_import="", talent_sig=sig,
         gear=gear or [{"slot": "HEAD", "item_id": 100, "enchant_id": 0, "gems": []}],
         consumables=cons or {"flask": 212283, "food": None, "phial": None,
                              "potion": None, "oil": None, "rune": None},
@@ -31,14 +30,13 @@ def test_aggregate_median_ratings_and_order():
     assert agg.stats[0]["key"] == "haste"   # hoechstes Rating
 
 
-def test_aggregate_most_common_talent_and_gear_and_consumables():
+def test_aggregate_most_common_gear_and_consumables():
     recs = [
-        _rec({"haste": 7000, "crit": 5600, "mastery": 3500, "vers": 3900}, sig="A"),
-        _rec({"haste": 7000, "crit": 5600, "mastery": 3500, "vers": 3900}, sig="A"),
-        _rec({"haste": 7000, "crit": 5600, "mastery": 3500, "vers": 3900}, sig="B"),
+        _rec({"haste": 7000, "crit": 5600, "mastery": 3500, "vers": 3900}),
+        _rec({"haste": 7000, "crit": 5600, "mastery": 3500, "vers": 3900}),
+        _rec({"haste": 7000, "crit": 5600, "mastery": 3500, "vers": 3900}),
     ]
     agg = aggregate(recs, spec_id=71, season=SEASON, item_name=lambda i: f"item{i}")
-    assert agg.talents[0]["usagePct"] == 67          # 2 von 3
     assert agg.gear[0]["slot"] == "HEAD" and agg.gear[0]["itemID"] == 100
     assert agg.gear[0]["name"] == "item100"
     assert agg.consumables["flask"] == 212283

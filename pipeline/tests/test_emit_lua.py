@@ -6,10 +6,6 @@ def _agg():
     return AggregatedSpec(
         sample_size=42,
         stats=[{"key": "haste", "rating": 961}, {"key": "crit", "rating": 1371}],
-        talents=[{"importString": "ABC=", "usagePct": 68, "strongest": True,
-                  "heroNode": 99849, "heroEntryID": 123456,
-                  "nodes": [{"nodeID": 80978, "entryID": 101844, "rank": 1},
-                            {"nodeID": 80981, "entryID": 101850, "rank": 2}]}],
         gear=[{"slot": "HEAD", "itemID": 21001, "itemLevel": 311,
                "bonusIDs": [6652, 12843], "name": "Helm"}],
         gems=[{"slot": "RING1", "itemID": 90001, "name": "+Haste"}],
@@ -28,10 +24,7 @@ def test_emit_structure_and_values():
     assert "mythicplus = {" in out and "raid = {" in out
     assert 'sampleSize = 42' in out
     assert '{ key = "haste", rating = 961 }' in out
-    assert 'importString = "ABC="' in out
-    assert 'strongest = true' in out
-    assert 'heroNode = 99849' in out and 'heroEntryID = 123456' in out
-    assert '{ nodeID = 80978, entryID = 101844, rank = 1 }' in out
+    assert 'talents' not in out
     assert 'itemID = 21001' in out
     assert 'itemLevel = 311' in out
     assert 'bonusIDs = { 6652, 12843 }' in out

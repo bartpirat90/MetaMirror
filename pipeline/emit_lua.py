@@ -15,22 +15,6 @@ def _spec_block(agg, indent):
         lines.append(f'{p2}{{ key = {_q(s["key"])}, rating = {int(s["rating"])} }},')
     lines.append(f"{p}}},")
 
-    lines.append(f"{p}talents = {{")
-    for t in agg.talents:
-        nodes = t.get("nodes") or []
-        node_str = ", ".join(
-            f'{{ nodeID = {int(nd["nodeID"])}, entryID = {int(nd.get("entryID") or 0)}, '
-            f'rank = {int(nd.get("rank") or 1)} }}'
-            for nd in nodes
-        )
-        lines.append(
-            f'{p2}{{ importString = {_q(t["importString"])}, usagePct = {int(t["usagePct"])}, '
-            f'strongest = {"true" if t.get("strongest") else "false"}, '
-            f'heroNode = {int(t.get("heroNode") or 0)}, heroEntryID = {int(t.get("heroEntryID") or 0)}, '
-            f'nodes = {{ {node_str} }} }},'
-        )
-    lines.append(f"{p}}},")
-
     lines.append(f"{p}gear = {{")
     for g in agg.gear:
         bonus = ", ".join(str(int(b)) for b in g.get("bonusIDs", []))

@@ -3,12 +3,12 @@ local C, L = MetaMirror.C, MetaMirror.L
 
 -- "improve" fasst Verzauberungen + Edelsteine + Verbrauchsmaterial auf einer
 -- Seite mit einklappbaren Abschnitten zusammen (Class-Codex-"Verbesserungen").
-local TABS = { "stats", "talents", "gear", "schmuck", "improve" }
+local TABS = { "stats", "gear", "schmuck", "improve" }
 local TAB_LABEL = {
-    stats = "tab_stats", talents = "tab_talents", gear = "tab_gear",
+    stats = "tab_stats", gear = "tab_gear",
     schmuck = "tab_schmuck", improve = "tab_improve",
 }
-local VALID_TABS = { stats = true, talents = true, gear = true,
+local VALID_TABS = { stats = true, gear = true,
                      schmuck = true, improve = true }
 
 local Panel, Tabs, Body, Header, CtxBtns = nil, {}, nil, nil, {}
@@ -284,148 +284,6 @@ local function renderStats(self, data)
     for j = i + 1, #rows do rows[j]:Hide() end
 end
 
--- Talente: pro Hero-Talent-Baum eine Build-Karte (Name, „staerkster"/„aktiv"-Badge,
--- Nutzungsquote, eigener Aktivieren-Button). Loest „welchen Build aktiviere ich?".
-local TalentUI
-local function ensureTalentUI()
-    if TalentUI then return TalentUI end
-    local ui = { cards = {} }
-    -- „Meta-Empfehlung" als Kopfzeile (Alleinstellungsmerkmal: aus echten Top-Parses).
-    ui.header = fs(Body, "GameFontNormalLarge", C.VIOLET_S)
-    ui.header:SetPoint("TOPLEFT", 4, -6)
-    ui.sub = fs(Body, "GameFontHighlightSmall", C.DIM)
-    ui.sub:SetPoint("TOPLEFT", 4, -28)
-    TalentUI = ui
-    return ui
-end
-
-local function getTalentCard(i)
-    local ui = ensureTalentUI()
-    if ui.cards[i] then return ui.cards[i] end
-    local card = CreateFrame("Frame", nil, Body)
-    card:SetSize(404, 88)
-    card.bg = card:CreateTexture(nil, "BACKGROUND")
-    card.bg:SetAllPoints(); card.bg:SetColorTexture(1, 1, 1, 0.03)
-    card.edge = card:CreateTexture(nil, "BORDER")           -- farbiger Akzent links (Zustand)
-    card.edge:SetPoint("TOPLEFT"); card.edge:SetPoint("BOTTOMLEFT"); card.edge:SetWidth(3)
-    card.name = fs(card, "GameFontNormalLarge", C.TXT)      -- Hero-Baum-Name
-    card.name:SetPoint("TOPLEFT", 12, -10); card.name:SetJustifyH("LEFT")
-    card.badge = fs(card, "GameFontNormalSmall", C.VIOLET_S)  -- „staerkster" / „aktiv"
-    card.badge:SetPoint("TOPRIGHT", -12, -12)
-    card.usage = fs(card, "GameFontHighlightSmall", C.SEC)
-    card.usage:SetPoint("TOPLEFT", 12, -36)
-    card.status = fs(card, "GameFontHighlightSmall", C.DIM)
-    card.status:SetPoint("BOTTOMLEFT", 12, 10); card.status:SetWidth(230); card.status:SetJustifyH("LEFT")
-    local btn = CreateFrame("Button", nil, card, "UIPanelButtonTemplate")
-    btn:SetSize(150, 24); btn:SetPoint("BOTTOMRIGHT", -10, 8)
-    btn:SetText(L.talent_activate)
-    btn:SetScript("OnClick", function(self)
-        local map = self.nodeMap
-        if not (map and MetaMirror.ActivateBuild) then return end
-        local ok, why = MetaMirror:ActivateBuild(map, self.buildName)
-        if ok then
-            card.status:SetTextColor(unpack(C.GREEN))
-            if type(why) == "number" and why > 0 then
-                card.status:SetText(string.format(L.talent_filled, why))
-            else
-                card.status:SetText(L.talent_activated)
-            end
-        else
-            card.status:SetTextColor(unpack(C.CORAL))
-            card.status:SetText((L.talent_activate_fail or "Fehler") .. ": " .. tostring(why))
-        end
-    end)
-    card.actBtn = btn
-    ui.cards[i] = card
-    return card
-end
-
-local function renderTalents(data, content)
-    for j = 1, #rows do rows[j]:Hide() end
-    if Body.msg then Body.msg:Hide() end
-    local ui = ensureTalentUI()
-    ui.header:Show(); ui.header:SetText(L.talent_meta_title)
-    ui.sub:Show()
-
-    local builds = data.talents or {}
-    local activeHero = MetaMirror.ActiveHeroEntryID and MetaMirror:ActiveHeroEntryID()
-    ui.sub:SetText(#builds > 1 and L.talent_meta_multi or L.talent_meta_sub)
-    -- Loadout-Name je Inhalt (M+/Raid) -> erscheint im Talent-Fenster als benannter Build.
-    local ctxLabel = (content == "raid") and L.ctx_raid or L.ctx_mplus
-
-    local shown = 0
-    local y = -52
-    for i, t in ipairs(builds) do
-        local card = getTalentCard(i)
-        card:ClearAllPoints(); card:SetPoint("TOPLEFT", 4, y); y = y - 98
-        shown = i
-
-        local name = MetaMirror.HeroTreeName and MetaMirror:HeroTreeName(t.heroEntryID)
-        if not name then
-            name = (t.heroEntryID and t.heroEntryID > 0)
-                and string.format(L.talent_hero_generic, i) or L.talent_meta_title
-        end
-        card.name:SetText(name)
-        card.usage:SetText(string.format(L.usage, t.usagePct or 0))
-
-        -- Badge/Akzent: „aktiv" schlaegt „staerkster".
-        local isActive = activeHero and t.heroEntryID and t.heroEntryID > 0 and activeHero == t.heroEntryID
-        if isActive then
-            card.badge:SetTextColor(unpack(C.GREEN)); card.badge:SetText(L.talent_active_now)
-            card.edge:SetColorTexture(0.35, 1.0, 0.45, 0.85)
-        elseif t.strongest then
-            card.badge:SetTextColor(unpack(C.VIOLET_S)); card.badge:SetText(L.talent_strongest)
-            card.edge:SetColorTexture(0.66, 0.55, 0.98, 0.85)
-        else
-            card.badge:SetText("")
-            card.edge:SetColorTexture(1, 1, 1, 0.10)
-        end
-
-        -- Meta-Build-Knoten vorhanden? -> Aktivieren-Button scharf schalten.
-        local map
-        if t.nodes and #t.nodes > 0 then
-            map = {}
-            for _, nd in ipairs(t.nodes) do
-                if nd.nodeID then
-                    -- Multi-Rang-Knoten (Tiered) koennen mehrfach vorkommen (WCL je Rang-
-                    -- Stufe ein Eintrag). Raenge summieren, sonst gewinnt der letzte Teilrang
-                    -- und der Knoten wird zu niedrig geskillt -> Build unvollstaendig.
-                    local cur = map[nd.nodeID]
-                    if cur then
-                        cur.rank = (cur.rank or 1) + (nd.rank or 1)
-                        if (nd.rank or 1) > (cur._topr or 0) then
-                            cur._topr, cur.entryID = (nd.rank or 1), nd.entryID
-                        end
-                    else
-                        map[nd.nodeID] = { entryID = nd.entryID, rank = nd.rank or 1, _topr = nd.rank or 1 }
-                    end
-                end
-            end
-            for _, v in pairs(map) do v._topr = nil end
-        end
-        card.status:SetTextColor(unpack(C.DIM))
-        if map then
-            -- Loadout-Name: "Meta <M+|Raid>" plus Hero-Baum, falls bekannt.
-            local buildName = "Meta " .. ctxLabel
-            if t.heroEntryID and t.heroEntryID > 0 then buildName = buildName .. " " .. name end
-            card.actBtn.nodeMap = map; card.actBtn.buildName = buildName; card.actBtn:Show()
-            if i == 1 then MetaMirror._diagMap = map end   -- fuer /mm testapply (staerkster Build)
-            card.status:SetText(isActive and L.talent_active_hint or L.talent_activate_hint)
-        else
-            card.actBtn:Hide()
-            card.status:SetText(L.talent_no_import)
-        end
-        card:Show()
-    end
-
-    for j = shown + 1, #ui.cards do ui.cards[j]:Hide() end
-    if shown == 0 then ui.sub:SetText(L.talent_no_import) end
-end
-local function hideTalents()
-    if not TalentUI then return end
-    TalentUI.header:Hide(); TalentUI.sub:Hide()
-    for _, card in ipairs(TalentUI.cards) do card:Hide() end
-end
 
 -- Generische klickbare Item-Zeile (Shift-Klick -> Chat / AH-Suche).
 -- Wiederverwendet fuer Verbrauchsgueter, Gear, Steine und Verzauberungen.
@@ -888,7 +746,6 @@ end
 
 local function renderImprovements(self, data)
     for j = 1, #rows do rows[j]:Hide() end
-    hideTalents()
     hideItemRows()
     if Body.msg then Body.msg:Hide() end
     MetaMirrorDB.collapsed = MetaMirrorDB.collapsed or {}
@@ -1171,7 +1028,7 @@ function MetaMirror.RenderBody(self, classID, specID)
     -- fuer die Spec rendert.
     if MetaMirrorDB.tab == "schmuck" then
         for j = 1, #rows do rows[j]:Hide() end
-        hideTalents(); hideItemRows(); hideImprovements()
+        hideItemRows(); hideImprovements()
         Body.msg:Hide()
         renderTrinkets(self, specID)
         return
@@ -1180,21 +1037,17 @@ function MetaMirror.RenderBody(self, classID, specID)
     local data = self:DataFor(classID, specID, MetaMirrorDB.content)
     if not data then
         for j = 1, #rows do rows[j]:Hide() end
-        hideTalents()
         hideItemRows()
         hideImprovements()
         Body.msg:Show(); Body.msg:SetText(L.no_data)
         return
     end
     Body.msg:Hide()
-    hideTalents()
     hideItemRows()
     -- Scroll-Seite nur beim "Verbesserungen"-Tab zeigen.
     if MetaMirrorDB.tab ~= "improve" then hideImprovements() end
     if MetaMirrorDB.tab == "stats" then
         renderStats(self, data)
-    elseif MetaMirrorDB.tab == "talents" then
-        renderTalents(data, MetaMirrorDB.content)
     elseif MetaMirrorDB.tab == "gear" then
         -- Gear steht fuer sich: nur das Item, aber mit Maximalstufe + Sockeln (bonusIDs).
         local gear = {}

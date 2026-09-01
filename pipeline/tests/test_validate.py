@@ -7,7 +7,6 @@ def _good():
         sample_size=30,
         stats=[{"key": "haste", "rating": 961}, {"key": "crit", "rating": 1371},
                {"key": "mastery", "rating": 590}, {"key": "vers", "rating": 110}],
-        talents=[{"importString": "ABC=", "usagePct": 68}],
         gear=[{"slot": "HEAD", "itemID": 21001, "name": "Helm"}],
         gems=[], enchants=[], consumables={"flask": 212283},
     )

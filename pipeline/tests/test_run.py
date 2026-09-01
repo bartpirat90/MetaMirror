@@ -7,7 +7,6 @@ def _rec(cid, sid, content):
     return ParseRecord(
         class_id=cid, spec_id=sid, content=content,
         stats={"haste": 7000, "crit": 5600, "mastery": 3500, "vers": 3120},
-        talent_import="ABC=", talent_sig="A",
         gear=[{"slot": "HEAD", "item_id": 21001, "enchant_id": 0, "gems": []}],
         consumables={"flask": 212283, "food": None, "phial": None,
                      "potion": None, "oil": None, "rune": None},

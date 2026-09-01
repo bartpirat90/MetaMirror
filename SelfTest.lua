@@ -109,7 +109,7 @@ local dumpFrame
 local function showCopy(text, title)
     if not dumpFrame then
         local f = CreateFrame("Frame", "MetaMirrorDumpFrame", UIParent, "BackdropTemplate")
-        -- FULLSCREEN_DIALOG + Toplevel: muss ueber dem Talent-Frame liegen, sonst
+        -- FULLSCREEN_DIALOG + Toplevel: muss ueber Blizzard-Fenstern liegen, sonst
         -- verschwindet die Diagnose dahinter (haeufig uebersehen).
         f:SetSize(440, 380); f:SetPoint("CENTER"); f:SetFrameStrata("FULLSCREEN_DIALOG")
         f:SetToplevel(true); f:SetFrameLevel(1000)
@@ -139,7 +139,7 @@ local function showCopy(text, title)
     dumpFrame.eb:SetFocus(); dumpFrame.eb:HighlightText()
 end
 
--- Oeffentlich, damit andere Module (Talents.lua) denselben Kopier-Frame nutzen koennen.
+-- Oeffentlich, damit andere Dump-Befehle denselben Kopier-Frame nutzen koennen.
 function MetaMirror:ShowCopy(text, title)
     showCopy(text, title)
 end
@@ -341,57 +341,4 @@ function MetaMirror:DumpSource()
         end)
     end
     finishMaybe()
-end
-
--- /mm dumptalents : Grundlage fuer das Talent-Aktivieren-Feature. Gibt (1) den echten
--- Blizzard-Export-String der aktiv geladenen Talente und (2) die geordnete Baumstruktur
--- (Knoten-Reihenfolge + gewaehlte Eintraege/Raenge) aus. Damit laesst sich die
--- Serialisierung gegen verifizierte Daten nachbauen, statt das Bitformat zu raten.
-function MetaMirror:DumpTalents()
-    local lines = {}
-    local function add(s) lines[#lines + 1] = s end
-
-    local specIdx = GetSpecialization and GetSpecialization()
-    local specID = specIdx and GetSpecializationInfo and GetSpecializationInfo(specIdx)
-    add("== MetaMirror Talent-Dump ==")
-    add("specID = " .. tostring(specID))
-
-    local configID = C_ClassTalents and C_ClassTalents.GetActiveConfigID and C_ClassTalents.GetActiveConfigID()
-    add("configID = " .. tostring(configID))
-
-    -- (1) Export-String direkt via API (falls vorhanden). Sonst bitte manuell aus dem
-    --     Blizzard-Talentfenster ("Export"/"Kopieren") daneben schicken.
-    local exportStr
-    if C_Traits and C_Traits.GenerateImportString and configID then
-        local ok, s = pcall(C_Traits.GenerateImportString, configID)
-        if ok and s and s ~= "" then exportStr = s end
-    end
-    add("exportString = " .. (exportStr or "(API n/a -> bitte manuell aus dem Talentfenster kopieren)"))
-
-    -- (2) Baumstruktur: geordnete Knoten (Serialisierungsreihenfolge) + Auswahl.
-    if C_Traits and configID then
-        local cfg = C_Traits.GetConfigInfo(configID)
-        local treeIDs = (cfg and cfg.treeIDs) or {}
-        for _, treeID in ipairs(treeIDs) do
-            local nodes = C_Traits.GetTreeNodes(treeID) or {}
-            add(string.format("tree %s  nodeCount=%d", tostring(treeID), #nodes))
-            for i, nodeID in ipairs(nodes) do
-                local n = C_Traits.GetNodeInfo(configID, nodeID)
-                if n then
-                    local ranks = n.ranksPurchased or n.activeRank or 0
-                    local ae = n.activeEntry
-                    add(string.format("[%d] node=%d sel=%s rank=%s activeEntry=%s type=%s entries=%s",
-                        i, nodeID, tostring(ranks and ranks > 0), tostring(ranks),
-                        ae and tostring(ae.entryID) or "-", tostring(n.type),
-                        table.concat(n.entryIDs or {}, "/")))
-                end
-            end
-        end
-    else
-        add("C_Traits/configID nicht verfuegbar (Talentfenster einmal oeffnen?)")
-    end
-
-    showCopy(table.concat(lines, "\n"), "Talent-Dump")
-    print("|cffa855f7[MM]|r Talent-Dump fertig \226\128\148 Fenster offen (Strg+C). "
-        .. "Bitte zusaetzlich den Export-String aus dem Blizzard-Talentfenster schicken, falls oben 'API n/a'.")
 end

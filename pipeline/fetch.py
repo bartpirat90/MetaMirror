@@ -16,31 +16,6 @@ def _stat(event, *fields):
     return max(int(event.get(f) or 0) for f in fields)
 
 
-def _collapse_tree(tree):
-    """WCL-talentTree -> ein Eintrag je nodeID (Rang summiert). Multi-Rang-Knoten kommen
-    je Rang-Stufe mehrfach; das Addon keyt spaeter nach nodeID, also muss der Gesamtrang
-    in EINEM Eintrag stehen. entryID = die des hoechstrangigen Teil-Eintrags (bei Choice-
-    Nodes eindeutig, bei Tiered fuer die Anwendung irrelevant). Reihenfolge: erste Sicht."""
-    order, acc = [], {}
-    for n in tree:
-        nid = n.get("nodeID")
-        if not nid:
-            continue
-        nid = int(nid)
-        rank = int(n.get("rank") or 1)
-        entry = int(n.get("id") or 0)
-        if nid not in acc:
-            acc[nid] = {"nodeID": nid, "entryID": entry, "rank": rank, "_topr": rank}
-            order.append(nid)
-        else:
-            a = acc[nid]
-            a["rank"] += rank
-            if rank > a["_topr"]:
-                a["_topr"], a["entryID"] = rank, entry
-    return [{"nodeID": a["nodeID"], "entryID": a["entryID"], "rank": a["rank"]}
-            for a in (acc[nid] for nid in order)]
-
-
 def parse_combatant_info(event, class_id, spec_id, content, season):
     """Ein CombatantInfo-Event -> ParseRecord. Kapselt alle WCL-Struktur-Annahmen."""
     stats = {
@@ -73,16 +48,7 @@ def parse_combatant_info(event, class_id, spec_id, content, season):
         if info and consumables.get(info["cat"]) is None:
             consumables[info["cat"]] = info["item"]
 
-    tree = event.get("talentTree") or []
-    # WCL listet Multi-Rang-Knoten (Tiered) je Rang-Stufe als EIGENES Objekt (gleiche
-    # nodeID, andere id/entryID, rank je Stufe). Fuer Signatur UND Anwendung muss der
-    # Knoten EINMAL mit Gesamtrang stehen, sonst gewinnt beim nodeID-Keying der letzte
-    # (Teilrang) und der Build wird unvollstaendig angewendet. -> hier zusammenfassen.
-    talent_nodes = _collapse_tree(tree)
-    talent_sig = "|".join(sorted(f"{n['nodeID']}:{n['rank']}" for n in talent_nodes))
-
     return ParseRecord(
         class_id=class_id, spec_id=spec_id, content=content, stats=stats,
-        talent_import="", talent_sig=talent_sig, gear=gear, consumables=consumables,
-        talent_nodes=talent_nodes,
+        gear=gear, consumables=consumables,
     )
