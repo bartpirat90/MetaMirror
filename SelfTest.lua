@@ -106,7 +106,7 @@ local function enchantName(gearID, enchantID)
 end
 
 local dumpFrame
-local function showCopy(text)
+local function showCopy(text, title)
     if not dumpFrame then
         local f = CreateFrame("Frame", "MetaMirrorDumpFrame", UIParent, "BackdropTemplate")
         f:SetSize(440, 380); f:SetPoint("CENTER"); f:SetFrameStrata("DIALOG")
@@ -116,8 +116,8 @@ local function showCopy(text)
         f:SetBackdropBorderColor(0.42, 0.30, 0.70, 1)
         f:EnableMouse(true); f:SetMovable(true); f:RegisterForDrag("LeftButton")
         f:SetScript("OnDragStart", f.StartMoving); f:SetScript("OnDragStop", f.StopMoving)
-        local title = f:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-        title:SetPoint("TOP", 0, -9); title:SetText("MetaMirror \226\128\148 Enchant-Dump (Strg+C, dann schicken)")
+        f.title = f:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        f.title:SetPoint("TOP", 0, -9)
         local close = CreateFrame("Button", nil, f, "UIPanelCloseButton")
         close:SetPoint("TOPRIGHT", -2, -2)
         local sf = CreateFrame("ScrollFrame", "MetaMirrorDumpScroll", f, "UIPanelScrollFrameTemplate")
@@ -130,6 +130,7 @@ local function showCopy(text)
         f.eb = eb
         dumpFrame = f
     end
+    dumpFrame.title:SetText("MetaMirror \226\128\148 " .. (title or "Enchant-Dump") .. " (Strg+C, dann schicken)")
     dumpFrame:Show()
     dumpFrame.eb:SetText(text)
     dumpFrame.eb:SetFocus(); dumpFrame.eb:HighlightText()
@@ -332,4 +333,57 @@ function MetaMirror:DumpSource()
         end)
     end
     finishMaybe()
+end
+
+-- /mm dumptalents : Grundlage fuer das Talent-Aktivieren-Feature. Gibt (1) den echten
+-- Blizzard-Export-String der aktiv geladenen Talente und (2) die geordnete Baumstruktur
+-- (Knoten-Reihenfolge + gewaehlte Eintraege/Raenge) aus. Damit laesst sich die
+-- Serialisierung gegen verifizierte Daten nachbauen, statt das Bitformat zu raten.
+function MetaMirror:DumpTalents()
+    local lines = {}
+    local function add(s) lines[#lines + 1] = s end
+
+    local specIdx = GetSpecialization and GetSpecialization()
+    local specID = specIdx and GetSpecializationInfo and GetSpecializationInfo(specIdx)
+    add("== MetaMirror Talent-Dump ==")
+    add("specID = " .. tostring(specID))
+
+    local configID = C_ClassTalents and C_ClassTalents.GetActiveConfigID and C_ClassTalents.GetActiveConfigID()
+    add("configID = " .. tostring(configID))
+
+    -- (1) Export-String direkt via API (falls vorhanden). Sonst bitte manuell aus dem
+    --     Blizzard-Talentfenster ("Export"/"Kopieren") daneben schicken.
+    local exportStr
+    if C_Traits and C_Traits.GenerateImportString and configID then
+        local ok, s = pcall(C_Traits.GenerateImportString, configID)
+        if ok and s and s ~= "" then exportStr = s end
+    end
+    add("exportString = " .. (exportStr or "(API n/a -> bitte manuell aus dem Talentfenster kopieren)"))
+
+    -- (2) Baumstruktur: geordnete Knoten (Serialisierungsreihenfolge) + Auswahl.
+    if C_Traits and configID then
+        local cfg = C_Traits.GetConfigInfo(configID)
+        local treeIDs = (cfg and cfg.treeIDs) or {}
+        for _, treeID in ipairs(treeIDs) do
+            local nodes = C_Traits.GetTreeNodes(treeID) or {}
+            add(string.format("tree %s  nodeCount=%d", tostring(treeID), #nodes))
+            for i, nodeID in ipairs(nodes) do
+                local n = C_Traits.GetNodeInfo(configID, nodeID)
+                if n then
+                    local ranks = n.ranksPurchased or n.activeRank or 0
+                    local ae = n.activeEntry
+                    add(string.format("[%d] node=%d sel=%s rank=%s activeEntry=%s type=%s entries=%s",
+                        i, nodeID, tostring(ranks and ranks > 0), tostring(ranks),
+                        ae and tostring(ae.entryID) or "-", tostring(n.type),
+                        table.concat(n.entryIDs or {}, "/")))
+                end
+            end
+        end
+    else
+        add("C_Traits/configID nicht verfuegbar (Talentfenster einmal oeffnen?)")
+    end
+
+    showCopy(table.concat(lines, "\n"), "Talent-Dump")
+    print("|cffa855f7[MM]|r Talent-Dump fertig \226\128\148 Fenster offen (Strg+C). "
+        .. "Bitte zusaetzlich den Export-String aus dem Blizzard-Talentfenster schicken, falls oben 'API n/a'.")
 end
