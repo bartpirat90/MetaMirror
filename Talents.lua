@@ -285,6 +285,24 @@ local function manualApply(configID, treeID, nodeMap)
     end
 end
 
+-- Fuellt die letzten wenigen Restpunkte mit beliebigen kaufbaren Knoten auf, bis die
+-- Waehrung leer ist. NUR fuer eine kleine Luecke gedacht: der reale Meta-Parse gibt
+-- gelegentlich 1-3 Punkte weniger aus als der Baum verlangt (Blizzard verweigert dann
+-- den Commit). So wird der Meta-Build ueberhaupt anwendbar. Gibt aufgefuellte Raenge zurueck.
+local function autoFill(configID, treeID)
+    local filled = 0
+    for _ = 1, 30 do
+        if pointsRemaining(configID, treeID) == 0 then break end
+        local progressed = false
+        for _, nodeID in ipairs(C_Traits.GetTreeNodes(treeID)) do
+            local ok, bought = pcall(C_Traits.PurchaseRank, configID, nodeID)
+            if ok and bought then progressed = true; filled = filled + 1 end
+        end
+        if not progressed then break end
+    end
+    return filled
+end
+
 -- Diagnose bei Commit-Ablehnung: Rest-Punkte je Waehrung + gemappte Knoten, die ihren
 -- Zielrang nicht erreicht haben. Unterscheidet "Kauf gescheitert" (Knoten in FEHLT) von
 -- "Daten unvollstaendig" (keine FEHLT, aber Waehrung uebrig -> Meta-Build spart Punkte).
@@ -341,24 +359,40 @@ function MetaMirror:ActivateBuild(nodeMap, buildName)
     local treeID = info and info.treeIDs and info.treeIDs[1]
     if not treeID then return false, "keine treeID" end
 
-    -- Weg 1: nativer Import. NICHT vorher zuruecksetzen -> falls Import in eine separate
-    -- Config ginge, bliebe die aktive unveraendert (importDidStage faengt das ab, kein
-    -- Leer-Commit). Nur committen, wenn der Import nachweislich hier gestaged hat.
+    local FILL_MAX = 6   -- so viele Restpunkte darf autoFill hoechstens ergaenzen
+
+    -- Weg 1: nativer Import (fuellt Hero-Baum + Gating korrekt, wie der spieleigene
+    -- Importknopf). NICHT vorher zuruecksetzen -> ginge der Import in eine separate Config,
+    -- bliebe die aktive unveraendert (importDidStage faengt das ab, kein Leer-Commit).
     if C_ClassTalents.ImportLoadout then
         local entries = buildImportEntries(treeID, nodeMap)
         local pok, success = pcall(C_ClassTalents.ImportLoadout, configID, entries, loadoutName)
         if pok and success and importDidStage(configID, nodeMap) then
-            local cok, committed = pcall(C_ClassTalents.CommitConfig, configID)
-            -- Erfolg NUR, wenn danach keine Punkte offen sind (sonst Fehlalarm-true).
-            if cok and committed and pointsRemaining(configID, treeID) == 0 then return true end
+            local rem = pointsRemaining(configID, treeID)
+            local filled = 0
+            -- Nur eine KLEINE Restluecke auffuellen (der Meta-Parse gibt manchmal 1-3
+            -- Punkte weniger aus). Grosse Luecke = strukturell falsch -> nicht auffuellen.
+            if rem > 0 and rem <= FILL_MAX then filled = autoFill(configID, treeID); rem = pointsRemaining(configID, treeID) end
+            if rem == 0 then
+                local cok, committed = pcall(C_ClassTalents.CommitConfig, configID)
+                -- Erfolg NUR, wenn danach keine Punkte offen sind (sonst Fehlalarm-true).
+                if cok and committed and pointsRemaining(configID, treeID) == 0 then
+                    return true, (filled > 0) and filled or nil
+                end
+            end
         end
         if C_Traits.RollbackConfig then pcall(C_Traits.RollbackConfig, configID) end
     end
 
-    -- Weg 2: manueller Kauf-Loop + Commit.
+    -- Weg 2 (Fallback): manueller Kauf-Loop + kleine Restluecke auffuellen + Commit.
     manualApply(configID, treeID, nodeMap)
+    local remM = pointsRemaining(configID, treeID)
+    local filledM = 0
+    if remM > 0 and remM <= FILL_MAX then filledM = autoFill(configID, treeID) end
     local ok, committed = pcall(C_ClassTalents.CommitConfig, configID)
-    if ok and committed and pointsRemaining(configID, treeID) == 0 then return true end
+    if ok and committed and pointsRemaining(configID, treeID) == 0 then
+        return true, (filledM > 0) and filledM or nil
+    end
 
     -- Beide Wege gescheitert: Diagnose sammeln (vor Rollback), Fenster + Chat zeigen.
     local text, missed = collectDiag(configID, treeID, nodeMap, "Loop")

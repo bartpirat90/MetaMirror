@@ -324,7 +324,12 @@ local function getTalentCard(i)
         if not (map and MetaMirror.ActivateBuild) then return end
         local ok, why = MetaMirror:ActivateBuild(map, self.buildName)
         if ok then
-            card.status:SetTextColor(unpack(C.GREEN)); card.status:SetText(L.talent_activated)
+            card.status:SetTextColor(unpack(C.GREEN))
+            if type(why) == "number" and why > 0 then
+                card.status:SetText(string.format(L.talent_filled, why))
+            else
+                card.status:SetText(L.talent_activated)
+            end
         else
             card.status:SetTextColor(unpack(C.CORAL))
             card.status:SetText((L.talent_activate_fail or "Fehler") .. ": " .. tostring(why))
