@@ -386,8 +386,22 @@ local function renderTalents(data, content)
         if t.nodes and #t.nodes > 0 then
             map = {}
             for _, nd in ipairs(t.nodes) do
-                if nd.nodeID then map[nd.nodeID] = { entryID = nd.entryID, rank = nd.rank } end
+                if nd.nodeID then
+                    -- Multi-Rang-Knoten (Tiered) koennen mehrfach vorkommen (WCL je Rang-
+                    -- Stufe ein Eintrag). Raenge summieren, sonst gewinnt der letzte Teilrang
+                    -- und der Knoten wird zu niedrig geskillt -> Build unvollstaendig.
+                    local cur = map[nd.nodeID]
+                    if cur then
+                        cur.rank = (cur.rank or 1) + (nd.rank or 1)
+                        if (nd.rank or 1) > (cur._topr or 0) then
+                            cur._topr, cur.entryID = (nd.rank or 1), nd.entryID
+                        end
+                    else
+                        map[nd.nodeID] = { entryID = nd.entryID, rank = nd.rank or 1, _topr = nd.rank or 1 }
+                    end
+                end
             end
+            for _, v in pairs(map) do v._topr = nil end
         end
         card.status:SetTextColor(unpack(C.DIM))
         if map then
