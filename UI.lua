@@ -226,15 +226,18 @@ local function renderStats(self, data)
         else
             local cr = cur.rating
             if status == "under" then
-                r.chip:SetText(string.format(L.need, target - cr))
+                r.chip:SetText("\226\150\188 " .. string.format(L.need, target - cr))
                 r.chip:SetTextColor(unpack(C.AMBER))
             elseif status == "over" then
-                r.chip:SetText(string.format(L.over, cr - target))
+                r.chip:SetText("\226\150\178 " .. string.format(L.over, cr - target))
                 r.chip:SetTextColor(unpack(C.BLUE))
             else
-                r.chip:SetText(L.on_target); r.chip:SetTextColor(unpack(C.GREEN))
+                r.chip:SetText("\226\156\147 " .. L.on_target); r.chip:SetTextColor(unpack(C.GREEN))
             end
-            r.nums:SetText(string.format("%d \194\183 %s %d", cr, L.target, target))
+            -- Eigener Live-Prozentwert (sicher lesbar ausserhalb Kampf) + Rating vs. Meta-Ziel.
+            -- pct kann fehlen, obwohl das Rating nutzbar ist -> defensiv weglassen.
+            local pctStr = cur.pct and string.format("%.1f%% \194\183 ", cur.pct) or ""
+            r.nums:SetText(string.format("%s%d \194\183 %s %d", pctStr, cr, L.target, target))
 
             -- Balken: Fuellung = eigenes Rating relativ zur Skala (max*1.2), Marke = Ziel
             local scale = math.max(cr, target) * 1.2

@@ -44,7 +44,12 @@ end)
 test("DataFor_present", function()
     local d = MetaMirror:DataFor(1, 71, "mythicplus")
     assertEqual(d ~= nil, true, "arms mplus present")
-    assertEqual(d.stats[1].key, "haste", "first stat")
+    -- Stats sind nach Rating sortiert; welcher Key oben steht, haengt von den
+    -- Live-Daten ab -> nur Struktur pruefen, keinen konkreten Stat festnageln.
+    assertEqual(#d.stats, 4, "vier Sekundaerwerte")
+    local valid = { haste = true, crit = true, mastery = true, vers = true }
+    assertEqual(valid[d.stats[1].key] == true, true, "erster Stat ist gueltiger Key")
+    assertEqual(type(d.stats[1].rating), "number", "erster Stat hat Rating")
 end)
 test("DataFor_missing", function()
     assertEqual(MetaMirror:DataFor(1, 71, "pvp"), nil, "no pvp content")
