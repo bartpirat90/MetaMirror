@@ -136,6 +136,11 @@ local function showCopy(text, title)
     dumpFrame.eb:SetFocus(); dumpFrame.eb:HighlightText()
 end
 
+-- Oeffentlich, damit andere Module (Talents.lua) denselben Kopier-Frame nutzen koennen.
+function MetaMirror:ShowCopy(text, title)
+    showCopy(text, title)
+end
+
 function MetaMirror:DumpEnchants()
     local data = MetaMirrorData
     if not (data and data.specs) then
