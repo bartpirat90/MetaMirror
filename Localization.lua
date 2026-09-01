@@ -42,6 +42,10 @@ L.stat_haste   = "Haste"
 L.stat_crit    = "Crit"
 L.stat_mastery = "Mastery"
 L.stat_vers    = "Versatility"
+L.loot_grats   = "Congratulations! BiS item dropped!"
+L.loot_drop_title = "%s drop for %s"
+L.loot_ask     = "Ask for it"
+L.loot_asked   = "Requested"
 L.slash_hint   = "MetaMirror: /mm opens or closes the panel."
 
 if GetLocale() == "deDE" then
@@ -80,6 +84,10 @@ if GetLocale() == "deDE" then
     L.stat_crit    = "Krit"
     L.stat_mastery = "Meisterschaft"
     L.stat_vers    = "Vielseitigkeit"
+    L.loot_grats   = "Glueckwunsch! BiS-Item gedropt!"
+    L.loot_drop_title = "%s-Drop fuer %s"
+    L.loot_ask     = "Darum bitten"
+    L.loot_asked   = "Angefragt"
     L.slash_hint   = "MetaMirror: /mm oeffnet oder schliesst das Panel."
 end
 

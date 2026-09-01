@@ -12,5 +12,6 @@ Data\MetaMirrorTrinkets.lua
 Logic.lua
 Player.lua
 Source.lua
+LootAlert.lua
 SelfTest.lua
 UI.lua

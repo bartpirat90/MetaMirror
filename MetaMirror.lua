@@ -65,6 +65,8 @@ SlashCmdList["METAMIRROR"] = function(msg)
         if MetaMirror.DumpQuality then MetaMirror:DumpQuality() end
     elseif msg == "dumpsrc" then
         if MetaMirror.DumpSource then MetaMirror:DumpSource() end
+    elseif msg == "testloot" then
+        if MetaMirror.TestLootAlert then MetaMirror:TestLootAlert() end
     elseif msg == "reset" then
         MetaMirrorDB.pos = nil
         print("|cffa855f7[MM]|r Position zurueckgesetzt.")
