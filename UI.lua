@@ -501,8 +501,9 @@ local function boundLabel(b, toSource)
 end
 
 -- Quelle einer Gear-Zeile: 1) Boss aus dem Abenteuerfuehrer (klickbar) 2) sonst
--- Klassenset-Label, falls Item-Set-Teil (setID) 3) sonst leer (Handwerk/Welt).
-local function applyRowSource(b, itemID)
+-- Klassenset-Label, falls Item-Set-Teil (setID) 3) sonst fallbackText (z.B. "Hergestellt"
+-- fuer Trinkets, damit nie eine leere Quelle steht) oder leer, wenn kein Fallback.
+local function applyRowSource(b, itemID, fallbackText)
     b.src.srcData = nil
     b.src.text:SetText(""); b.src:Hide()
     boundLabel(b, false)
@@ -513,6 +514,11 @@ local function applyRowSource(b, itemID)
         b.src.text:SetText(src.text)
         b.src:Show(); boundLabel(b, true)
         return
+    end
+    -- Fallback sofort setzen (unklickbar), damit nie eine Leerzeile steht; falls die
+    -- Set-Pruefung unten doch ein Klassenset findet, ueberschreibt sie ihn.
+    if fallbackText and fallbackText ~= "" then
+        b.src.text:SetText(fallbackText); b.src:Show()
     end
     -- Kein Journal-Loot -> Set-Teil? (setID aus GetItemInfo, Item muss geladen sein)
     local item = Item:CreateFromItemID(itemID)
@@ -1041,7 +1047,8 @@ local function renderTrinkets(self, specID)
         setItemRow(b, nil, e.itemID, nil, nil, { MYTH_6_6_BONUS }, trinketModeLabel(e.mode))
         b.tier:SetText(e.tier or "")
         b.tier:SetTextColor(unpack(TIER_COLOR[e.tier] or C.DIM))
-        applyRowSource(b, e.itemID)            -- Quelle rechts (Boss/Klassenset)
+        -- Quelle rechts (Boss/Klassenset); ohne Journal-Quelle -> "Hergestellt" statt leer.
+        applyRowSource(b, e.itemID, L.src_crafted)
         y = y + 26
     end
     -- Leere Sicht (z.B. Spec ohne Raid- oder M+-Stichprobe) -> Hinweiszeile.
