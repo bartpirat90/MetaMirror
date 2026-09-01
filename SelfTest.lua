@@ -109,7 +109,10 @@ local dumpFrame
 local function showCopy(text, title)
     if not dumpFrame then
         local f = CreateFrame("Frame", "MetaMirrorDumpFrame", UIParent, "BackdropTemplate")
-        f:SetSize(440, 380); f:SetPoint("CENTER"); f:SetFrameStrata("DIALOG")
+        -- FULLSCREEN_DIALOG + Toplevel: muss ueber dem Talent-Frame liegen, sonst
+        -- verschwindet die Diagnose dahinter (haeufig uebersehen).
+        f:SetSize(440, 380); f:SetPoint("CENTER"); f:SetFrameStrata("FULLSCREEN_DIALOG")
+        f:SetToplevel(true); f:SetFrameLevel(1000)
         f:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8x8",
                         edgeFile = "Interface\\Buttons\\WHITE8x8", edgeSize = 1 })
         f:SetBackdropColor(0.06, 0.055, 0.10, 0.98)

@@ -322,7 +322,7 @@ local function getTalentCard(i)
     btn:SetScript("OnClick", function(self)
         local map = self.nodeMap
         if not (map and MetaMirror.ActivateBuild) then return end
-        local ok, why = MetaMirror:ActivateBuild(map)
+        local ok, why = MetaMirror:ActivateBuild(map, self.buildName)
         if ok then
             card.status:SetTextColor(unpack(C.GREEN)); card.status:SetText(L.talent_activated)
         else
@@ -335,7 +335,7 @@ local function getTalentCard(i)
     return card
 end
 
-local function renderTalents(data)
+local function renderTalents(data, content)
     for j = 1, #rows do rows[j]:Hide() end
     if Body.msg then Body.msg:Hide() end
     local ui = ensureTalentUI()
@@ -345,6 +345,8 @@ local function renderTalents(data)
     local builds = data.talents or {}
     local activeHero = MetaMirror.ActiveHeroEntryID and MetaMirror:ActiveHeroEntryID()
     ui.sub:SetText(#builds > 1 and L.talent_meta_multi or L.talent_meta_sub)
+    -- Loadout-Name je Inhalt (M+/Raid) -> erscheint im Talent-Fenster als benannter Build.
+    local ctxLabel = (content == "raid") and L.ctx_raid or L.ctx_mplus
 
     local shown = 0
     local y = -52
@@ -384,7 +386,10 @@ local function renderTalents(data)
         end
         card.status:SetTextColor(unpack(C.DIM))
         if map then
-            card.actBtn.nodeMap = map; card.actBtn:Show()
+            -- Loadout-Name: "Meta <M+|Raid>" plus Hero-Baum, falls bekannt.
+            local buildName = "Meta " .. ctxLabel
+            if t.heroEntryID and t.heroEntryID > 0 then buildName = buildName .. " " .. name end
+            card.actBtn.nodeMap = map; card.actBtn.buildName = buildName; card.actBtn:Show()
             card.status:SetText(isActive and L.talent_active_hint or L.talent_activate_hint)
         else
             card.actBtn:Hide()
@@ -1169,7 +1174,7 @@ function MetaMirror.RenderBody(self, classID, specID)
     if MetaMirrorDB.tab == "stats" then
         renderStats(self, data)
     elseif MetaMirrorDB.tab == "talents" then
-        renderTalents(data)
+        renderTalents(data, MetaMirrorDB.content)
     elseif MetaMirrorDB.tab == "gear" then
         -- Gear steht fuer sich: nur das Item, aber mit Maximalstufe + Sockeln (bonusIDs).
         local gear = {}

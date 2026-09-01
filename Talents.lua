@@ -319,9 +319,10 @@ end
 -- Weg 1: nativer ImportLoadout (Blizzard rechnet Gating/Granted/Choice-Index korrekt) ->
 -- CommitConfig. Weg 2 (Fallback): manueller Kauf-Loop. Nur ausserhalb Kampf; bei Ablehnung
 -- Rollback + Diagnose. Gibt (true) oder (false, grund).
-function MetaMirror:ActivateBuild(nodeMap)
+function MetaMirror:ActivateBuild(nodeMap, buildName)
     if not (C_ClassTalents and C_Traits) then return false, "C_Traits API fehlt" end
     if InCombatLockdown() then return false, "im Kampf nicht moeglich" end
+    local loadoutName = (buildName and buildName ~= "") and buildName or "MetaMirror"
     local configID = C_ClassTalents.GetActiveConfigID and C_ClassTalents.GetActiveConfigID()
     if not configID then return false, "keine aktive configID" end
     local info = C_Traits.GetConfigInfo(configID)
@@ -333,7 +334,7 @@ function MetaMirror:ActivateBuild(nodeMap)
     -- Leer-Commit). Nur committen, wenn der Import nachweislich hier gestaged hat.
     if C_ClassTalents.ImportLoadout then
         local entries = buildImportEntries(treeID, nodeMap)
-        local pok, success = pcall(C_ClassTalents.ImportLoadout, configID, entries, "MetaMirror")
+        local pok, success = pcall(C_ClassTalents.ImportLoadout, configID, entries, loadoutName)
         if pok and success and importDidStage(configID, nodeMap) then
             local cok, committed = pcall(C_ClassTalents.CommitConfig, configID)
             if cok and committed then return true end
@@ -346,10 +347,18 @@ function MetaMirror:ActivateBuild(nodeMap)
     local ok, committed = pcall(C_ClassTalents.CommitConfig, configID)
     if ok and committed then return true end
 
-    -- Beide Wege gescheitert: Diagnose sammeln (vor Rollback), Fenster zeigen.
+    -- Beide Wege gescheitert: Diagnose sammeln (vor Rollback), Fenster + Chat zeigen.
     local text, missed = collectDiag(configID, treeID, nodeMap, "Loop")
     if C_Traits.RollbackConfig then pcall(C_Traits.RollbackConfig, configID) end
     if self.ShowCopy then self:ShowCopy(text, "ActivateBuild-Diagnose") end
+    -- Kern-Diagnose zusaetzlich in den Chat (falls das Fenster uebersehen wird).
+    print("|cffdf5a3f[MM] ActivateBuild fehlgeschlagen|r - " .. missed
+        .. " Knoten offen. Diagnose-Fenster (Strg+C) schicken. Erste Zeilen:")
+    for line in string.gmatch(text, "[^\n]+") do
+        if line:find("Waehrung") or line:find("FEHLT") or line:find("gemappte") then
+            print("|cffa855f7[MM]|r " .. line)
+        end
+    end
     return false, "Commit abgelehnt - Details im Fenster (" .. missed .. " Knoten offen)"
 end
 
