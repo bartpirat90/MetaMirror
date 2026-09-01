@@ -427,6 +427,30 @@ function MetaMirror:DiagnoseApplyMap(nodeMap)
     lines[#lines + 1] = string.format(
         "Summe: mapRaenge=%d choiceKnoten=%d | nichtImBaum=%d ungueltigeEntry=%d rangZuHoch=%d",
         mapRanks, choiceCount, notInTree, badEntry, rankHigh)
+
+    -- Vergleich mit dem AKTUELL aktiven (vollstaendigen) Build: welche Knoten hat DER
+    -- Spieler gekauft, die im Meta-Build fehlen (oder mit weniger Raengen)? -> genau die
+    -- von WCL evtl. ausgelassenen Punkte. liveRanks = Punkte eines kompletten Builds.
+    local liveRanks, missingVsLive, shownM = 0, 0, 0
+    for _, nodeID in ipairs(C_Traits.GetTreeNodes(treeID)) do
+        local node = C_Traits.GetNodeInfo(configID, nodeID)
+        local live = node.ranksPurchased or 0
+        liveRanks = liveRanks + live
+        local mapped = nodeMap[nodeID]
+        local mrank = mapped and (mapped.rank or 1) or 0
+        if live > mrank then
+            missingVsLive = missingVsLive + (live - mrank)
+            shownM = shownM + 1
+            if shownM <= 40 then
+                lines[#lines + 1] = string.format("  META<LIVE id=%d live=%d meta=%d type=%s",
+                    nodeID, live, mrank, tostring(node.type))
+            end
+        end
+    end
+    lines[#lines + 1] = string.format(
+        "liveRanks=%d mapRaenge=%d -> Meta gibt ~%d Punkte weniger aus als dein Build",
+        liveRanks, mapRanks, missingVsLive)
+
     for _, l in ipairs(lines) do print("|cffa855f7[MM]|r " .. l) end
     if self.ShowCopy then self:ShowCopy(table.concat(lines, "\n"), "Apply-Diagnose") end
 end
