@@ -194,30 +194,50 @@ function MetaMirror:ActiveHeroEntryID()
 end
 
 -- ===== Talente per Klick anwenden (echtes Umskillen, kein Copy-String) =====
--- Wendet einen Meta-Build (nodeMap = {[nodeID]={entryID,rank}}) auf die aktive Konfig an:
--- Baum zuruecksetzen -> in mehreren Durchgaengen SetSelection + PurchaseRank (Gating!) ->
--- CommitConfig. Nur ausserhalb des Kampfes; bei Fehler Rollback. Gibt (true) oder
--- (false, grund) zurueck. Etwaige Talent-Punkte-Ueberschreitung faengt der Commit ab.
-function MetaMirror:ActivateBuild(nodeMap)
-    if not (C_ClassTalents and C_Traits) then return false, "C_Traits API fehlt" end
-    if InCombatLockdown() then return false, "im Kampf nicht moeglich" end
-    local configID = C_ClassTalents.GetActiveConfigID and C_ClassTalents.GetActiveConfigID()
-    if not configID then return false, "keine aktive configID" end
-    local info = C_Traits.GetConfigInfo(configID)
-    local treeID = info and info.treeIDs and info.treeIDs[1]
-    if not treeID then return false, "keine treeID" end
-    local nodes = C_Traits.GetTreeNodes(treeID)
+-- ImportLoadout-Eintraege aus der nodeMap: genau die Datenform, die Blizzards nativer
+-- Import erwartet ({nodeID, ranksPurchased, selectionEntryID}). WCL liefert je Knoten die
+-- gewaehlte entryID (auch fuer Nicht-Choice-Knoten deren einzige Entry) -> immer setzen.
+local function buildImportEntries(treeID, nodeMap)
+    local entries = {}
+    for _, nodeID in ipairs(C_Traits.GetTreeNodes(treeID)) do
+        local sel = nodeMap[nodeID]
+        if sel then
+            entries[#entries + 1] = {
+                nodeID = nodeID,
+                ranksGranted = 0,
+                ranksPurchased = sel.rank or 1,
+                selectionEntryID = sel.entryID,
+            }
+        end
+    end
+    return entries
+end
 
-    -- 1) Baum leeren: bevorzugt ResetTree, sonst Rang-Rueckerstattung pro Knoten.
+-- Hat der Import wirklich in DIESE configID gestaged? (Schutz gegen versehentliches
+-- Leer-Commit, falls ImportLoadout intern eine separate Config anlegt.)
+local function importDidStage(configID, nodeMap)
+    local hits = 0
+    for nodeID, sel in pairs(nodeMap) do
+        if (sel.rank or 1) > 0 then
+            local node = C_Traits.GetNodeInfo(configID, nodeID)
+            if node and (node.ranksPurchased or 0) > 0 then
+                hits = hits + 1
+                if hits >= 3 then return true end
+            end
+        end
+    end
+    return hits > 0
+end
+
+-- Manueller Kauf-Loop (Fallback): erst alle Choice-Knoten setzen (v.a. Hero-Baum, sonst
+-- sind dessen Talente nicht kaufbar), dann in Durchgaengen kaufen (Gating).
+local function manualApply(configID, treeID, nodeMap)
+    local nodes = C_Traits.GetTreeNodes(treeID)
     if C_Traits.ResetTree then
         pcall(C_Traits.ResetTree, configID, treeID)
     elseif C_Traits.RefundAllRanks then
         for _, nodeID in ipairs(nodes) do pcall(C_Traits.RefundAllRanks, configID, nodeID) end
     end
-
-    -- 2a) Vorab ALLE Choice-Knoten setzen (v.a. die Hero-Baum-Wahl): erst wenn der
-    --     Hero-Baum gewaehlt ist, werden seine Talente ueberhaupt kaufbar -> sonst
-    --     bleiben Hero-Punkte uebrig ("alle Punkte muessen ausgegeben werden").
     for _, nodeID in ipairs(nodes) do
         local sel = nodeMap[nodeID]
         if sel and sel.entryID then
@@ -228,9 +248,6 @@ function MetaMirror:ActivateBuild(nodeMap)
             end
         end
     end
-
-    -- 2b) Mehrere Durchgaenge: Voraussetzungen muessen erst gekauft sein, bevor spaetere
-    --     Knoten kaufbar werden. Solange ein Durchgang Fortschritt bringt, weitermachen.
     for _ = 1, 20 do
         local progressed = false
         for _, nodeID in ipairs(nodes) do
@@ -239,68 +256,101 @@ function MetaMirror:ActivateBuild(nodeMap)
                 local node = C_Traits.GetNodeInfo(configID, nodeID)
                 if isChoiceNode(node) and sel.entryID then
                     local cur = node.activeEntry and node.activeEntry.entryID
-                    if cur ~= sel.entryID then
-                        local ok = pcall(C_Traits.SetSelection, configID, nodeID, sel.entryID)
-                        if ok then progressed = true end
+                    if cur ~= sel.entryID and pcall(C_Traits.SetSelection, configID, nodeID, sel.entryID) then
+                        progressed = true
                     end
                 end
-                -- Zielrang: aus WCL (sel.rank), sonst der Maximalrang des Knotens.
                 local target = sel.rank or node.maxRanks or 1
                 local have = (C_Traits.GetNodeInfo(configID, nodeID).ranksPurchased) or 0
                 while have < target do
                     local ok, bought = pcall(C_Traits.PurchaseRank, configID, nodeID)
                     if not (ok and bought) then break end
-                    progressed = true
-                    have = have + 1
+                    progressed = true; have = have + 1
                 end
             end
         end
         if not progressed then break end
     end
+end
 
-    -- 3) Uebernehmen; bei Ablehnung sauberer Rollback + Diagnose.
-    local ok, committed = pcall(C_ClassTalents.CommitConfig, configID)
-    if not (ok and committed) then
-        -- Diagnose SAMMELN, bevor der Rollback den Staging-Zustand verwirft.
-        local diag = { "ActivateBuild: Commit abgelehnt.", "configID=" .. tostring(configID)
-            .. " treeID=" .. tostring(treeID) }
-        -- Rest-Punkte je Waehrung (quantity > 0 = unverteilt -> genau der Fehlergrund)
-        if C_Traits.GetTreeCurrencyInfo then
-            local okc, curr = pcall(C_Traits.GetTreeCurrencyInfo, configID, treeID, false)
-            if okc and curr then
-                for _, c in ipairs(curr) do
-                    diag[#diag + 1] = string.format("Waehrung %s: uebrig=%s",
-                        tostring(c.traitCurrencyID), tostring(c.quantity))
-                end
+-- Diagnose bei Commit-Ablehnung: Rest-Punkte je Waehrung + gemappte Knoten, die ihren
+-- Zielrang nicht erreicht haben. Unterscheidet "Kauf gescheitert" (Knoten in FEHLT) von
+-- "Daten unvollstaendig" (keine FEHLT, aber Waehrung uebrig -> Meta-Build spart Punkte).
+local function collectDiag(configID, treeID, nodeMap, method)
+    local diag = { "ActivateBuild: Commit abgelehnt (" .. method .. ").",
+                   "configID=" .. tostring(configID) .. " treeID=" .. tostring(treeID) }
+    local mappedRanks = 0
+    for _, sel in pairs(nodeMap) do mappedRanks = mappedRanks + (sel.rank or 1) end
+    diag[#diag + 1] = "gemappte Raenge gesamt: " .. mappedRanks
+    if C_Traits.GetTreeCurrencyInfo then
+        local okc, curr = pcall(C_Traits.GetTreeCurrencyInfo, configID, treeID, false)
+        if okc and curr then
+            for _, c in ipairs(curr) do
+                diag[#diag + 1] = string.format("Waehrung %s: uebrig=%s",
+                    tostring(c.traitCurrencyID), tostring(c.quantity))
             end
         end
-        -- Gemappte Knoten, die ihren Zielrang NICHT erreicht haben (inkl. Hero-Auswahl)
-        local missed = 0
-        for _, nodeID in ipairs(nodes) do
-            local sel = nodeMap[nodeID]
-            if sel then
-                local node = C_Traits.GetNodeInfo(configID, nodeID)
-                local have = node.ranksPurchased or 0
-                local want = sel.rank or 1
-                local activeE = node.activeEntry and node.activeEntry.entryID
-                local choiceBad = isChoiceNode(node) and sel.entryID and activeE ~= sel.entryID
-                if have < want or choiceBad then
-                    missed = missed + 1
-                    if missed <= 20 then
-                        diag[#diag + 1] = string.format(
-                            "  FEHLT id=%d type=%s rank %d/%d choice=%s wantEntry=%s active=%s",
-                            nodeID, tostring(node.type), have, want,
-                            tostring(isChoiceNode(node)), tostring(sel.entryID), tostring(activeE))
-                    end
-                end
-            end
-        end
-        diag[#diag + 1] = "gescheiterte Knoten gesamt: " .. missed
-        if C_Traits.RollbackConfig then pcall(C_Traits.RollbackConfig, configID) end
-        if self.ShowCopy then self:ShowCopy(table.concat(diag, "\n"), "ActivateBuild-Diagnose") end
-        return false, "Commit abgelehnt - Details im Fenster (" .. missed .. " Knoten offen)"
     end
-    return true
+    local missed = 0
+    for _, nodeID in ipairs(C_Traits.GetTreeNodes(treeID)) do
+        local sel = nodeMap[nodeID]
+        if sel then
+            local node = C_Traits.GetNodeInfo(configID, nodeID)
+            local have = node.ranksPurchased or 0
+            local want = sel.rank or 1
+            local activeE = node.activeEntry and node.activeEntry.entryID
+            local choiceBad = isChoiceNode(node) and sel.entryID and activeE ~= sel.entryID
+            if have < want or choiceBad then
+                missed = missed + 1
+                if missed <= 25 then
+                    diag[#diag + 1] = string.format(
+                        "  FEHLT id=%d type=%s rank %d/%d choice=%s wantEntry=%s active=%s",
+                        nodeID, tostring(node.type), have, want,
+                        tostring(isChoiceNode(node)), tostring(sel.entryID), tostring(activeE))
+                end
+            end
+        end
+    end
+    diag[#diag + 1] = "gescheiterte Knoten gesamt: " .. missed
+    return table.concat(diag, "\n"), missed
+end
+
+-- Wendet einen Meta-Build (nodeMap = {[nodeID]={entryID,rank}}) auf die aktive Konfig an.
+-- Weg 1: nativer ImportLoadout (Blizzard rechnet Gating/Granted/Choice-Index korrekt) ->
+-- CommitConfig. Weg 2 (Fallback): manueller Kauf-Loop. Nur ausserhalb Kampf; bei Ablehnung
+-- Rollback + Diagnose. Gibt (true) oder (false, grund).
+function MetaMirror:ActivateBuild(nodeMap)
+    if not (C_ClassTalents and C_Traits) then return false, "C_Traits API fehlt" end
+    if InCombatLockdown() then return false, "im Kampf nicht moeglich" end
+    local configID = C_ClassTalents.GetActiveConfigID and C_ClassTalents.GetActiveConfigID()
+    if not configID then return false, "keine aktive configID" end
+    local info = C_Traits.GetConfigInfo(configID)
+    local treeID = info and info.treeIDs and info.treeIDs[1]
+    if not treeID then return false, "keine treeID" end
+
+    -- Weg 1: nativer Import. NICHT vorher zuruecksetzen -> falls Import in eine separate
+    -- Config ginge, bliebe die aktive unveraendert (importDidStage faengt das ab, kein
+    -- Leer-Commit). Nur committen, wenn der Import nachweislich hier gestaged hat.
+    if C_ClassTalents.ImportLoadout then
+        local entries = buildImportEntries(treeID, nodeMap)
+        local pok, success = pcall(C_ClassTalents.ImportLoadout, configID, entries, "MetaMirror")
+        if pok and success and importDidStage(configID, nodeMap) then
+            local cok, committed = pcall(C_ClassTalents.CommitConfig, configID)
+            if cok and committed then return true end
+        end
+        if C_Traits.RollbackConfig then pcall(C_Traits.RollbackConfig, configID) end
+    end
+
+    -- Weg 2: manueller Kauf-Loop + Commit.
+    manualApply(configID, treeID, nodeMap)
+    local ok, committed = pcall(C_ClassTalents.CommitConfig, configID)
+    if ok and committed then return true end
+
+    -- Beide Wege gescheitert: Diagnose sammeln (vor Rollback), Fenster zeigen.
+    local text, missed = collectDiag(configID, treeID, nodeMap, "Loop")
+    if C_Traits.RollbackConfig then pcall(C_Traits.RollbackConfig, configID) end
+    if self.ShowCopy then self:ShowCopy(text, "ActivateBuild-Diagnose") end
+    return false, "Commit abgelehnt - Details im Fenster (" .. missed .. " Knoten offen)"
 end
 
 -- /mm apitalents: listet, welche fuer das Umskillen noetigen API-Funktionen existieren.
