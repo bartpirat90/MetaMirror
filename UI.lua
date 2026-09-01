@@ -390,6 +390,7 @@ local function renderTalents(data, content)
             local buildName = "Meta " .. ctxLabel
             if t.heroEntryID and t.heroEntryID > 0 then buildName = buildName .. " " .. name end
             card.actBtn.nodeMap = map; card.actBtn.buildName = buildName; card.actBtn:Show()
+            if i == 1 then MetaMirror._diagMap = map end   -- fuer /mm testapply (staerkster Build)
             card.status:SetText(isActive and L.talent_active_hint or L.talent_activate_hint)
         else
             card.actBtn:Hide()

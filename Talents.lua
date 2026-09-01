@@ -229,6 +229,18 @@ local function importDidStage(configID, nodeMap)
     return hits > 0
 end
 
+-- Summe der noch unverteilten Talentpunkte (ueber alle Waehrungen des Baums). 0 = alle
+-- Punkte ausgegeben -> ein Commit gilt erst dann als wirklich erfolgreich (CommitConfig
+-- allein liefert einen Fehlalarm-true, waehrend der Client "alle Punkte" rot ablehnt).
+local function pointsRemaining(configID, treeID)
+    local rem = 0
+    if C_Traits.GetTreeCurrencyInfo then
+        local ok, curr = pcall(C_Traits.GetTreeCurrencyInfo, configID, treeID, false)
+        if ok and curr then for _, c in ipairs(curr) do rem = rem + (c.quantity or 0) end end
+    end
+    return rem
+end
+
 -- Manueller Kauf-Loop (Fallback): erst alle Choice-Knoten setzen (v.a. Hero-Baum, sonst
 -- sind dessen Talente nicht kaufbar), dann in Durchgaengen kaufen (Gating).
 local function manualApply(configID, treeID, nodeMap)
@@ -337,7 +349,8 @@ function MetaMirror:ActivateBuild(nodeMap, buildName)
         local pok, success = pcall(C_ClassTalents.ImportLoadout, configID, entries, loadoutName)
         if pok and success and importDidStage(configID, nodeMap) then
             local cok, committed = pcall(C_ClassTalents.CommitConfig, configID)
-            if cok and committed then return true end
+            -- Erfolg NUR, wenn danach keine Punkte offen sind (sonst Fehlalarm-true).
+            if cok and committed and pointsRemaining(configID, treeID) == 0 then return true end
         end
         if C_Traits.RollbackConfig then pcall(C_Traits.RollbackConfig, configID) end
     end
@@ -345,7 +358,7 @@ function MetaMirror:ActivateBuild(nodeMap, buildName)
     -- Weg 2: manueller Kauf-Loop + Commit.
     manualApply(configID, treeID, nodeMap)
     local ok, committed = pcall(C_ClassTalents.CommitConfig, configID)
-    if ok and committed then return true end
+    if ok and committed and pointsRemaining(configID, treeID) == 0 then return true end
 
     -- Beide Wege gescheitert: Diagnose sammeln (vor Rollback), Fenster + Chat zeigen.
     local text, missed = collectDiag(configID, treeID, nodeMap, "Loop")
@@ -360,6 +373,62 @@ function MetaMirror:ActivateBuild(nodeMap, buildName)
         end
     end
     return false, "Commit abgelehnt - Details im Fenster (" .. missed .. " Knoten offen)"
+end
+
+-- /mm testapply: READ-ONLY-Pruefung, ob der Meta-Build ueberhaupt anwendbar ist -
+-- ohne umzuskillen. Prueft je gemapptem Knoten: existiert er im aktuellen Baum? Ist die
+-- WCL-entryID eine GUELTIGE Entry dieses Choice-Knotens? Ist der Rang <= maxRanks?
+-- Das beweist/widerlegt "WCL-entryID ungueltig" als Ursache der 4 offenen Punkte.
+function MetaMirror:DiagnoseApplyMap(nodeMap)
+    if not nodeMap then
+        print("|cffdf5a3f[MM]|r Kein Build geladen - erst den Talente-Tab oeffnen."); return
+    end
+    if not (C_ClassTalents and C_Traits) then print("|cffdf5a3f[MM]|r API fehlt"); return end
+    local configID = C_ClassTalents.GetActiveConfigID and C_ClassTalents.GetActiveConfigID()
+    if not configID then print("|cffdf5a3f[MM]|r keine configID"); return end
+    local info = C_Traits.GetConfigInfo(configID)
+    local treeID = info and info.treeIDs and info.treeIDs[1]
+    if not treeID then print("|cffdf5a3f[MM]|r keine treeID"); return end
+    local inTree = {}
+    for _, nid in ipairs(C_Traits.GetTreeNodes(treeID)) do inTree[nid] = true end
+
+    local lines = { "Apply-Diagnose (read-only, kein Umskillen):" }
+    local notInTree, badEntry, rankHigh, mapRanks, choiceCount = 0, 0, 0, 0, 0
+    for nodeID, sel in pairs(nodeMap) do
+        mapRanks = mapRanks + (sel.rank or 1)
+        if not inTree[nodeID] then
+            notInTree = notInTree + 1
+            if notInTree <= 25 then
+                lines[#lines + 1] = string.format("  KNOTEN NICHT IM BAUM id=%d entry=%s",
+                    nodeID, tostring(sel.entryID))
+            end
+        else
+            local node = C_Traits.GetNodeInfo(configID, nodeID)
+            if isChoiceNode(node) then
+                choiceCount = choiceCount + 1
+                local valid = false
+                if node.entryIDs and sel.entryID then
+                    for _, e in ipairs(node.entryIDs) do if e == sel.entryID then valid = true; break end end
+                end
+                if not valid then
+                    badEntry = badEntry + 1
+                    local avail = node.entryIDs and table.concat(node.entryIDs, "/") or "?"
+                    lines[#lines + 1] = string.format("  ENTRY UNGUELTIG id=%d want=%s hat=[%s] type=%s",
+                        nodeID, tostring(sel.entryID), avail, tostring(node.type))
+                end
+            end
+            if node.maxRanks and (sel.rank or 1) > node.maxRanks then
+                rankHigh = rankHigh + 1
+                lines[#lines + 1] = string.format("  RANG ZU HOCH id=%d rank=%d max=%d",
+                    nodeID, sel.rank or 1, node.maxRanks)
+            end
+        end
+    end
+    lines[#lines + 1] = string.format(
+        "Summe: mapRaenge=%d choiceKnoten=%d | nichtImBaum=%d ungueltigeEntry=%d rangZuHoch=%d",
+        mapRanks, choiceCount, notInTree, badEntry, rankHigh)
+    for _, l in ipairs(lines) do print("|cffa855f7[MM]|r " .. l) end
+    if self.ShowCopy then self:ShowCopy(table.concat(lines, "\n"), "Apply-Diagnose") end
 end
 
 -- /mm apitalents: listet, welche fuer das Umskillen noetigen API-Funktionen existieren.
