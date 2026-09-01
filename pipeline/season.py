@@ -20,10 +20,27 @@ MPLUS_DIFFICULTY = 10            # 10 = Dungeon
 MPLUS_ENCOUNTER_IDS = [12993, 12825, 61762, 12813, 112521, 61877, 12859, 12923]
 
 # --- Consumable-Buff (aura.ability = Spell-ID) -> Kategorie + Item-ID --------
-# Aus CombatantInfo-Auren; die Item-ID (fuer klickbare Links) muss ergaenzt werden
-# (z.B. via Wowhead). Beispiel aus echten Logs: "Flask of the Magisters" = Buff 1235108.
+# Quelle: CombatantInfo-Auren realer Top-Parses (2026-08-31 verifiziert). Nur Buffs,
+# die zum Pull als *dauerhafte* Aura anliegen, sind hier ableitbar -> zuverlaessig
+# befuellbar: flask, food, rune. NICHT ableitbar (deshalb i.d.R. leer):
+#   - potion: Kampftrank wird erst im Kampf gezuendet, steht nicht im Pull-Snapshot
+#   - phial:  in Midnight durch Flasks abgeloest (keine Phiolen in den Logs)
+#   - oil:    keine Waffenoel-Aura in den Stichproben
 # Format: {spellID: {"cat": "flask"|"phial"|"potion"|"food"|"oil"|"rune", "item": itemID}}
-CONSUMABLE_SPELL_TO_ITEM = {}
+# Buff-IDs sind die in den Logs beobachteten (teils PTR-Varianten); sie zeigen aber
+# eindeutig auf das jeweilige Live-Item. Item-IDs via Wowhead nachgeschlagen.
+CONSUMABLE_SPELL_TO_ITEM = {
+    # Flasks (jeder Buff = genau ein Flask-Item)
+    1235108: {"cat": "flask", "item": 241322},   # Flask of the Magisters
+    1235110: {"cat": "flask", "item": 241325},   # Flask of the Blood Knights (Tempo)
+    1235111: {"cat": "flask", "item": 241326},   # Flask of the Shattered Sun
+    # Augment Runes (Void-Touched ist die aktuelle, +25 Primaerwert; Ethereal aelter)
+    1264426: {"cat": "rune", "item": 259085},    # Void-Touched Augment Rune
+    1234969: {"cat": "rune", "item": 243191},    # Ethereal Augment Rune
+    # Food: "Hearty Well Fed" ist ein generischer Buff vieler Speisen; die genaue
+    # Speise ist aus dem Buff nicht ableitbar -> repraesentatives Festmahl verlinkt.
+    1285644: {"cat": "food", "item": 222781},    # Hearty Feast of the Midnight Masquerade
+}
 
 # Parses pro Spec x Content. Kosten ~2.6 WCL-Punkte/Parse; Limit 3600 Punkte/Stunde.
 # 15 -> ganzer Lauf (39 Specs x 2 Modi) bleibt unter einer Stunde, kein Rate-Limit-Abbruch.
