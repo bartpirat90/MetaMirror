@@ -22,10 +22,14 @@ MPLUS_ENCOUNTER_IDS = [12993, 12825, 61762, 12813, 112521, 61877, 12859, 12923]
 # --- Consumable-Buff (aura.ability = Spell-ID) -> Kategorie + Item-ID --------
 # Quelle: CombatantInfo-Auren realer Top-Parses (2026-08-31 verifiziert). Nur Buffs,
 # die zum Pull als *dauerhafte* Aura anliegen, sind hier ableitbar -> zuverlaessig
-# befuellbar: flask, food, rune. NICHT ableitbar (deshalb i.d.R. leer):
+# befuellbar: flask, rune (und das generische Food-Aura). NICHT ableitbar:
 #   - potion: Kampftrank wird erst im Kampf gezuendet, steht nicht im Pull-Snapshot
 #   - phial:  in Midnight durch Flasks abgeloest (keine Phiolen in den Logs)
 #   - oil:    keine Waffenoel-Aura in den Stichproben
+#   - food:   das Aura ("Hearty Well Fed") ist generisch; Festmahl vs. Einzelportion
+#             ist daraus nicht unterscheidbar
+# potion/oil/food werden darum unten kuratiert (apply_curated_consumables) und
+# ueberlagern das aus den Logs Abgeleitete. flask/rune bleiben log-abgeleitet.
 # Format: {spellID: {"cat": "flask"|"phial"|"potion"|"food"|"oil"|"rune", "item": itemID}}
 # Buff-IDs sind die in den Logs beobachteten (teils PTR-Varianten); sie zeigen aber
 # eindeutig auf das jeweilige Live-Item. Item-IDs via Wowhead nachgeschlagen.
@@ -38,9 +42,53 @@ CONSUMABLE_SPELL_TO_ITEM = {
     1264426: {"cat": "rune", "item": 259085},    # Void-Touched Augment Rune
     1234969: {"cat": "rune", "item": 243191},    # Ethereal Augment Rune
     # Food: "Hearty Well Fed" ist ein generischer Buff vieler Speisen; die genaue
-    # Speise ist aus dem Buff nicht ableitbar -> repraesentatives Festmahl verlinkt.
+    # Speise ist aus dem Buff nicht ableitbar -> wird unten kuratiert ueberlagert.
     1285644: {"cat": "food", "item": 222781},    # Hearty Feast of the Midnight Masquerade
 }
+
+# ---- Kuratierte, NICHT aus den Logs ableitbare Verbrauchsgueter -------------
+# Kampftrank + Waffenoel stehen nicht im Pull-Snapshot, das Food-Aura ist generisch.
+# Darum einmal pro Season kuratiert (IDs via Wowhead, im Spiel per Shift-Klick
+# gegengeprueft). Food + Trank geben PRIMAERWERT -> fuer jede DPS-Spec brauchbar
+# (universell). Das Oel (+Krit/Tempo) ist stat-/klassenabhaengig -> nur fuer
+# Int-Caster hinterlegt; Melee (Agi/Str) nutzen eher Schleif-/Wetzsteine.
+CURATED_FOOD   = 242275   # Koeniglicher Braten (+Primaerwert, im AH kaufbar)
+CURATED_POTION = 241308   # Potenzial des Lichts (+140 Primaerwert, 30 Sek)
+CURATED_OIL_BY_STAT = {
+    "int": 243733,        # Thalassisches Phoenixoel (+Krit/Tempo) - Caster/Int
+}
+
+# specID -> Primaerstat. Bestimmt die statabhaengige Empfehlung (aktuell nur Oel).
+SPEC_PRIMARY_STAT = {
+    71: "str", 72: "str", 73: "str",                       # Warrior
+    65: "int", 66: "str", 70: "str",                       # Paladin
+    253: "agi", 254: "agi", 255: "agi",                    # Hunter
+    259: "agi", 260: "agi", 261: "agi",                    # Rogue
+    256: "int", 257: "int", 258: "int",                    # Priest
+    250: "str", 251: "str", 252: "str",                    # DeathKnight
+    262: "int", 263: "agi", 264: "int",                    # Shaman
+    62: "int", 63: "int", 64: "int",                       # Mage
+    265: "int", 266: "int", 267: "int",                    # Warlock
+    268: "agi", 269: "agi", 270: "int",                    # Monk
+    102: "int", 103: "agi", 104: "agi", 105: "int",        # Druid
+    577: "agi", 581: "agi",                                # DemonHunter
+    1467: "int", 1468: "int", 1473: "int",                 # Evoker
+}
+
+
+def apply_curated_consumables(spec_id, cons):
+    """Ueberlagert die aus den Logs abgeleiteten Verbrauchsgueter mit den kuratierten:
+    Einzelportions-Food statt Gruppen-Festmahl, Kampftrank, ggf. Waffenoel (nur Int).
+    flask/rune (verlaesslich aus den Logs) bleiben unangetastet. Idempotent."""
+    out = dict(cons)
+    out["food"] = CURATED_FOOD
+    out["potion"] = CURATED_POTION
+    oil = CURATED_OIL_BY_STAT.get(SPEC_PRIMARY_STAT.get(spec_id))
+    if oil:
+        out["oil"] = oil
+    else:
+        out.pop("oil", None)   # kein passendes Oel fuer diese Spec -> Zeile entfaellt
+    return out
 
 # permanentEnchant-ID (aus CombatantInfo/Logs) -> itemID der Verzauberungs-Rolle.
 # Diese Rolle ist im AH suchbar (Shift-Klick auf den Item-Link). Die permanentEnchant-

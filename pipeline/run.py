@@ -5,7 +5,7 @@ from collections import defaultdict
 
 from pipeline import season as season_mod
 from pipeline.specs import SPECS, CONTENTS
-from pipeline.aggregate import aggregate
+from pipeline.aggregate import aggregate, build_trinket_table
 from pipeline.emit_lua import emit_lua
 from pipeline.validate import validate
 
@@ -35,7 +35,11 @@ def build_and_write(records, season, version, season_name, out_path, item_name,
     if errors:
         return errors
 
-    lua = emit_lua(plain, version=version, season=season_name)
+    # Trinket-Tierlisten nur fuer Specs, die es in den Datensatz geschafft haben.
+    kept = {sid for cid in plain for sid in plain[cid]}
+    trinkets = build_trinket_table(records, item_name, only_specs=kept)
+
+    lua = emit_lua(plain, version=version, season=season_name, trinkets=trinkets)
     os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
     with open(out_path, "w", encoding="utf-8", newline="\n") as f:
         f.write(lua)
@@ -126,6 +130,7 @@ def build_season(mod):
         "RATING_PER_PCT": mod.RATING_PER_PCT,
         "MASTERY_COEFF": mod.MASTERY_COEFF,
         "CONSUMABLE_SPELL_TO_ITEM": mod.CONSUMABLE_SPELL_TO_ITEM,
+        "CURATE_CONSUMABLES": getattr(mod, "apply_curated_consumables", None),
         "ENCHANT_ITEM_BY_ID": getattr(mod, "ENCHANT_ITEM_BY_ID", {}),
         "RAID_ENCOUNTER_IDS": mod.RAID_ENCOUNTER_IDS,
         "RAID_DIFFICULTY": mod.RAID_DIFFICULTY,

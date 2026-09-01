@@ -181,3 +181,155 @@ function MetaMirror:DumpEnchants()
     end
     if pending == 0 then finish() end
 end
+
+-- /mm dumpgems : zeigt fuer jeden Stein, WIE er seinen Stat deklariert
+-- (GetItemStats-Schluessel + alle Tooltip-Zeilen). Diagnose fuer die
+-- Primaer/Sekundaer-Erkennung im Edelstein-Abschnitt.
+function MetaMirror:DumpGems()
+    local data = MetaMirrorData
+    if not (data and data.specs) then
+        print("|cffa855f7[MM]|r Keine Daten geladen.")
+        return
+    end
+    local seen, ids = {}, {}
+    for _, specs in pairs(data.specs) do
+        for _, spec in pairs(specs) do
+            for _, content in pairs(spec) do
+                if type(content) == "table" and content.gems then
+                    for _, g in ipairs(content.gems) do
+                        if g.itemID and g.itemID ~= 0 and not seen[g.itemID] then
+                            seen[g.itemID] = true
+                            ids[#ids + 1] = g.itemID
+                        end
+                    end
+                end
+            end
+        end
+    end
+    if #ids == 0 then print("|cffa855f7[MM]|r Keine Edelsteine in den Daten.") return end
+    table.sort(ids)
+
+    local pending, blocks = 0, {}
+    local function finish()
+        local out = {}
+        for _, iid in ipairs(ids) do out[#out + 1] = blocks[iid] or (iid .. "\t?") end
+        showCopy(table.concat(out, "\n"))
+        print("|cffa855f7[MM]|r " .. #ids .. " Edelsteine ausgelesen \226\128\148 Fenster offen (Strg+C).")
+    end
+    for _, iid in ipairs(ids) do
+        pending = pending + 1
+        local it = Item:CreateFromItemID(iid)
+        it:ContinueOnItemLoad(function()
+            local link = it:GetItemLink()
+            local name = it:GetItemName() or ("item:" .. iid)
+            -- GetItemStats-Schluessel
+            local statKeys = {}
+            local stats = (C_Item and C_Item.GetItemStats and C_Item.GetItemStats(link))
+                          or (GetItemStats and GetItemStats(link))
+            if stats then for k in pairs(stats) do statKeys[#statKeys + 1] = k end end
+            -- Tooltip-Zeilen
+            local lines = scanLines(link)
+            blocks[iid] = iid .. "  " .. name
+                .. "\n  stats: " .. (next(statKeys) and table.concat(statKeys, ", ") or "(leer)")
+                .. "\n  tip: " .. table.concat(lines, " | ")
+            pending = pending - 1
+            if pending == 0 then finish() end
+        end)
+    end
+    if pending == 0 then finish() end
+end
+
+-- /mm dumpq : zeigt fuer die AKTUELL angezeigte Spec, wie Qualitaet/Upgrade im
+-- Item-Link kodiert sind. Gear: rohe bonusIDs + Tooltip-Zeilen mit Aufwertung
+-- (X/Y). Verzauberungen: Handwerksqualitaet + roher Link. Grundlage, um immer die
+-- hoechste Stufe (Mythos 6/6, Tier 3) zu erzwingen, ohne Bonus-IDs zu raten.
+function MetaMirror:DumpQuality()
+    local classID, specID = self:CurrentSpecKey()
+    local d = classID and specID and self:DataFor(classID, specID, MetaMirrorDB.content)
+    if not d then print("|cffa855f7[MM]|r Keine Daten fuer aktuelle Spec.") return end
+    local lines, pending = {}, 0
+    local function finishMaybe()
+        if pending == 0 then
+            showCopy(table.concat(lines, "\n"))
+            print("|cffa855f7[MM]|r Qualitaets-Dump fertig \226\128\148 Fenster offen (Strg+C).")
+        end
+    end
+    -- GEAR
+    local gear = {}
+    for _, g in ipairs(d.gear or {}) do gear[#gear + 1] = g end
+    table.sort(gear, function(a, b) return (a.slot or "") < (b.slot or "") end)
+    for _, g in ipairs(gear) do
+        local bonus = table.concat(g.bonusIDs or {}, ":")
+        local core = string.format("item:%d:0:0:0:0:0:0:0:0:0:0:0:%d:%s",
+            g.itemID, #(g.bonusIDs or {}), bonus)
+        pending = pending + 1
+        local item = Item:CreateFromItemLink(core)
+        item:ContinueOnItemLoad(function()
+            local upg = {}
+            for _, s in ipairs(scanLines(core)) do
+                if s:find("%d+/%d+") then upg[#upg + 1] = s end
+            end
+            lines[#lines + 1] = string.format("GEAR %s  %d  ilvl=%d\n  bonus={%s}\n  upg=[%s]",
+                g.slot or "?", g.itemID, g.itemLevel or 0, bonus, table.concat(upg, " | "))
+            pending = pending - 1
+            finishMaybe()
+        end)
+    end
+    -- VERZAUBERUNGEN (Handwerksqualitaet)
+    local ench = {}
+    for _, e in ipairs(d.enchants or {}) do
+        if e.itemID and e.itemID ~= 0 then ench[#ench + 1] = e end
+    end
+    for _, e in ipairs(ench) do
+        pending = pending + 1
+        local item = Item:CreateFromItemID(e.itemID)
+        item:ContinueOnItemLoad(function()
+            local q
+            if C_TradeSkillUI and C_TradeSkillUI.GetItemCraftedQualityByItemInfo then
+                local ok, r = pcall(C_TradeSkillUI.GetItemCraftedQualityByItemInfo, e.itemID)
+                if ok then q = r end
+            end
+            local link = item:GetItemLink()
+            lines[#lines + 1] = string.format("ENCH %s  %d  q=%s\n  %s",
+                e.slot or "?", e.itemID, tostring(q), link and link:gsub("|", "||") or "?")
+            pending = pending - 1
+            finishMaybe()
+        end)
+    end
+    finishMaybe()
+end
+
+-- Diagnose: /mm dumpsrc  -> je Gear-Item Slot/itemID/Name, Equip-Location und die
+-- vom Abenteuerfuehrer-Index gefundene Quelle (oder "—" = nicht im Journal).
+function MetaMirror:DumpSource()
+    local classID, specID = self:CurrentSpecKey()
+    local d = classID and specID and self:DataFor(classID, specID, MetaMirrorDB.content)
+    if not d then print("|cffa855f7[MM]|r Keine Daten fuer aktuelle Spec.") return end
+    local lines, pending = {}, 0
+    lines[#lines + 1] = "Quelle-Dump (Content=" .. tostring(MetaMirrorDB.content) .. ")"
+    local function finishMaybe()
+        if pending == 0 then
+            showCopy(table.concat(lines, "\n"))
+            print("|cffa855f7[MM]|r Quelle-Dump fertig \226\128\148 Fenster offen (Strg+C).")
+        end
+    end
+    local gear = {}
+    for _, g in ipairs(d.gear or {}) do gear[#gear + 1] = g end
+    table.sort(gear, function(a, b) return (a.slot or "") < (b.slot or "") end)
+    for _, g in ipairs(gear) do
+        pending = pending + 1
+        local item = Item:CreateFromItemID(g.itemID)
+        item:ContinueOnItemLoad(function()
+            local src = MetaMirror:GetItemSource(g.itemID)
+            local name = item:GetItemName() or "?"
+            local loc = select(4, C_Item.GetItemInfoInstant(g.itemID))
+            local s = src and string.format("%s [inst=%s enc=%s diff=%s]",
+                src.text, tostring(src.instanceID), tostring(src.encounterID), tostring(src.difficultyID)) or "\226\128\148"
+            lines[#lines + 1] = string.format("%s  %d  %s\n  loc=%s  src=%s",
+                g.slot or "?", g.itemID, name, tostring(loc), s)
+            pending = pending - 1
+            finishMaybe()
+        end)
+    end
+    finishMaybe()
+end

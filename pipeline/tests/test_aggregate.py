@@ -74,3 +74,23 @@ def test_aggregate_gear_picks_max_itemlevel_variant():
     # hoechste beobachtete Stufe gewinnt -> deren bonusIDs (mit Sockel) werden uebernommen
     assert neck["itemID"] == 268265 and neck["itemLevel"] == 308
     assert neck["bonusIDs"] == [6652, 13668]
+
+
+def test_aggregate_dedupes_paired_ring_slots():
+    # Beide Ringslots picken am haeufigsten Ring 900 -> unmoeglich (einmalig anlegbar).
+    # RING2 muss aufs zweithaeufigste (901) ausweichen; ilvl-Variante wird uebernommen.
+    def g(r1, r2, r2_ilvl=300):
+        return [
+            {"slot": "RING1", "item_id": r1, "item_level": 300, "enchant_id": 0, "gems": [], "bonus_ids": []},
+            {"slot": "RING2", "item_id": r2, "item_level": r2_ilvl, "enchant_id": 0, "gems": [], "bonus_ids": []},
+        ]
+    recs = [
+        _rec({"haste": 7000, "crit": 5600, "mastery": 3500, "vers": 3900}, gear=g(900, 900)),
+        _rec({"haste": 7000, "crit": 5600, "mastery": 3500, "vers": 3900}, gear=g(900, 901)),
+        _rec({"haste": 7000, "crit": 5600, "mastery": 3500, "vers": 3900}, gear=g(900, 901)),
+    ]
+    agg = aggregate(recs, spec_id=71, season=SEASON, item_name=lambda i: f"item{i}")
+    by_slot = {g["slot"]: g["itemID"] for g in agg.gear}
+    assert by_slot["RING1"] == 900
+    assert by_slot["RING2"] == 901                 # nicht doppelt 900
+    assert by_slot["RING1"] != by_slot["RING2"]
