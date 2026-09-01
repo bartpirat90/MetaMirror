@@ -42,6 +42,49 @@ CONSUMABLE_SPELL_TO_ITEM = {
     1285644: {"cat": "food", "item": 222781},    # Hearty Feast of the Midnight Masquerade
 }
 
+# permanentEnchant-ID (aus CombatantInfo/Logs) -> itemID der Verzauberungs-Rolle.
+# Diese Rolle ist im AH suchbar (Shift-Klick auf den Item-Link). Die permanentEnchant-
+# Nummern sind NICHT ueber Wowhead aufloesbar; darum einmal pro Season kuratiert:
+# Enchant-Namen via `/mm dumpench` im Spiel auslesen -> Name -> itemID via Wowhead.
+# Nicht gemappte IDs -> enchantItemID 0 (Addon zeigt dann keinen Item-Link).
+ENCHANT_ITEM_BY_ID = {
+    # Kopf (Enchant Helm - Empowered ...)
+    7961: 243951,   # Empowered Hex of Leeching
+    7991: 243981,   # Empowered Blessing of Speed
+    8017: 244007,   # Empowered Rune of Avoidance
+    # Schultern
+    7973: 243963,   # Akil'zon's Swiftness
+    8001: 243990,   # Amirdrassil's Grace
+    8031: 244021,   # Silvermoon's Mending
+    # Brust
+    7987: 243977,   # Mark of the Worldsoul
+    8013: 244003,   # Mark of the Magister
+    # Waffe / Nebenhand
+    7981: 243971,   # Jan'alai's Precision
+    7983: 243973,   # Berserker's Rage
+    8039: 244029,   # Acuity of the Ren'dorei
+    8041: 244030,   # Arcane Mastery
+    8689: 273072,   # Rite of the Hash'ey
+    # Ringe
+    7967: 243957,   # Eyes of the Eagle
+    7969: 243959,   # Zul'jin's Mastery
+    7997: 243987,   # Nature's Fury
+    8025: 244015,   # Silvermoon's Alacrity (dt. "Inbrunst von Silbermond", Haste)
+    8027: 244017,   # Silvermoon's Tenacity
+    # Fuesse
+    7963: 243953,   # Lynx's Dexterity
+    7993: 243983,   # Shaladrassil's Roots
+    8019: 244009,   # Farstrider's Hunt
+    # Beine
+    7935: 240133,   # Sunfire Silk Spellthread (dt. "Zauberfaden aus Sonnenfeuerseide", Int + Ausdauer)
+    7937: 240155,   # Arcanoweave Spellthread (Int + 4% Mana)
+    8159: 244641,   # Forest Hunter's Armor Kit (Bewegl./Staerke + Ausdauer)
+    8163: 244643,   # Blood Knight's Armor Kit (Bewegl./Staerke + Ruestung)
+    # Bewusst KEIN Item (kein AH-Kauf): 6222 (Handgelenk "Ruheraffung", Legacy/Beruf),
+    #   6241/6245 (DK-Runenschmiede), 2841/5445 (alte/Beruf-Handschuhverz.),
+    #   3368/3847 (Legacy-Waffenrunen).
+}
+
 # Parses pro Spec x Content. Kosten ~2.6 WCL-Punkte/Parse; Limit 3600 Punkte/Stunde.
 # 15 -> ganzer Lauf (39 Specs x 2 Modi) bleibt unter einer Stunde, kein Rate-Limit-Abbruch.
 # Hoeher (Richtung 50) erst, wenn der Client stundenweise pausieren kann (offen).

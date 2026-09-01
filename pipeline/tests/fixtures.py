@@ -7,9 +7,10 @@ COMBATANT_INFO = {
     "mastery": 936,
     "versatilityDamageDone": 203, "versatilityDamageReduction": 203,
     "gear": [
-        {"id": 271483, "permanentEnchant": 7961, "bonusIDs": [6652]},          # 0 HEAD
-        {"id": 268265, "gems": [{"id": 240983}, {"id": 240908}]},              # 1 NECK
-        {"id": 0},                                                            # 2 leer -> skip
+        {"id": 271483, "itemLevel": 311, "permanentEnchant": 7961, "bonusIDs": [6652]},   # 0 HEAD
+        {"id": 268265, "itemLevel": 308, "bonusIDs": [6652, 13668],                        # 1 NECK
+         "gems": [{"id": 240983}, {"id": 240908}]},
+        {"id": 0},                                                                        # 2 leer -> skip
     ],
     "auras": [
         {"ability": 1235108, "name": "Flask of the Magisters"},

@@ -29,22 +29,33 @@ def aggregate(records, spec_id, season, item_name):
     talents = [{"importString": imports[0] if imports else "",
                 "usagePct": round(100 * cnt / n) if n else 0}]
 
-    slot_items = {}
+    slot_gear = {}
     slot_enchant = {}
     slot_gems = {}
     for r in records:
         for g in r.gear:
-            slot_items.setdefault(g["slot"], []).append(g["item_id"])
+            slot_gear.setdefault(g["slot"], []).append(g)
             if g.get("enchant_id"):
                 slot_enchant.setdefault(g["slot"], []).append(g["enchant_id"])
             for gem in g.get("gems", []):
                 slot_gems.setdefault(g["slot"], []).append(gem)
 
     gear = []
-    for slot, items in slot_items.items():
-        item_id, _ = _most_common(items)
-        if item_id:
-            gear.append({"slot": slot, "itemID": item_id, "name": item_name(item_id)})
+    for slot, entries in slot_gear.items():
+        item_id, _ = _most_common([g["item_id"] for g in entries])
+        if not item_id:
+            continue
+        # "maximale moegliche Gearstufe": unter den Traegern dieses Items die hoechste
+        # itemLevel-Variante nehmen -> deren bonusIDs bringen Sockel + Upgrade-Stufe mit.
+        variants = [g for g in entries if g["item_id"] == item_id]
+        best = max(variants, key=lambda g: g.get("item_level", 0))
+        gear.append({
+            "slot": slot,
+            "itemID": item_id,
+            "itemLevel": best.get("item_level", 0),
+            "bonusIDs": list(best.get("bonus_ids", [])),
+            "name": item_name(item_id),
+        })
     gear.sort(key=lambda g: g["slot"])
 
     gems = []
@@ -54,11 +65,14 @@ def aggregate(records, spec_id, season, item_name):
             gems.append({"slot": slot, "itemID": gem_id, "name": item_name(gem_id)})
     gems.sort(key=lambda g: g["slot"])
 
+    ench_item_map = season.get("ENCHANT_ITEM_BY_ID", {})
     enchants = []
     for slot, ids in slot_enchant.items():
         ench_id, _ = _most_common(ids)
         if ench_id:
-            enchants.append({"slot": slot, "id": ench_id, "name": f"enchant:{ench_id}"})
+            enchants.append({"slot": slot, "id": ench_id,
+                             "itemID": int(ench_item_map.get(ench_id, 0)),
+                             "name": f"enchant:{ench_id}"})
     enchants.sort(key=lambda e: e["slot"])
 
     consumables = {}

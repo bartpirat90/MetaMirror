@@ -51,6 +51,8 @@ SlashCmdList["METAMIRROR"] = function(msg)
     msg = (msg or ""):lower():gsub("^%s+", ""):gsub("%s+$", "")
     if msg == "status" or msg == "debug" then
         if MetaMirror.Status then MetaMirror:Status() end
+    elseif msg == "dumpench" or msg == "dump" then
+        if MetaMirror.DumpEnchants then MetaMirror:DumpEnchants() end
     elseif msg == "reset" then
         MetaMirrorDB.pos = nil
         print("|cffa855f7[MM]|r Position zurueckgesetzt.")

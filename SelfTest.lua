@@ -55,3 +55,129 @@ test("DataFor_missing", function()
     assertEqual(MetaMirror:DataFor(1, 71, "pvp"), nil, "no pvp content")
     assertEqual(MetaMirror:DataFor(99, 99, "raid"), nil, "unknown spec")
 end)
+
+-- ---------------------------------------------------------------------------
+-- /mm dumpench : liest die Enchant-Namen zu unseren permanentEnchant-IDs aus.
+-- Einmaliger Season-Schritt, um die feste enchantID->itemID-Tabelle zu bauen.
+-- Technik: Tooltip mit vs. ohne injizierter Verzauberung vergleichen -> die
+-- neu hinzugekommene (gruene) Zeile ist der Verzauberungsname. Robust gegen
+-- andere gruene Zeilen (Equip-Effekte etc.), weil nur die DIFFERENZ zaehlt.
+local function scanLines(link)
+    local tip = _G.MetaMirrorScanTip
+    if not tip then
+        tip = CreateFrame("GameTooltip", "MetaMirrorScanTip", nil, "GameTooltipTemplate")
+    end
+    tip:SetOwner(UIParent, "ANCHOR_NONE")
+    tip:ClearLines()
+    local out = {}
+    local ok = pcall(function() tip:SetHyperlink(link) end)
+    if ok then
+        for i = 1, tip:NumLines() do
+            local fs = _G["MetaMirrorScanTipTextLeft" .. i]
+            local s = fs and fs:GetText()
+            if s and s ~= "" then out[#out + 1] = s end
+        end
+    end
+    return out
+end
+
+local function cleanName(s)
+    s = s:gsub("|A.-|a", ""):gsub("|T.-|t", "")     -- Qualitaets-/Textur-Icons entfernen
+    s = s:gsub("^%s+", ""):gsub("%s+$", "")
+    local rest = s:match("^%a+:%s*(.+)$")            -- "Verzaubert:/Enchanted:"-Prefix abschneiden
+    if rest then s = rest:gsub("%s+$", "") end
+    return s
+end
+
+local function enchantName(gearID, enchantID)
+    local base, ench = scanLines("item:" .. gearID), scanLines("item:" .. gearID .. ":" .. enchantID)
+    local seen = {}
+    for _, s in ipairs(base) do seen[s] = true end
+    local fresh = {}
+    for _, s in ipairs(ench) do
+        if not seen[s] then
+            local c = cleanName(s)
+            if c ~= "" then return c end             -- erste echte neue Zeile = Verzauberung
+            fresh[#fresh + 1] = s
+        end
+    end
+    if #fresh > 0 then return "RAW: " .. table.concat(fresh, " | ") end   -- Diagnose
+    return nil
+end
+
+local dumpFrame
+local function showCopy(text)
+    if not dumpFrame then
+        local f = CreateFrame("Frame", "MetaMirrorDumpFrame", UIParent, "BackdropTemplate")
+        f:SetSize(440, 380); f:SetPoint("CENTER"); f:SetFrameStrata("DIALOG")
+        f:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8x8",
+                        edgeFile = "Interface\\Buttons\\WHITE8x8", edgeSize = 1 })
+        f:SetBackdropColor(0.06, 0.055, 0.10, 0.98)
+        f:SetBackdropBorderColor(0.42, 0.30, 0.70, 1)
+        f:EnableMouse(true); f:SetMovable(true); f:RegisterForDrag("LeftButton")
+        f:SetScript("OnDragStart", f.StartMoving); f:SetScript("OnDragStop", f.StopMoving)
+        local title = f:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        title:SetPoint("TOP", 0, -9); title:SetText("MetaMirror \226\128\148 Enchant-Dump (Strg+C, dann schicken)")
+        local close = CreateFrame("Button", nil, f, "UIPanelCloseButton")
+        close:SetPoint("TOPRIGHT", -2, -2)
+        local sf = CreateFrame("ScrollFrame", "MetaMirrorDumpScroll", f, "UIPanelScrollFrameTemplate")
+        sf:SetPoint("TOPLEFT", 12, -32); sf:SetPoint("BOTTOMRIGHT", -30, 12)
+        local eb = CreateFrame("EditBox", nil, sf)
+        eb:SetMultiLine(true); eb:SetFontObject(ChatFontNormal)
+        eb:SetWidth(380); eb:SetAutoFocus(false)
+        eb:SetScript("OnEscapePressed", function(s) s:ClearFocus() end)
+        sf:SetScrollChild(eb)
+        f.eb = eb
+        dumpFrame = f
+    end
+    dumpFrame:Show()
+    dumpFrame.eb:SetText(text)
+    dumpFrame.eb:SetFocus(); dumpFrame.eb:HighlightText()
+end
+
+function MetaMirror:DumpEnchants()
+    local data = MetaMirrorData
+    if not (data and data.specs) then
+        print("|cffa855f7[MM]|r Keine Daten geladen.")
+        return
+    end
+    local repGear, order = {}, {}   -- enchantID -> repraesentatives Gear-Item (gleicher Slot)
+    for _, specs in pairs(data.specs) do
+        for _, spec in pairs(specs) do
+            for _, content in pairs(spec) do
+                if type(content) == "table" and content.enchants and content.gear then
+                    local bySlot = {}
+                    for _, g in ipairs(content.gear) do bySlot[g.slot] = g.itemID end
+                    for _, e in ipairs(content.enchants) do
+                        if e.id and not repGear[e.id] and bySlot[e.slot] then
+                            repGear[e.id] = bySlot[e.slot]
+                            order[#order + 1] = { id = e.id, slot = e.slot }
+                        end
+                    end
+                end
+            end
+        end
+    end
+    table.sort(order, function(a, b) return a.id < b.id end)
+    if #order == 0 then print("|cffa855f7[MM]|r Keine Verzauberungen in den Daten.") return end
+
+    local pending, results = 0, {}
+    local function finish()
+        local lines = {}
+        for _, o in ipairs(order) do
+            lines[#lines + 1] = o.id .. "\t" .. o.slot .. "\t" .. (results[o.id] or "?")
+        end
+        showCopy(table.concat(lines, "\n"))
+        print("|cffa855f7[MM]|r " .. #order .. " Verzauberungen ausgelesen \226\128\148 Fenster offen (Strg+C).")
+    end
+    for _, o in ipairs(order) do
+        pending = pending + 1
+        local it = Item:CreateFromItemID(repGear[o.id])
+        it:ContinueOnItemLoad(function()
+            results[o.id] = enchantName(repGear[o.id], o.id)
+            pending = pending - 1
+            if pending == 0 then finish() end
+        end)
+    end
+    if pending == 0 then finish() end
+end

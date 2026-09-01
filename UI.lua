@@ -1,10 +1,10 @@
 MetaMirror = MetaMirror or {}
 local C, L = MetaMirror.C, MetaMirror.L
 
-local TABS = { "stats", "talents", "gear", "gems", "cons" }
+local TABS = { "stats", "talents", "gear", "gems", "ench", "cons" }
 local TAB_LABEL = {
     stats = "tab_stats", talents = "tab_talents", gear = "tab_gear",
-    gems = "tab_gems", cons = "tab_cons",
+    gems = "tab_gems", ench = "ench_short", cons = "tab_cons",
 }
 
 local Panel, Tabs, Body, Header, CtxBtns = nil, {}, nil, nil, {}
@@ -68,11 +68,11 @@ function MetaMirror:BuildPanel()
     ctxButton("raid",       L.ctx_raid,  -8)
     ctxButton("mythicplus", L.ctx_mplus, -58)
 
-    -- Tab-Leiste
-    local x = 10
+    -- Tab-Leiste (6 Tabs -> schmaler, damit sie in 360px passen)
+    local x = 8
     for _, key in ipairs(TABS) do
         local b = CreateFrame("Button", nil, Panel)
-        b:SetSize(66, 22); b:SetPoint("TOPLEFT", x, -36)
+        b:SetSize(54, 22); b:SetPoint("TOPLEFT", x, -36)
         local t = tex(b, "BACKGROUND", C.HEAD); t:SetAllPoints(); b.bg = t
         local fstr = fs(b, "GameFontHighlightSmall", C.DIM)
         fstr:SetPoint("CENTER"); fstr:SetText(L[TAB_LABEL[key]]); b.fstr = fstr
@@ -81,7 +81,7 @@ function MetaMirror:BuildPanel()
             MetaMirror:Refresh()
         end)
         Tabs[key] = b
-        x = x + 68
+        x = x + 56
     end
 
     -- Inhaltsbereich
@@ -268,17 +268,6 @@ local function renderStats(self, data)
     for j = i + 1, #rows do rows[j]:Hide() end
 end
 
--- Einfacher, mehrzeiliger Text-Renderer fuer die Listen-Tabs.
-local function renderLines(lines)
-    for j = 1, #rows do rows[j]:Hide() end
-    if not Body.msg then
-        Body.msg = fs(Body, "GameFontHighlight", C.DIM); Body.msg:SetPoint("TOPLEFT")
-    end
-    Body.msg:Show()
-    Body.msg:SetJustifyH("LEFT")
-    Body.msg:SetText(table.concat(lines, "\n"))
-end
-
 -- Talente: Import-String in selektierbarer EditBox + Nutzungsquote.
 local TalentBox
 local function renderTalents(data)
@@ -295,20 +284,31 @@ local function renderTalents(data)
         TalentBox.usage:SetPoint("TOPLEFT", 4, -58)
     end
     local t = data.talents and data.talents[1]
-    TalentBox:Show(); TalentBox.hint:Show(); TalentBox.usage:Show()
-    TalentBox.hint:SetText(L.copy_hint)
-    TalentBox:SetText(t and t.importString or "")
-    TalentBox:SetCursorPosition(0)
+    local imp = t and t.importString or ""
+    TalentBox.usage:Show()
     TalentBox.usage:SetText(t and string.format(L.usage, t.usagePct) or "")
+    if imp ~= "" then
+        -- Kopierbarer Import-String (sobald die Datenquelle einen liefert).
+        TalentBox:Show(); TalentBox.hint:Show()
+        TalentBox.hint:SetText(L.copy_hint)
+        TalentBox:SetText(imp)
+        TalentBox:SetCursorPosition(0)
+    else
+        -- WCL liefert (noch) keinen Blizzard-Import-String -> ehrlich benennen.
+        TalentBox:Hide()
+        TalentBox.hint:Show()
+        TalentBox.hint:SetText(L.talent_no_import)
+    end
 end
 local function hideTalents()
     if TalentBox then TalentBox:Hide(); TalentBox.hint:Hide(); TalentBox.usage:Hide() end
 end
 
--- Verbrauchsgueter als klickbare Item-Links (Shift-Klick -> Chat / AH-Suche).
-local consRows = {}
-local function getConsRow(i)
-    if consRows[i] then return consRows[i] end
+-- Generische klickbare Item-Zeile (Shift-Klick -> Chat / AH-Suche).
+-- Wiederverwendet fuer Verbrauchsgueter, Gear, Steine und Verzauberungen.
+local itemRows = {}
+local function getItemRow(i)
+    if itemRows[i] then return itemRows[i] end
     local b = CreateFrame("Button", nil, Body)
     b:SetSize(320, 20)
     b:RegisterForClicks("AnyUp")
@@ -328,28 +328,89 @@ local function getConsRow(i)
             SetItemRef(self.link, self.link, button, self)
         end
     end)
-    consRows[i] = b
+    itemRows[i] = b
     return b
 end
 
-local function setConsRow(b, label, itemID)
+-- label: linke Beschriftung; itemID: klickbares Item (0/nil = nicht klickbar);
+-- fallback: Text, wenn kein Item aufloesbar ist; enchantID: optional in den
+-- Item-Link injiziert; bonusIDs: Upgrade-/Sockel-Bonusliste -> voller Link mit
+-- korrekter Maximalstufe und Sockelplaetzen (sonst rendert der Client die Grundform).
+local function setItemRow(b, label, itemID, fallback, enchantID, bonusIDs)
     if itemID and itemID ~= 0 then
         b.link = nil
         b.icon:SetTexture(134400)   -- Fragezeichen-Platzhalter bis geladen
         b.label:SetText(label .. ": ...")
         local item = Item:CreateFromItemID(itemID)
         item:ContinueOnItemLoad(function()
-            b.link = item:GetItemLink()
+            local name = item:GetItemName() or ("item:" .. itemID)
+            local link
+            if bonusIDs and #bonusIDs > 0 then
+                -- Vollen Item-Link selbst bauen: item:id:enchant:0*10:numBonus:bonus...
+                local _, _, _, hex = GetItemQualityColor(item:GetItemQuality() or 1)
+                local core = string.format("item:%d:%d:0:0:0:0:0:0:0:0:0:0:%d:%s",
+                    itemID, enchantID or 0, #bonusIDs, table.concat(bonusIDs, ":"))
+                link = "|c" .. (hex or "ffffffff") .. "|H" .. core .. "|h[" .. name .. "]|h|r"
+            else
+                link = item:GetItemLink()
+                if enchantID and enchantID ~= 0 and link then
+                    -- Enchant-Feld (2. Wert nach der ItemID) im Link setzen.
+                    link = link:gsub("(Hitem:%d+):%-?%d*:", "%1:" .. enchantID .. ":", 1)
+                end
+            end
+            b.link = link
             b.icon:SetTexture(item:GetItemIcon())
-            b.label:SetText(label .. ": " .. (item:GetItemName() or ("item:" .. itemID)))
+            b.label:SetText(label .. ": " .. name)
         end)
     else
         b.link = nil
         b.icon:SetTexture(nil)
-        b.label:SetText(label .. ": -")
+        b.label:SetText(label .. ": " .. (fallback or "-"))
     end
     b:Show()
 end
+
+local function hideItemRows()
+    for j = 1, #itemRows do itemRows[j]:Hide() end
+end
+
+-- entries: Liste aus { label, itemID, fallback, enchantID, bonusIDs }.
+local function renderItemList(entries)
+    for j = 1, #rows do rows[j]:Hide() end
+    if Body.msg then Body.msg:Hide() end
+    local i = 0
+    for _, e in ipairs(entries) do
+        i = i + 1
+        local b = getItemRow(i)
+        b:ClearAllPoints(); b:SetPoint("TOPLEFT", 0, -(i - 1) * 20)
+        setItemRow(b, e.label, e.itemID, e.fallback, e.enchantID, e.bonusIDs)
+    end
+    for j = i + 1, #itemRows do itemRows[j]:Hide() end
+end
+
+-- Slot-Reihenfolge + Anzeigenamen (fuer Gear/Steine/Verzauberungen).
+local SLOT_ORDER = {
+    "HEAD","NECK","SHOULDER","BACK","CHEST","WRIST","HANDS","WAIST",
+    "LEGS","FEET","RING1","RING2","TRINKET1","TRINKET2","MAINHAND","OFFHAND",
+}
+local SLOT_LABELS = {
+    HEAD="Head", NECK="Neck", SHOULDER="Shoulder", BACK="Back", CHEST="Chest",
+    WRIST="Wrist", HANDS="Hands", WAIST="Waist", LEGS="Legs", FEET="Feet",
+    RING1="Ring 1", RING2="Ring 2", TRINKET1="Trinket 1", TRINKET2="Trinket 2",
+    MAINHAND="Main Hand", OFFHAND="Off Hand",
+}
+if GetLocale() == "deDE" then
+    SLOT_LABELS = {
+        HEAD="Kopf", NECK="Hals", SHOULDER="Schulter", BACK="Ruecken", CHEST="Brust",
+        WRIST="Handgelenke", HANDS="Haende", WAIST="Guertel", LEGS="Beine", FEET="Fuesse",
+        RING1="Ring 1", RING2="Ring 2", TRINKET1="Schmuck 1", TRINKET2="Schmuck 2",
+        MAINHAND="Waffe", OFFHAND="Nebenhand",
+    }
+end
+local SLOT_RANK = {}
+for idx, s in ipairs(SLOT_ORDER) do SLOT_RANK[s] = idx end
+local function slotLabel(slot) return SLOT_LABELS[slot] or slot end
+local function bySlot(a, b) return (SLOT_RANK[a.slot] or 99) < (SLOT_RANK[b.slot] or 99) end
 
 local CONS_ORDER = {
     { key = "flask",  label = "Flask"  },
@@ -360,26 +421,6 @@ local CONS_ORDER = {
     { key = "rune",   label = "Rune"   },
 }
 
-local function hideCons()
-    for j = 1, #consRows do consRows[j]:Hide() end
-end
-
-local function renderConsumables(data)
-    for j = 1, #rows do rows[j]:Hide() end
-    if Body.msg then Body.msg:Hide() end
-    local c = data.consumables or {}
-    local i = 0
-    for _, cat in ipairs(CONS_ORDER) do
-        if c[cat.key] ~= nil then
-            i = i + 1
-            local b = getConsRow(i)
-            b:ClearAllPoints(); b:SetPoint("TOPLEFT", 0, -(i - 1) * 22)
-            setConsRow(b, cat.label, c[cat.key])
-        end
-    end
-    for j = i + 1, #consRows do consRows[j]:Hide() end
-end
-
 function MetaMirror.RenderBody(self, classID, specID)
     if not Body.msg then
         Body.msg = fs(Body, "GameFontHighlight", C.DIM)
@@ -389,27 +430,59 @@ function MetaMirror.RenderBody(self, classID, specID)
     if not data then
         for j = 1, #rows do rows[j]:Hide() end
         hideTalents()
-        hideCons()
+        hideItemRows()
         Body.msg:Show(); Body.msg:SetText(L.no_data)
         return
     end
     Body.msg:Hide()
     hideTalents()
-    hideCons()
+    hideItemRows()
     if MetaMirrorDB.tab == "stats" then
         renderStats(self, data)
     elseif MetaMirrorDB.tab == "talents" then
         renderTalents(data)
     elseif MetaMirrorDB.tab == "gear" then
-        local lines = {}
-        for _, g in ipairs(data.gear or {}) do lines[#lines+1] = "|cffa3d0ff" .. g.slot .. "|r  " .. g.name end
-        renderLines(#lines > 0 and lines or { L.no_data })
+        -- Gear steht fuer sich: nur das Item, aber mit Maximalstufe + Sockeln (bonusIDs).
+        local gear = {}
+        for _, g in ipairs(data.gear or {}) do gear[#gear+1] = g end
+        table.sort(gear, bySlot)
+        local entries = {}
+        for _, g in ipairs(gear) do
+            entries[#entries+1] = { label = slotLabel(g.slot), itemID = g.itemID,
+                                    bonusIDs = g.bonusIDs }
+        end
+        if #entries > 0 then renderItemList(entries)
+        else Body.msg:Show(); Body.msg:SetText(L.no_data) end
     elseif MetaMirrorDB.tab == "gems" then
-        local lines = {}
-        for _, g in ipairs(data.gems or {})     do lines[#lines+1] = g.slot .. ": " .. g.name end
-        for _, e in ipairs(data.enchants or {}) do lines[#lines+1] = e.slot .. ": " .. e.name end
-        renderLines(#lines > 0 and lines or { L.no_data })
+        local gems = {}
+        for _, g in ipairs(data.gems or {}) do gems[#gems+1] = g end
+        table.sort(gems, bySlot)
+        local entries = {}
+        for _, g in ipairs(gems) do
+            entries[#entries+1] = { label = slotLabel(g.slot), itemID = g.itemID }
+        end
+        if #entries > 0 then renderItemList(entries)
+        else Body.msg:Show(); Body.msg:SetText(L.no_data) end
+    elseif MetaMirrorDB.tab == "ench" then
+        -- Verzauberung als echtes, AH-suchbares Item (Shift-Klick). itemID = 0 -> kein Link.
+        local list = {}
+        for _, e in ipairs(data.enchants or {}) do list[#list+1] = e end
+        table.sort(list, bySlot)
+        local entries = {}
+        for _, e in ipairs(list) do
+            local iid = (e.itemID ~= 0) and e.itemID or nil
+            entries[#entries+1] = { label = slotLabel(e.slot), itemID = iid, fallback = L.ench_missing }
+        end
+        if #entries > 0 then renderItemList(entries)
+        else Body.msg:Show(); Body.msg:SetText(L.no_data) end
     else -- cons
-        renderConsumables(data)
+        local c = data.consumables or {}
+        local entries = {}
+        for _, cat in ipairs(CONS_ORDER) do
+            if c[cat.key] ~= nil then
+                entries[#entries+1] = { label = cat.label, itemID = c[cat.key] }
+            end
+        end
+        renderItemList(entries)
     end
 end

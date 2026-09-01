@@ -22,7 +22,12 @@ def _spec_block(agg, indent):
 
     lines.append(f"{p}gear = {{")
     for g in agg.gear:
-        lines.append(f'{p2}{{ slot = {_q(g["slot"])}, itemID = {int(g["itemID"])}, name = {_q(g["name"])} }},')
+        bonus = ", ".join(str(int(b)) for b in g.get("bonusIDs", []))
+        lines.append(
+            f'{p2}{{ slot = {_q(g["slot"])}, itemID = {int(g["itemID"])}, '
+            f'itemLevel = {int(g.get("itemLevel", 0))}, bonusIDs = {{ {bonus} }}, '
+            f'name = {_q(g["name"])} }},'
+        )
     lines.append(f"{p}}},")
 
     lines.append(f"{p}gems = {{")
@@ -32,7 +37,10 @@ def _spec_block(agg, indent):
 
     lines.append(f"{p}enchants = {{")
     for e in agg.enchants:
-        lines.append(f'{p2}{{ slot = {_q(e["slot"])}, id = {int(e["id"])}, name = {_q(e["name"])} }},')
+        lines.append(
+            f'{p2}{{ slot = {_q(e["slot"])}, id = {int(e["id"])}, '
+            f'itemID = {int(e.get("itemID", 0))}, name = {_q(e["name"])} }},'
+        )
     lines.append(f"{p}}},")
 
     cons = ", ".join(f"{k} = {int(v)}" for k, v in sorted(agg.consumables.items()))

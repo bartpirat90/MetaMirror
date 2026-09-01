@@ -34,8 +34,11 @@ def parse_combatant_info(event, class_id, spec_id, content, season):
         gear.append({
             "slot": slot,
             "item_id": item_id,
+            "item_level": int(g.get("itemLevel") or 0),
             "enchant_id": int(g.get("permanentEnchant") or 0),
             "gems": [int(gem.get("id")) for gem in (g.get("gems") or []) if gem.get("id")],
+            # bonusIDs kodieren Upgrade-Track/Ilvl/Sockel -> ohne sie rendert der Client die Grundform.
+            "bonus_ids": [int(b) for b in (g.get("bonusIDs") or [])],
         })
 
     consumables = {c: None for c in _CONS_CATS}

@@ -7,9 +7,10 @@ def _agg():
         sample_size=42,
         stats=[{"key": "haste", "rating": 961}, {"key": "crit", "rating": 1371}],
         talents=[{"importString": "ABC=", "usagePct": 68}],
-        gear=[{"slot": "HEAD", "itemID": 21001, "name": "Helm"}],
+        gear=[{"slot": "HEAD", "itemID": 21001, "itemLevel": 311,
+               "bonusIDs": [6652, 12843], "name": "Helm"}],
         gems=[{"slot": "RING1", "itemID": 90001, "name": "+Haste"}],
-        enchants=[{"slot": "MAINHAND", "id": 7001, "name": "enchant:7001"}],
+        enchants=[{"slot": "MAINHAND", "id": 7001, "itemID": 243971, "name": "enchant:7001"}],
         consumables={"flask": 212283, "food": 222},
     )
 
@@ -26,6 +27,8 @@ def test_emit_structure_and_values():
     assert '{ key = "haste", rating = 961 }' in out
     assert 'importString = "ABC="' in out
     assert 'itemID = 21001' in out
+    assert 'itemLevel = 311' in out
+    assert 'bonusIDs = { 6652, 12843 }' in out
     assert 'flask = 212283' in out
     # balancierte Klammern
     assert out.count("{") == out.count("}")

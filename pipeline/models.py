@@ -11,7 +11,7 @@ class ParseRecord:
     stats: dict                     # {"haste": rating_int, "crit": .., "mastery": .., "vers": ..}
     talent_import: str              # Blizzard-Export-String, falls vorhanden, sonst ""
     talent_sig: str                 # stabile Signatur der Talentauswahl (Gruppierungsschluessel)
-    gear: list                      # [{"slot": "HEAD", "item_id": int, "enchant_id": int, "gems": [int]}, ..]
+    gear: list                      # [{"slot": "HEAD", "item_id": int, "item_level": int, "enchant_id": int, "gems": [int], "bonus_ids": [int]}, ..]
     consumables: dict               # {"flask": itemID|None, "phial": .., "potion": .., "food": .., "oil": .., "rune": ..}
 
 
@@ -21,7 +21,7 @@ class AggregatedSpec:
     sample_size: int
     stats: list                     # [{"key": "haste", "rating": int}, ..] absteigend nach rating
     talents: list                   # [{"importString": str, "usagePct": int}]
-    gear: list                      # [{"slot": str, "itemID": int, "name": str}]
+    gear: list                      # [{"slot": str, "itemID": int, "itemLevel": int, "bonusIDs": [int], "name": str}]
     gems: list                      # [{"slot": str, "itemID": int, "name": str}]
-    enchants: list                  # [{"slot": str, "id": int, "name": str}]
+    enchants: list                  # [{"slot": str, "id": int, "itemID": int, "name": str}]
     consumables: dict               # {"flask": itemID, ...} (nur belegte Keys)

@@ -19,8 +19,10 @@ def test_gear_index_is_slot_and_gems_extracted():
                                content="raid", season=SEASON)
     head = [g for g in rec.gear if g["slot"] == "HEAD"][0]
     assert head["item_id"] == 271483 and head["enchant_id"] == 7961 and head["gems"] == []
+    assert head["item_level"] == 311 and head["bonus_ids"] == [6652]
     neck = [g for g in rec.gear if g["slot"] == "NECK"][0]
     assert neck["item_id"] == 268265 and neck["gems"] == [240983, 240908]
+    assert neck["item_level"] == 308 and neck["bonus_ids"] == [6652, 13668]
     # leeres Gear-Element (id 0) wird uebersprungen
     assert all(g["item_id"] != 0 for g in rec.gear)
 
