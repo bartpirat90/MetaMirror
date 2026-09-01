@@ -40,6 +40,12 @@ f:SetScript("OnEvent", function(_, event, arg1)
     elseif event == "PLAYER_LOGIN" then
         MetaMirror.InitDB()
         if MetaMirror.BuildPanel then MetaMirror:BuildPanel() end
+        -- Item-Quellen-Index (Abenteuerfuehrer) im Hintergrund vorwaermen, damit der
+        -- erste Gear-/Schmuck-Tab keinen Scan-Hang mehr ausloest. Verzoegert, damit der
+        -- Login-Sturm vorbei ist; der Aufbau selbst ist asynchron (Zeitbudget je Frame).
+        if MetaMirror.PrimeItemSources and C_Timer and C_Timer.After then
+            C_Timer.After(3, function() MetaMirror:PrimeItemSources() end)
+        end
     elseif event == "PLAYER_SPECIALIZATION_CHANGED" then
         if MetaMirror.Refresh then MetaMirror:Refresh() end
     end

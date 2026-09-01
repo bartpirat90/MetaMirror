@@ -10,8 +10,9 @@ MetaMirror = MetaMirror or {}
 local RAID_DIFFS = { 16, 15, 14 }   -- Mythisch, Heroisch, Normal
 local DUNG_DIFFS = { 23, 2, 1 }     -- Mythisch, Heroisch, Normal
 
-local index          -- itemID -> { text, instanceID, encounterID, difficultyID }
-local built = false
+local index = {}     -- itemID -> { text, instanceID, encounterID, difficultyID }
+local state = "idle" -- "idle" | "running" | "done" (asynchroner Index-Aufbau)
+local co, ticker     -- Coroutine + C_Timer-Ticker fuer den inkrementellen Scan
 local filterClassID, filterSpecID   -- fuer den Klassen-Set-Filter waehrend des Scans
 
 local function applyLootFilter()
@@ -65,9 +66,12 @@ local function indexInstance(instanceID, isRaid)
     end
 end
 
-local function build()
-    index = {}
-    if not ensureEJ() then built = true; return end
+-- Der eigentliche Scan als Coroutine: nach JEDER Instanz coroutine.yield(), damit der
+-- Ticker die Arbeit ueber mehrere Frames verteilt (kein Sekunden-Hang mehr). WICHTIG
+-- (Lua 5.1): yield darf NICHT innerhalb eines pcall stehen -> die EJ-Aufrufe einzeln
+-- per pcall schuetzen (indexInstance yieldet nicht), yield nur im Coroutine-Rumpf.
+local function buildCoroutine()
+    if not ensureEJ() then return end
     -- Klassen-/Spec-Filter fuer den Scan bestimmen (fuer die Tier-Set-Teile noetig).
     local _, _, classID = UnitClass("player")
     local specIndex = GetSpecialization and GetSpecialization()
@@ -77,30 +81,68 @@ local function build()
     local curTier = EJ_GetCurrentTier and EJ_GetCurrentTier()
     local numTiers = EJ_GetNumTiers() or 0
     for tier = 1, numTiers do
-        pcall(function()
-            EJ_SelectTier(tier)
-            for _, isRaid in ipairs({ false, true }) do
-                local idx = 1
-                while true do
-                    local instanceID = EJ_GetInstanceByIndex(idx, isRaid)
-                    if not instanceID then break end
-                    indexInstance(instanceID, isRaid)
-                    idx = idx + 1
-                end
+        if EJ_SelectTier then pcall(EJ_SelectTier, tier) end
+        for _, isRaid in ipairs({ false, true }) do
+            local idx = 1
+            while true do
+                local instanceID = EJ_GetInstanceByIndex(idx, isRaid)
+                if not instanceID then break end
+                pcall(indexInstance, instanceID, isRaid)   -- pcall OHNE yield darin
+                idx = idx + 1
+                coroutine.yield()                          -- Pause AUSSERHALB jedes pcall
             end
-        end)
+        end
     end
     if curTier and EJ_SelectTier then pcall(EJ_SelectTier, curTier) end  -- UI-Zustand wiederherstellen
-    built = true
+end
+
+local function finishBuild()
+    state = "done"
+    co = nil
+    if ticker then ticker:Cancel(); ticker = nil end
+    -- Ist das Panel gerade offen (Gear/Schmuck)? -> Quellen nachtragen.
+    if MetaMirror.Refresh and MetaMirrorPanel and MetaMirrorPanel.IsShown
+        and MetaMirrorPanel:IsShown() then
+        MetaMirror:Refresh()
+    end
+end
+
+-- Ein Ticker-Schritt: die Coroutine so lange fortsetzen, bis ein Zeitbudget je Frame
+-- erreicht ist (schnell fertig, aber nie ein spuerbarer Hang). debugprofilestop = ms.
+local function tick()
+    if not co then if ticker then ticker:Cancel(); ticker = nil end return end
+    local budget = (debugprofilestop and (debugprofilestop() + 8)) or nil
+    while co do
+        local ok = coroutine.resume(co)
+        if not ok or coroutine.status(co) == "dead" then finishBuild(); return end
+        if budget and debugprofilestop() >= budget then return end
+        if not budget then return end   -- ohne Timer-API: ein Schritt pro Frame
+    end
+end
+
+-- Startet den asynchronen Index-Aufbau (idempotent). Wird beim Login vorgewaermt, kann
+-- aber auch beim ersten GetItemSource anlaufen -> blockiert nie den Render-Pfad.
+function MetaMirror:PrimeItemSources()
+    if state ~= "idle" then return end
+    state = "running"
+    index = {}
+    co = coroutine.create(buildCoroutine)
+    if C_Timer and C_Timer.NewTicker then
+        ticker = C_Timer.NewTicker(0, tick)
+    else
+        -- Sehr alter Client ohne C_Timer: einmal synchron durchlaufen (Fallback).
+        while co do
+            local ok = coroutine.resume(co)
+            if not ok or coroutine.status(co) == "dead" then finishBuild(); break end
+        end
+    end
 end
 
 -- Liefert { text, instanceID, encounterID, difficultyID } oder nil (Handwerk/unbekannt).
+-- Loest den Aufbau bei Bedarf aus (asynchron), gibt bis zur Fertigstellung ggf. nil.
 function MetaMirror:GetItemSource(itemID)
     if not itemID then return nil end
-    if not built then
-        local ok = pcall(build)
-        if not ok then index = index or {}; built = true end
-    end
+    if state == "idle" then self:PrimeItemSources() end
     return index[itemID]
 end
 
