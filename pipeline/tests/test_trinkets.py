@@ -78,6 +78,32 @@ def test_with_tiers_full_list_no_cap():
     assert any(e.get("mode") == "Haste" for e in tiered)
 
 
+def test_with_tiers_s_is_rank_capped():
+    # Fünf klar gestaffelte Trinkets: nur die Top 2 duerfen S sein (kein %-Schwellen-Wildwuchs).
+    ranking = [
+        {"itemID": 1, "name": "a", "mode": None, "dps": 100.0},
+        {"itemID": 2, "name": "b", "mode": None, "dps": 99.0},
+        {"itemID": 3, "name": "c", "mode": None, "dps": 98.0},
+        {"itemID": 4, "name": "d", "mode": None, "dps": 97.0},
+        {"itemID": 5, "name": "e", "mode": None, "dps": 96.0},
+    ]
+    tiers = [e["tier"] for e in with_tiers(ranking)]
+    assert tiers.count("S") == 2            # nur die beiden besten
+    assert tiers[:2] == ["S", "S"] and tiers[2] == "A"
+
+
+def test_with_tiers_third_s_on_near_tie():
+    # #3 praktisch gleichauf mit #1 (<=0.15% Rueckstand) -> dritter S-Platz erlaubt (max 3).
+    ranking = [
+        {"itemID": 1, "name": "a", "mode": None, "dps": 100.0},
+        {"itemID": 2, "name": "b", "mode": None, "dps": 99.95},
+        {"itemID": 3, "name": "c", "mode": None, "dps": 99.9},
+        {"itemID": 4, "name": "d", "mode": None, "dps": 90.0},
+    ]
+    tiers = [e["tier"] for e in with_tiers(ranking)]
+    assert tiers.count("S") == 3
+
+
 def test_blend_overall_keeps_modes_separate():
     raid = parse_ranking(_payload())
     # Ohne Dungeon-Liste: alle Namen eindeutig -> 5 Eintraege, Ruby Whelp 4x erhalten

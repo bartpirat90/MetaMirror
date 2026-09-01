@@ -75,24 +75,39 @@ def parse_ranking(payload):
     return out
 
 
-# Tier nach Rueckstand auf das beste Trinket (in % der Top-DPS). Schwellen bewusst eng,
-# da Sim-DPS nah beieinander liegen; so entsteht ein sichtbares S/A/B/C/D-Feld.
-_TIER_CUTS = [(1.0, "S"), (2.5, "A"), (5.0, "B"), (8.0, "C")]
+# S-Tier NICHT prozentual: Sim-DPS liegen so dicht beieinander (Top-Feld < 1% Spanne),
+# dass eine %-Schwelle ein Dutzend S produziert -> unglaubwuerdig. Stattdessen rang-basiert:
+# nur die 2 besten sind S (die 3., wenn sie praktisch gleichauf mit #1 liegt), dann feste
+# Rang-Buckets. So heben sich die wirklich besten Trinkets sichtbar ab.
+_S_TIE_MARGIN = 0.15   # #3 wird nur S, wenn <=0.15% Rueckstand auf #1 (echter Gleichstand)
+_A_SIZE, _B_SIZE, _C_SIZE = 5, 8, 12
 
 
 def with_tiers(ranking):
-    """Ergaenzt tier + pct je Eintrag; erwartet DPS-sortiert. VOLLSTAENDIG (kein Cap)."""
+    """Ergaenzt tier + pct je Eintrag; erwartet DPS-sortiert. VOLLSTAENDIG (kein Cap).
+    Tiers rang-basiert: S = Top 2 (Top 3 nur bei Quasi-Gleichstand), dann A/B/C/D-Buckets."""
     if not ranking:
         return []
     top = ranking[0]["dps"] or 1.0
+    n = len(ranking)
+    s_count = min(2, n)
+    if n >= 3 and (top - ranking[2]["dps"]) / top * 100.0 <= _S_TIE_MARGIN:
+        s_count = 3
+    a_end = s_count + _A_SIZE
+    b_end = a_end + _B_SIZE
+    c_end = b_end + _C_SIZE
     out = []
-    for t in ranking:
-        behind = (top - t["dps"]) / top * 100.0
-        tier = "D"
-        for cut, letter in _TIER_CUTS:
-            if behind <= cut:
-                tier = letter
-                break
+    for i, t in enumerate(ranking):
+        if i < s_count:
+            tier = "S"
+        elif i < a_end:
+            tier = "A"
+        elif i < b_end:
+            tier = "B"
+        elif i < c_end:
+            tier = "C"
+        else:
+            tier = "D"
         out.append({"itemID": t["itemID"], "tier": tier,
                     "pct": round(t["dps"] / top * 100.0, 1), "mode": t.get("mode")})
     return out
