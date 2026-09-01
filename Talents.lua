@@ -60,6 +60,16 @@ local function activeEntryIndex(node)
     return 1
 end
 
+-- 1-basierter Index einer beliebigen entryID (aus den WCL-Daten) in node.entryIDs.
+local function entryIndexOf(node, entryID)
+    if entryID and node.entryIDs then
+        for i, e in ipairs(node.entryIDs) do
+            if e == entryID then return i end
+        end
+    end
+    return 1
+end
+
 -- Serialisiert den Knoten-Teil (ohne Kopf) fuer die AKTUELLE Belegung der configID.
 -- Exakt Blizzards WriteLoadoutContent nachgebaut, damit der String bit-identisch wird.
 local function writeLoadoutContent(bits, configID, treeID)
@@ -104,6 +114,48 @@ function MetaMirror:BuildOwnLoadoutString()
     local bits = {}
     for i = 1, 152 do bits[i] = nbits[i] or 0 end
     writeLoadoutContent(bits, configID, treeID)
+    return encodeBits(bits), nil, native
+end
+
+-- Baut einen Import-String fuer einen META-BUILD, gegeben als Knoten-Map
+--   nodeMap = { [nodeID] = { entryID = <gewaehlte Entry-ID>, rank = <Raenge> } }
+-- exakt die Datenform, die die Pipeline aus WCL liefert (nodeID/id/rank). Kopf wird 1:1
+-- aus dem eigenen GenerateImportString uebernommen (korrekter treeHash, da MetaMirror die
+-- eigene Spec spiegelt). Auto-gewaehrte (granted) Knoten fuellt die Live-Konfig auf, damit
+-- der String genau Blizzards Aufbau trifft und der Client ihn akzeptiert.
+function MetaMirror:BuildLoadoutFromMap(nodeMap)
+    if not (C_ClassTalents and C_Traits) then return nil, "C_Traits API fehlt" end
+    local configID = C_ClassTalents.GetActiveConfigID and C_ClassTalents.GetActiveConfigID()
+    if not configID then return nil, "keine configID" end
+    local native = C_Traits.GenerateImportString and C_Traits.GenerateImportString(configID)
+    if not native or native == "" then return nil, "GenerateImportString leer" end
+    local info = C_Traits.GetConfigInfo(configID)
+    local treeID = info and info.treeIDs and info.treeIDs[1]
+    if not treeID then return nil, "keine treeID" end
+
+    local nbits = decodeBits(native)
+    local bits = {}
+    for i = 1, 152 do bits[i] = nbits[i] or 0 end   -- Kopf 1:1 uebernehmen
+    for _, nodeID in ipairs(C_Traits.GetTreeNodes(treeID)) do
+        local node = C_Traits.GetNodeInfo(configID, nodeID)
+        local sel = nodeMap[nodeID]
+        if sel then
+            writeValue(bits, 1, 1)                  -- selected
+            writeValue(bits, 1, 1)                  -- purchased
+            local rank = sel.rank or (node.maxRanks or 1)
+            local isPartial = rank ~= (node.maxRanks or rank)
+            writeValue(bits, isPartial and 1 or 0, 1)
+            if isPartial then writeValue(bits, rank, 6) end
+            local isChoice = isChoiceNode(node)
+            writeValue(bits, isChoice and 1 or 0, 1)
+            if isChoice then writeValue(bits, entryIndexOf(node, sel.entryID) - 1, 2) end
+        else
+            -- Nicht im Meta-Build: auto-gewaehrter (granted) Knoten? -> selected/purchased=0.
+            local granted = (node.activeRank or 0) > 0 and (node.ranksPurchased or 0) == 0
+            writeValue(bits, granted and 1 or 0, 1)
+            if granted then writeValue(bits, 0, 1) end
+        end
+    end
     return encodeBits(bits), nil, native
 end
 
@@ -231,4 +283,38 @@ function MetaMirror:TestTalentString()
     end
     print("erstes abweichendes Bit: " .. tostring(diff))
     self:ShowCopy("NATIV:\n" .. native .. "\n\nMEINS:\n" .. mine, "TestTalent")
+end
+
+-- /mm testmetatalent: beweist den MAP-Weg (BuildLoadoutFromMap) mit genau der Datenform,
+-- die die Pipeline liefert. Baut die Map aus dem eigenen Build (gekaufte Knoten ->
+-- {entryID, rank}) und vergleicht bit-genau mit dem nativen String.
+function MetaMirror:TestMetaTalentString()
+    local configID = C_ClassTalents and C_ClassTalents.GetActiveConfigID and C_ClassTalents.GetActiveConfigID()
+    if not configID then print("|cffdf5a3f[MM]|r keine configID"); return end
+    local info = C_Traits.GetConfigInfo(configID)
+    local treeID = info and info.treeIDs and info.treeIDs[1]
+    local map = {}
+    for _, nodeID in ipairs(C_Traits.GetTreeNodes(treeID)) do
+        local n = C_Traits.GetNodeInfo(configID, nodeID)
+        if (n.ranksPurchased or 0) > 0 then
+            map[nodeID] = {
+                entryID = n.activeEntry and n.activeEntry.entryID,
+                rank = n.ranksPurchased,
+            }
+        end
+    end
+    local mine, err, native = self:BuildLoadoutFromMap(map)
+    if not mine then print("|cffdf5a3f[MM] TestMetaTalent FAIL|r - " .. tostring(err)); return end
+    if mine == native then
+        print("|cff30d15a[MM] TestMetaTalent PASS|r - Map-Serialisierung bit-genau")
+        return
+    end
+    print("|cffdf5a3f[MM] TestMetaTalent FAIL|r - Laenge nativ=" .. #native .. " meins=" .. #mine)
+    local mb, nb = decodeBits(mine), decodeBits(native)
+    local diff
+    for i = 1, math.max(#mb, #nb) do
+        if (mb[i] or -1) ~= (nb[i] or -1) then diff = i; break end
+    end
+    print("erstes abweichendes Bit: " .. tostring(diff))
+    self:ShowCopy("NATIV:\n" .. native .. "\n\nMEINS:\n" .. mine, "TestMetaTalent")
 end
