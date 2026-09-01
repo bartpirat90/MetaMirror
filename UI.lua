@@ -983,21 +983,11 @@ end
 local function renderTrinkets(self, specID)
     local child = ensureTrinketUI()
     Body.tkScroll:Show()
-    -- Umschalter-Zustand spiegeln
-    local view = MetaMirrorDB.trinketView
-    if view ~= "overall" and view ~= "raid" and view ~= "dungeon" then
-        view = "overall"; MetaMirrorDB.trinketView = view
-    end
-    for key, btn in pairs(Body.tkBtns) do
-        local on = (key == view)
-        btn.bg:SetColorTexture(unpack(on and C.VIOLET or C.PANEL2))
-        btn.fstr:SetTextColor(unpack(on and { 1, 1, 1, 1 } or C.DIM))
-        btn:Show()
-    end
 
     local spec = trinketData(specID)
     if not spec then
         Body.tkNote:Hide()
+        for _, btn in pairs(Body.tkBtns) do btn:Hide() end   -- keine Sichten -> kein Umschalter
         for j = 1, #tkRows do tkRows[j]:Hide() end
         local b = getTkRow(child, 1)
         b:ClearAllPoints(); b:SetPoint("TOPLEFT", 8, 0)
@@ -1011,6 +1001,23 @@ local function renderTrinkets(self, specID)
         b:Show()
         child:SetHeight(48)
         return
+    end
+    -- Umschalter spiegeln. Liegt nur die Einzelziel-Sim vor (singleSource), waeren
+    -- Raid/Dungeon mit Gesamt identisch -> diese Knoepfe ausblenden, nur "Gesamt" zeigen
+    -- (der Hinweis "nur Einzelziel" erklaert es), damit keine drei gleichen Sichten stehen.
+    local view = MetaMirrorDB.trinketView
+    if view ~= "overall" and view ~= "raid" and view ~= "dungeon" then view = "overall" end
+    if spec.singleSource then view = "overall" end
+    MetaMirrorDB.trinketView = view
+    for key, btn in pairs(Body.tkBtns) do
+        if spec.singleSource and key ~= "overall" then
+            btn:Hide()
+        else
+            local on = (key == view)
+            btn.bg:SetColorTexture(unpack(on and C.VIOLET or C.PANEL2))
+            btn.fstr:SetTextColor(unpack(on and { 1, 1, 1, 1 } or C.DIM))
+            btn:Show()
+        end
     end
     -- Hinweis: Tiers = Sim-DPS-Rueckstand (bloodmallet.com). Fehlt eine Dungeon-Sim,
     -- steht "nur Einzelziel" dabei (Gesamt/Raid/Dungeon zeigen dann dieselbe Rangliste).
