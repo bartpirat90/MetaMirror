@@ -225,14 +225,16 @@ local function renderStats(self, data)
             r.mark:SetPoint("TOP", r.track, "TOPLEFT", 336 * (target / scale), 3)
         else
             local cr = cur.rating
+            -- Status ueber Farbe + Text (keine Unicode-Pfeile: der WoW-Font rendert
+            -- Dreiecke/Haken als leere "Tofu"-Kaesten).
             if status == "under" then
-                r.chip:SetText("\226\150\188 " .. string.format(L.need, target - cr))
+                r.chip:SetText(string.format(L.need, target - cr))
                 r.chip:SetTextColor(unpack(C.AMBER))
             elseif status == "over" then
-                r.chip:SetText("\226\150\178 " .. string.format(L.over, cr - target))
+                r.chip:SetText(string.format(L.over, cr - target))
                 r.chip:SetTextColor(unpack(C.BLUE))
             else
-                r.chip:SetText("\226\156\147 " .. L.on_target); r.chip:SetTextColor(unpack(C.GREEN))
+                r.chip:SetText(L.on_target); r.chip:SetTextColor(unpack(C.GREEN))
             end
             -- Eigener Live-Prozentwert (sicher lesbar ausserhalb Kampf) + Rating vs. Meta-Ziel.
             -- pct kann fehlen, obwohl das Rating nutzbar ist -> defensiv weglassen.
