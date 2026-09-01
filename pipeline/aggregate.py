@@ -71,6 +71,105 @@ def _most_common(values):
     return item, count
 
 
+# ===== Hero-Talent-Baum-Aufteilung (empirisch aus den Knoten) =====
+# WoW-Specs haben zwei Hero-Talent-Baeume; die Meta-Empfehlung wird pro Baum getrennt.
+# In den WCL-Daten kennen wir den Knotentyp NICHT, leiten den SubTreeSelection-Knoten
+# aber sicher ab: er ist der Knoten, dessen entryID einen grossen EXKLUSIVEN Cluster
+# schaltet (jeder Hero-Baum bringt ~10 eigene, sich gegenseitig ausschliessende Knoten).
+# Normale Choice-Nodes schalten keinen exklusiven Cluster -> Score 0.
+_HERO_EXCL_MIN = 3          # so viele exklusive Knoten muss die Baumwahl schalten
+_HERO_KEEP_FRAC = 0.15      # Hero-Baeume unter diesem Nutzungsanteil (und <2 Parses) fallen weg
+
+
+def _exclusive_score(groups, present):
+    """Wie viele Knoten sind exklusiv fuer genau eine entryID-Gruppe (>=75% hier, <=25% sonst)?"""
+    keys = list(groups)
+    all_nodes = set().union(*present) if present else set()
+    score = 0
+    for nid in all_nodes:
+        rates = []
+        for k in keys:
+            idxs = groups[k]
+            rates.append(sum(1 for i in idxs if nid in present[i]) / len(idxs) if idxs else 0.0)
+        rates.sort()
+        top = rates[-1]
+        second = rates[-2] if len(rates) > 1 else 0.0
+        if top >= 0.75 and second <= 0.25:
+            score += 1
+    return score
+
+
+def _detect_subtree(records):
+    """Findet (subtreeNodeID, {entryID: [parse-idx]}) oder None, wenn keine klare Baumwahl."""
+    node_maps = [{nd["nodeID"]: nd for nd in (r.talent_nodes or []) if nd.get("nodeID")}
+                 for r in records]
+    present = [set(m.keys()) for m in node_maps]
+    n = len(records)
+    if n == 0:
+        return None
+    counts = Counter()
+    for s in present:
+        counts.update(s)
+    best, best_score, best_groups = None, 0, None
+    for nid, cnt in counts.items():
+        if cnt < 0.5 * n:
+            continue
+        groups = defaultdict(list)
+        for i, m in enumerate(node_maps):
+            nd = m.get(nid)
+            if nd and nd.get("entryID"):
+                groups[nd["entryID"]].append(i)
+        if len(groups) < 2:
+            continue
+        score = _exclusive_score(groups, present)
+        if score > best_score:
+            best, best_score, best_groups = nid, score, groups
+    if best is None or best_score < _HERO_EXCL_MIN:
+        return None
+    return best, best_groups
+
+
+def _build_from_idxs(records, idxs, n, hero_node, hero_entry, usage_pct):
+    """Meistgenutzter Build innerhalb einer Parse-Auswahl -> Build-Dict fuer die Lua-Daten."""
+    sig, _ = _most_common([records[i].talent_sig for i in idxs])
+    rep_nodes = next((records[i].talent_nodes for i in idxs
+                      if records[i].talent_sig == sig and records[i].talent_nodes), [])
+    imports = [records[i].talent_import for i in idxs
+               if records[i].talent_sig == sig and records[i].talent_import]
+    return {"importString": imports[0] if imports else "",
+            "usagePct": usage_pct, "strongest": False,
+            "heroNode": int(hero_node or 0), "heroEntryID": int(hero_entry or 0),
+            "nodes": rep_nodes}
+
+
+def build_talents(records):
+    """Talent-Builds pro Hero-Baum (meistgenutzter zuerst, als 'strongest' markiert).
+    Ohne erkennbare Baumwahl: ein Build mit Sig-Anteil als Nutzungsquote (altes Verhalten)."""
+    n = len(records)
+    if n == 0:
+        return []
+    detect = _detect_subtree(records)
+    if not detect:
+        _, cnt = _most_common([r.talent_sig for r in records])
+        b = _build_from_idxs(records, list(range(n)), n, 0, 0,
+                             round(100 * cnt / n) if n else 0)
+        b["strongest"] = True
+        return [b]
+
+    hero_node, groups = detect
+    builds = [_build_from_idxs(records, idxs, n, hero_node, entry, round(100 * len(idxs) / n))
+              for entry, idxs in groups.items()]
+    # nach Nutzung (Gruppengroesse) sortieren; Ausreisser-Baeume verwerfen, groessten behalten.
+    builds.sort(key=lambda b: (-b["usagePct"], b["heroEntryID"]))
+    keep = [b for b in builds
+            if len(groups[b["heroEntryID"]]) >= max(2, _HERO_KEEP_FRAC * n)]
+    if not keep:
+        keep = builds[:1]
+    keep = keep[:2]
+    keep[0]["strongest"] = True
+    return keep
+
+
 def aggregate(records, spec_id, season, item_name):
     """records: list[ParseRecord] eines Spec x Content. item_name: itemID -> Name."""
     n = len(records)
@@ -81,15 +180,9 @@ def aggregate(records, spec_id, season, item_name):
         stats.append({"key": key, "rating": int(round(med))})
     stats.sort(key=lambda s: s["rating"], reverse=True)
 
-    sig, cnt = _most_common([r.talent_sig for r in records])
-    imports = [r.talent_import for r in records if r.talent_sig == sig and r.talent_import]
-    # Repraesentanten des meistgenutzten Builds nehmen -> seine Knoten (nodeID/entryID/rank)
-    # emittieren; daraus baut das Addon in-game den Aktivieren-Import-String.
-    rep_nodes = next((r.talent_nodes for r in records
-                      if r.talent_sig == sig and r.talent_nodes), [])
-    talents = [{"importString": imports[0] if imports else "",
-                "usagePct": round(100 * cnt / n) if n else 0,
-                "nodes": rep_nodes}]
+    # Talente pro Hero-Baum getrennt (meistgenutzter Baum = "strongest"); daraus baut das
+    # Addon in-game je Build den Aktivieren-Import-String (nodeID/entryID/rank).
+    talents = build_talents(records)
 
     slot_gear = {}
     slot_enchant = {}

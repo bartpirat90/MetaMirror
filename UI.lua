@@ -284,79 +284,122 @@ local function renderStats(self, data)
     for j = i + 1, #rows do rows[j]:Hide() end
 end
 
--- Talente: Import-String in selektierbarer EditBox + Nutzungsquote.
-local TalentBox
+-- Talente: pro Hero-Talent-Baum eine Build-Karte (Name, „staerkster"/„aktiv"-Badge,
+-- Nutzungsquote, eigener Aktivieren-Button). Loest „welchen Build aktiviere ich?".
+local TalentUI
+local function ensureTalentUI()
+    if TalentUI then return TalentUI end
+    local ui = { cards = {} }
+    -- „Meta-Empfehlung" als Kopfzeile (Alleinstellungsmerkmal: aus echten Top-Parses).
+    ui.header = fs(Body, "GameFontNormalLarge", C.VIOLET_S)
+    ui.header:SetPoint("TOPLEFT", 4, -6)
+    ui.sub = fs(Body, "GameFontHighlightSmall", C.DIM)
+    ui.sub:SetPoint("TOPLEFT", 4, -28)
+    TalentUI = ui
+    return ui
+end
+
+local function getTalentCard(i)
+    local ui = ensureTalentUI()
+    if ui.cards[i] then return ui.cards[i] end
+    local card = CreateFrame("Frame", nil, Body)
+    card:SetSize(404, 88)
+    card.bg = card:CreateTexture(nil, "BACKGROUND")
+    card.bg:SetAllPoints(); card.bg:SetColorTexture(1, 1, 1, 0.03)
+    card.edge = card:CreateTexture(nil, "BORDER")           -- farbiger Akzent links (Zustand)
+    card.edge:SetPoint("TOPLEFT"); card.edge:SetPoint("BOTTOMLEFT"); card.edge:SetWidth(3)
+    card.name = fs(card, "GameFontNormalLarge", C.TXT)      -- Hero-Baum-Name
+    card.name:SetPoint("TOPLEFT", 12, -10); card.name:SetJustifyH("LEFT")
+    card.badge = fs(card, "GameFontNormalSmall", C.VIOLET_S)  -- „staerkster" / „aktiv"
+    card.badge:SetPoint("TOPRIGHT", -12, -12)
+    card.usage = fs(card, "GameFontHighlightSmall", C.SEC)
+    card.usage:SetPoint("TOPLEFT", 12, -36)
+    card.status = fs(card, "GameFontHighlightSmall", C.DIM)
+    card.status:SetPoint("BOTTOMLEFT", 12, 10); card.status:SetWidth(230); card.status:SetJustifyH("LEFT")
+    local btn = CreateFrame("Button", nil, card, "UIPanelButtonTemplate")
+    btn:SetSize(150, 24); btn:SetPoint("BOTTOMRIGHT", -10, 8)
+    btn:SetText(L.talent_activate)
+    btn:SetScript("OnClick", function(self)
+        local map = self.nodeMap
+        if not (map and MetaMirror.ActivateBuild) then return end
+        local ok, why = MetaMirror:ActivateBuild(map)
+        if ok then
+            card.status:SetTextColor(unpack(C.GREEN)); card.status:SetText(L.talent_activated)
+        else
+            card.status:SetTextColor(unpack(C.CORAL))
+            card.status:SetText((L.talent_activate_fail or "Fehler") .. ": " .. tostring(why))
+        end
+    end)
+    card.actBtn = btn
+    ui.cards[i] = card
+    return card
+end
+
 local function renderTalents(data)
     for j = 1, #rows do rows[j]:Hide() end
     if Body.msg then Body.msg:Hide() end
-    if not TalentBox then
-        -- Empfehlungs-Karte: Titel + Untertitel + Nutzungs-Chip, darunter Import/Hinweis.
-        TalentBox = CreateFrame("EditBox", nil, Body, "InputBoxTemplate")
-        TalentBox:SetAutoFocus(false); TalentBox:SetSize(404, 24)
-        TalentBox:SetPoint("TOPLEFT", 4, -76)
-        TalentBox:SetScript("OnEscapePressed", function(s) s:ClearFocus() end)
-        -- „Meta-Empfehlung" als Kopfzeile (Alleinstellungsmerkmal: aus echten Top-Parses).
-        TalentBox.title = fs(Body, "GameFontNormalLarge", C.VIOLET_S)
-        TalentBox.title:SetPoint("TOPLEFT", 4, -6)
-        TalentBox.sub = fs(Body, "GameFontHighlightSmall", C.DIM)
-        TalentBox.sub:SetPoint("TOPLEFT", 4, -28)
-        -- Nutzungsquote als hervorgehobener Chip.
-        TalentBox.usage = fs(Body, "GameFontNormal", C.SEC)
-        TalentBox.usage:SetPoint("TOPLEFT", 4, -48)
-        TalentBox.hint = fs(Body, "GameFontHighlightSmall", C.DIM)
-        TalentBox.hint:SetPoint("TOPLEFT", 4, -104)
-        -- „Build aktivieren"-Button: skillt die Talente per Klick direkt um (kein Copy-String).
-        local btn = CreateFrame("Button", nil, Body, "UIPanelButtonTemplate")
-        btn:SetSize(170, 24); btn:SetPoint("TOPLEFT", 4, -74)
-        btn:SetText(L.talent_activate)
-        btn:SetScript("OnClick", function(self)
-            local map = self.nodeMap
-            if not (map and MetaMirror.ActivateBuild) then return end
-            local ok, why = MetaMirror:ActivateBuild(map)
-            if ok then
-                TalentBox.hint:SetTextColor(unpack(C.GREEN))
-                TalentBox.hint:SetText(L.talent_activated)
-            else
-                TalentBox.hint:SetTextColor(unpack(C.CORAL))
-                TalentBox.hint:SetText((L.talent_activate_fail or "Fehler") .. ": " .. tostring(why))
-            end
-        end)
-        TalentBox.actBtn = btn
-    end
-    local t = data.talents and data.talents[1]
-    -- EditBox aus der alten Copy-String-Loesung wird nicht mehr gebraucht.
-    TalentBox:Hide()
-    TalentBox.title:Show(); TalentBox.title:SetText(L.talent_meta_title)
-    TalentBox.sub:Show(); TalentBox.sub:SetText(L.talent_meta_sub)
-    TalentBox.usage:Show()
-    TalentBox.usage:SetText(t and string.format(L.usage, t.usagePct) or "")
-    TalentBox.hint:SetTextColor(unpack(C.DIM))
+    local ui = ensureTalentUI()
+    ui.header:Show(); ui.header:SetText(L.talent_meta_title)
+    ui.sub:Show()
 
-    -- Meta-Build-Knoten (nodeID/entryID/rank) vorhanden? -> Aktivieren-Button scharf schalten.
-    local map
-    if t and t.nodes and #t.nodes > 0 then
-        map = {}
-        for _, nd in ipairs(t.nodes) do
-            if nd.nodeID then map[nd.nodeID] = { entryID = nd.entryID, rank = nd.rank } end
+    local builds = data.talents or {}
+    local activeHero = MetaMirror.ActiveHeroEntryID and MetaMirror:ActiveHeroEntryID()
+    ui.sub:SetText(#builds > 1 and L.talent_meta_multi or L.talent_meta_sub)
+
+    local shown = 0
+    local y = -52
+    for i, t in ipairs(builds) do
+        local card = getTalentCard(i)
+        card:ClearAllPoints(); card:SetPoint("TOPLEFT", 4, y); y = y - 98
+        shown = i
+
+        local name = MetaMirror.HeroTreeName and MetaMirror:HeroTreeName(t.heroEntryID)
+        if not name then
+            name = (t.heroEntryID and t.heroEntryID > 0)
+                and string.format(L.talent_hero_generic, i) or L.talent_meta_title
         end
+        card.name:SetText(name)
+        card.usage:SetText(string.format(L.usage, t.usagePct or 0))
+
+        -- Badge/Akzent: „aktiv" schlaegt „staerkster".
+        local isActive = activeHero and t.heroEntryID and t.heroEntryID > 0 and activeHero == t.heroEntryID
+        if isActive then
+            card.badge:SetTextColor(unpack(C.GREEN)); card.badge:SetText(L.talent_active_now)
+            card.edge:SetColorTexture(0.35, 1.0, 0.45, 0.85)
+        elseif t.strongest then
+            card.badge:SetTextColor(unpack(C.VIOLET_S)); card.badge:SetText(L.talent_strongest)
+            card.edge:SetColorTexture(0.66, 0.55, 0.98, 0.85)
+        else
+            card.badge:SetText("")
+            card.edge:SetColorTexture(1, 1, 1, 0.10)
+        end
+
+        -- Meta-Build-Knoten vorhanden? -> Aktivieren-Button scharf schalten.
+        local map
+        if t.nodes and #t.nodes > 0 then
+            map = {}
+            for _, nd in ipairs(t.nodes) do
+                if nd.nodeID then map[nd.nodeID] = { entryID = nd.entryID, rank = nd.rank } end
+            end
+        end
+        card.status:SetTextColor(unpack(C.DIM))
+        if map then
+            card.actBtn.nodeMap = map; card.actBtn:Show()
+            card.status:SetText(isActive and L.talent_active_hint or L.talent_activate_hint)
+        else
+            card.actBtn:Hide()
+            card.status:SetText(L.talent_no_import)
+        end
+        card:Show()
     end
-    if map then
-        TalentBox.actBtn.nodeMap = map
-        TalentBox.actBtn:Show()
-        TalentBox.hint:Show(); TalentBox.hint:SetText(L.talent_activate_hint)
-    else
-        -- Datensatz noch ohne nodes (WCL-Re-Run ausstehend) -> Button aus, Hinweis.
-        TalentBox.actBtn:Hide()
-        TalentBox.hint:Show(); TalentBox.hint:SetText(L.talent_no_import)
-    end
+
+    for j = shown + 1, #ui.cards do ui.cards[j]:Hide() end
+    if shown == 0 then ui.sub:SetText(L.talent_no_import) end
 end
 local function hideTalents()
-    if TalentBox then
-        TalentBox:Hide(); TalentBox.hint:Hide(); TalentBox.usage:Hide()
-        if TalentBox.title then TalentBox.title:Hide() end
-        if TalentBox.sub then TalentBox.sub:Hide() end
-        if TalentBox.actBtn then TalentBox.actBtn:Hide() end
-    end
+    if not TalentUI then return end
+    TalentUI.header:Hide(); TalentUI.sub:Hide()
+    for _, card in ipairs(TalentUI.cards) do card:Hide() end
 end
 
 -- Generische klickbare Item-Zeile (Shift-Klick -> Chat / AH-Suche).

@@ -159,6 +159,40 @@ function MetaMirror:BuildLoadoutFromMap(nodeMap)
     return encodeBits(bits), nil, native
 end
 
+-- ===== Hero-Baum: Name + aktuell aktive Wahl (fuer die Build-Karten) =====
+-- Loest die entryID der Hero-Baum-Wahl (SubTreeSelection) in den lokalisierten Baumnamen
+-- auf (z.B. "Diaboliker"/"Seelenernter"). Best-effort: nur fuer die aktive Spec verfuegbar;
+-- schlaegt es fehl, liefert die UI einen generischen Fallback ("Held-Baum 1/2").
+function MetaMirror:HeroTreeName(heroEntryID)
+    if not (heroEntryID and heroEntryID > 0 and C_Traits and C_ClassTalents) then return nil end
+    local configID = C_ClassTalents.GetActiveConfigID and C_ClassTalents.GetActiveConfigID()
+    if not configID then return nil end
+    local ok, entry = pcall(C_Traits.GetEntryInfo, configID, heroEntryID)
+    if ok and entry and entry.subTreeID and C_Traits.GetSubTreeInfo then
+        local ok2, st = pcall(C_Traits.GetSubTreeInfo, configID, entry.subTreeID)
+        if ok2 and st and st.name and st.name ~= "" then return st.name end
+    end
+    return nil
+end
+
+-- Aktuell aktive Hero-Baum-Wahl des Spielers (entryID des SubTreeSelection-Knotens).
+-- Damit markiert die UI, welcher der angebotenen Builds gerade laeuft.
+function MetaMirror:ActiveHeroEntryID()
+    if not (C_ClassTalents and C_Traits) then return nil end
+    local configID = C_ClassTalents.GetActiveConfigID and C_ClassTalents.GetActiveConfigID()
+    if not configID then return nil end
+    local info = C_Traits.GetConfigInfo(configID)
+    local treeID = info and info.treeIDs and info.treeIDs[1]
+    if not treeID then return nil end
+    for _, nodeID in ipairs(C_Traits.GetTreeNodes(treeID)) do
+        local node = C_Traits.GetNodeInfo(configID, nodeID)
+        if node and node.type == SUBTREE_SEL and node.activeEntry then
+            return node.activeEntry.entryID
+        end
+    end
+    return nil
+end
+
 -- ===== Talente per Klick anwenden (echtes Umskillen, kein Copy-String) =====
 -- Wendet einen Meta-Build (nodeMap = {[nodeID]={entryID,rank}}) auf die aktive Konfig an:
 -- Baum zuruecksetzen -> in mehreren Durchgaengen SetSelection + PurchaseRank (Gating!) ->
@@ -181,9 +215,23 @@ function MetaMirror:ActivateBuild(nodeMap)
         for _, nodeID in ipairs(nodes) do pcall(C_Traits.RefundAllRanks, configID, nodeID) end
     end
 
-    -- 2) Mehrere Durchgaenge: Voraussetzungen muessen erst gekauft sein, bevor spaetere
-    --    Knoten kaufbar werden. Solange ein Durchgang Fortschritt bringt, weitermachen.
-    for _ = 1, 15 do
+    -- 2a) Vorab ALLE Choice-Knoten setzen (v.a. die Hero-Baum-Wahl): erst wenn der
+    --     Hero-Baum gewaehlt ist, werden seine Talente ueberhaupt kaufbar -> sonst
+    --     bleiben Hero-Punkte uebrig ("alle Punkte muessen ausgegeben werden").
+    for _, nodeID in ipairs(nodes) do
+        local sel = nodeMap[nodeID]
+        if sel and sel.entryID then
+            local node = C_Traits.GetNodeInfo(configID, nodeID)
+            if isChoiceNode(node) then
+                local cur = node.activeEntry and node.activeEntry.entryID
+                if cur ~= sel.entryID then pcall(C_Traits.SetSelection, configID, nodeID, sel.entryID) end
+            end
+        end
+    end
+
+    -- 2b) Mehrere Durchgaenge: Voraussetzungen muessen erst gekauft sein, bevor spaetere
+    --     Knoten kaufbar werden. Solange ein Durchgang Fortschritt bringt, weitermachen.
+    for _ = 1, 20 do
         local progressed = false
         for _, nodeID in ipairs(nodes) do
             local sel = nodeMap[nodeID]
@@ -196,7 +244,8 @@ function MetaMirror:ActivateBuild(nodeMap)
                         if ok then progressed = true end
                     end
                 end
-                local target = sel.rank or 1
+                -- Zielrang: aus WCL (sel.rank), sonst der Maximalrang des Knotens.
+                local target = sel.rank or node.maxRanks or 1
                 local have = (C_Traits.GetNodeInfo(configID, nodeID).ranksPurchased) or 0
                 while have < target do
                     local ok, bought = pcall(C_Traits.PurchaseRank, configID, nodeID)
@@ -209,11 +258,47 @@ function MetaMirror:ActivateBuild(nodeMap)
         if not progressed then break end
     end
 
-    -- 3) Uebernehmen; bei Ablehnung sauberer Rollback.
+    -- 3) Uebernehmen; bei Ablehnung sauberer Rollback + Diagnose.
     local ok, committed = pcall(C_ClassTalents.CommitConfig, configID)
     if not (ok and committed) then
+        -- Diagnose SAMMELN, bevor der Rollback den Staging-Zustand verwirft.
+        local diag = { "ActivateBuild: Commit abgelehnt.", "configID=" .. tostring(configID)
+            .. " treeID=" .. tostring(treeID) }
+        -- Rest-Punkte je Waehrung (quantity > 0 = unverteilt -> genau der Fehlergrund)
+        if C_Traits.GetTreeCurrencyInfo then
+            local okc, curr = pcall(C_Traits.GetTreeCurrencyInfo, configID, treeID, false)
+            if okc and curr then
+                for _, c in ipairs(curr) do
+                    diag[#diag + 1] = string.format("Waehrung %s: uebrig=%s",
+                        tostring(c.traitCurrencyID), tostring(c.quantity))
+                end
+            end
+        end
+        -- Gemappte Knoten, die ihren Zielrang NICHT erreicht haben (inkl. Hero-Auswahl)
+        local missed = 0
+        for _, nodeID in ipairs(nodes) do
+            local sel = nodeMap[nodeID]
+            if sel then
+                local node = C_Traits.GetNodeInfo(configID, nodeID)
+                local have = node.ranksPurchased or 0
+                local want = sel.rank or 1
+                local activeE = node.activeEntry and node.activeEntry.entryID
+                local choiceBad = isChoiceNode(node) and sel.entryID and activeE ~= sel.entryID
+                if have < want or choiceBad then
+                    missed = missed + 1
+                    if missed <= 20 then
+                        diag[#diag + 1] = string.format(
+                            "  FEHLT id=%d type=%s rank %d/%d choice=%s wantEntry=%s active=%s",
+                            nodeID, tostring(node.type), have, want,
+                            tostring(isChoiceNode(node)), tostring(sel.entryID), tostring(activeE))
+                    end
+                end
+            end
+        end
+        diag[#diag + 1] = "gescheiterte Knoten gesamt: " .. missed
         if C_Traits.RollbackConfig then pcall(C_Traits.RollbackConfig, configID) end
-        return false, "Commit abgelehnt (Punkte/Reihenfolge)"
+        if self.ShowCopy then self:ShowCopy(table.concat(diag, "\n"), "ActivateBuild-Diagnose") end
+        return false, "Commit abgelehnt - Details im Fenster (" .. missed .. " Knoten offen)"
     end
     return true
 end

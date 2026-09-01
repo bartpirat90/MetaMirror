@@ -23,7 +23,10 @@ class AggregatedSpec:
     """Aggregiertes Ergebnis pro Spec x Content — entspricht 1:1 dem Lua-Datenvertrag."""
     sample_size: int
     stats: list                     # [{"key": "haste", "rating": int}, ..] absteigend nach rating
-    talents: list                   # [{"importString": str, "usagePct": int, "nodes": [{"nodeID","entryID","rank"}]}]
+    talents: list                   # je Hero-Baum ein Build (strongest zuerst):
+                                     # [{"importString": str, "usagePct": int, "strongest": bool,
+                                     #   "heroNode": int, "heroEntryID": int,
+                                     #   "nodes": [{"nodeID","entryID","rank"}]}]
     gear: list                      # [{"slot": str, "itemID": int, "itemLevel": int, "bonusIDs": [int], "name": str}]
     gems: list                      # [{"slot": str, "itemID": int, "name": str}]
     enchants: list                  # [{"slot": str, "id": int, "itemID": int, "name": str}]
