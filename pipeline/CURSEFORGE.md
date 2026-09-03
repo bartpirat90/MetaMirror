@@ -13,7 +13,7 @@ Secrets oder Screenshots) und lädt es über die CurseForge-Upload-API hoch.
 
 ### 1. Projekt auf CurseForge anlegen
 Der **allererste** Upload muss von Hand passieren, damit das Projekt existiert:
-- „Create a Project" → World of Warcraft → Addon anlegen, `MetaMirror-0.9.zip` hochladen.
+- „Create a Project" → World of Warcraft → Addon anlegen, `MetaMirror-0.9.0.zip` hochladen.
 - Danach steht auf der Projektseite die **Project ID** (Zahl). Die brauchst du gleich.
 
 ### 2. API-Token erzeugen
@@ -31,12 +31,32 @@ Trage Token + Project-ID in `pipeline/local_secrets.json` ein (ist gitignored):
 
 ### 3b. Automatische Uploads (GitHub Actions)
 Im GitHub-Repo unter **Settings → Secrets and variables → Actions**:
+- **Secret** `WCL_CLIENT_ID` und **Secret** `WCL_CLIENT_SECRET` = Warcraft-Logs-API-Client
 - **Secret** `CURSEFORGE_TOKEN` = dein Token
 - **Variable** `CURSEFORGE_PROJECT_ID` = deine Project-ID
 - **Variable** `CF_PUBLISH` = `true`  ← der Schalter, der den Upload scharf stellt
 
 Ist `CF_PUBLISH` nicht `true`, läuft der Upload-Schritt **nicht** — die Daten-Pipeline
 selbst arbeitet unabhängig davon weiter.
+
+### 3c. Vor dem allerersten Push prüfen
+- Die Git-Historie darf **keinen** Zugangsdaten-Screenshot mehr enthalten
+  (`git rev-list --all --objects | grep -i "secret key"` muss leer sein).
+- Der Warcraft-Logs-Schlüssel ist **rotiert**, falls er je in der Historie lag.
+- Das Repo ist **öffentlich**: Actions-Minuten sind dann kostenlos. Ein Lauf dauert
+  gut zwei Stunden, davon rund eine Stunde reines Warten auf das WCL-Kontingent.
+  Der ausgelieferte Lua-Code ist ohnehin einsehbar, es gibt nichts zu verbergen.
+
+### Versionsschema
+`MAJOR.MINOR.PATCH` in `MetaMirror.toc`:
+- **PATCH** zählt der wöchentliche Daten-Refresh automatisch hoch
+  (`pipeline/bump_version.py`), damit jede CurseForge-Datei einen eindeutigen Namen
+  bekommt: `MetaMirror-0.9.1.zip`, `MetaMirror-0.9.2.zip`, …
+- **MINOR/MAJOR** erhöhst du von Hand, wenn sich der Code ändert (z. B. `0.10.0`).
+
+Kein Datum im Dateinamen und keine Buchstaben-Suffixe: die Zahlen sortieren richtig,
+CurseForge zeigt sie in der Dateiliste eindeutig an, und ein Nutzer sieht sofort,
+ob er eine neuere Version hat.
 
 ---
 
@@ -63,15 +83,21 @@ Nützliche Optionen:
 
 ## Wie das Auto-Update läuft
 
-`.github/workflows/update-data.yml` läuft jeden Montag (und per „Run workflow"):
-1. Meta-Daten aus Warcraft Logs neu generieren, Lua-Syntax prüfen.
-2. Nur bei **tatsächlicher Datenänderung** committen und pushen.
-3. **Nur dann** — und nur wenn `CF_PUBLISH=true` — per `pipeline.cf_upload`
-   automatisch eine neue Version auf CurseForge hochladen (mit Datum im Namen).
+`.github/workflows/update-data.yml` läuft jeden Montag 06:00 UTC (und per
+„Run workflow"):
+1. Unit-Tests, dann Meta-Daten aus Warcraft Logs neu generieren.
+2. Trinket-Quellen aus Wowhead auflösen, beide Lua-Dateien mit `luac` prüfen.
+3. Nur bei **tatsächlicher Datenänderung**: Patch-Version hochzählen, Daten + `.toc`
+   committen und pushen.
+4. **Nur dann** — und nur wenn `CF_PUBLISH=true` — per `pipeline.cf_upload`
+   automatisch eine neue Version auf CurseForge hochladen.
 
 So bekommt CurseForge nach jedem echten Meta-Update automatisch eine frische
 Version, ohne dass eine unveränderte Woche einen überflüssigen Upload erzeugt.
 
 > Tipp: Für ein **Feature-Release** (neuer Code, nicht nur Daten) erhöhe die
-> `## Version` in `MetaMirror.toc` und lade einmal manuell hoch bzw. stoße den
-> Workflow an — der Anzeigename übernimmt die Version automatisch.
+> `## Version` in `MetaMirror.toc` von Hand auf die nächste MINOR-Stelle und lade
+> einmal manuell hoch — der Anzeigename übernimmt die Version automatisch.
+
+> Ein abgebrochener Daten-Lauf kostet nicht alles: `python -m pipeline.run --resume`
+> setzt beim letzten Zwischenstand fort (`pipeline/cache/checkpoint.json`).

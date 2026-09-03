@@ -2,7 +2,7 @@
 ## Title: MetaMirror
 ## Notes: Zeigt die Top-Spieler-Meta pro Spec und vergleicht deine Sekundärwerte live dagegen.
 ## Author: Franz Petschull
-## Version: 0.9
+## Version: 0.9.0
 ## IconTexture: Interface\AddOns\MetaMirror\Icon
 ## SavedVariablesPerCharacter: MetaMirrorDB
 ## SavedVariables: MetaMirrorSrcCache

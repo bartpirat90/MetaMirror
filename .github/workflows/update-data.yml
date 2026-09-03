@@ -40,20 +40,24 @@ jobs:
           luac5.1 -p Data/MetaMirrorData.lua
           luac5.1 -p Data/MetaMirrorSources.lua
 
+      # Nur bei echter Datenaenderung: Patch-Version in der .toc hochzaehlen und beides
+      # zusammen committen. Ohne den Bump hiesse jede CurseForge-Datei gleich.
       - name: Commit data
         id: commit
         run: |
           git config user.name "metamirror-bot"
           git config user.email "bot@users.noreply.github.com"
-          if ! git diff --quiet Data/MetaMirrorData.lua Data/MetaMirrorSources.lua; then
-            git add Data/MetaMirrorData.lua Data/MetaMirrorSources.lua
-            git commit -m "chore(data): weekly meta refresh $(date -u +%F)"
-            git push
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-          else
+          if git diff --quiet Data/MetaMirrorData.lua Data/MetaMirrorSources.lua; then
             echo "keine Aenderung"
             echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
+          VERSION="$(python -m pipeline.bump_version)"
+          git add Data/MetaMirrorData.lua Data/MetaMirrorSources.lua MetaMirror.toc
+          git commit -m "chore(data): weekly meta refresh $(date -u +%F) (v$VERSION)"
+          git push
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "changed=true" >> "$GITHUB_OUTPUT"
 
       # Laedt nur hoch, wenn CF_PUBLISH=true gesetzt ist UND sich Daten geaendert haben.
       - name: Publish to CurseForge (gated)
@@ -64,5 +68,4 @@ jobs:
         run: |
           python -m pipeline.cf_upload \
             --release-type release \
-            --append-date \
-            --changelog "Automated weekly meta-data refresh."
+            --changelog "Automated weekly meta-data refresh (${{ steps.commit.outputs.version }})."
