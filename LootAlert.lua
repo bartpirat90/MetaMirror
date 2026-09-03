@@ -79,15 +79,96 @@ local function ensureFrame()
     close:SetPoint("TOPRIGHT", 2, 2)
     close:SetScript("OnClick", function() f:Hide() end)
 
-    f.ask = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
-    f.ask:SetSize(150, 24); f.ask:SetPoint("BOTTOMRIGHT", -12, 10)
-    f.ask:SetScript("OnClick", function(self)
+    -- Aufgepeppter Bitte-Knopf: violett gefuellt, Sprechblasen-Icon links + wandernder
+    -- Licht-Streifen (Sheen) als Blickfang. Eigene Optik statt UIPanelButtonTemplate, damit
+    -- Icon/Fuellung/Sheen/Zustaende frei steuerbar sind. Whisper NUR auf Klick.
+    local ask = CreateFrame("Button", nil, f)
+    ask:SetSize(168, 28); ask:SetPoint("BOTTOMRIGHT", -12, 10)
+    ask:RegisterForClicks("AnyUp")
+
+    ask.bg = ask:CreateTexture(nil, "BACKGROUND")
+    ask.bg:SetAllPoints(); ask.bg:SetColorTexture(unpack(C.VIOLET))
+
+    ask.border = CreateFrame("Frame", nil, ask, "BackdropTemplate")
+    ask.border:SetAllPoints()
+    ask.border:SetBackdrop({ edgeFile = "Interface\\Buttons\\WHITE8x8", edgeSize = 1 })
+    ask.border:SetBackdropBorderColor(unpack(C.VIOLET_S))
+
+    ask.icon = ask:CreateTexture(nil, "ARTWORK")
+    ask.icon:SetSize(15, 15); ask.icon:SetPoint("LEFT", 9, 0)
+    ask.icon:SetTexture("Interface\\GossipFrame\\ChatBubbleGossipIcon")
+
+    ask.txt = ask:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+
+    -- Sheen: schmale additive Textur, wandert im Knopf von links nach rechts (bleibt
+    -- innerhalb der Raender -> kein Clipping noetig). Hoehe fest ~ Knopfhoehe.
+    ask.sheen = ask:CreateTexture(nil, "OVERLAY")
+    ask.sheen:SetColorTexture(1, 1, 1, 0.5)
+    ask.sheen:SetBlendMode("ADD")
+    ask.sheen:SetSize(16, 26)
+    ask.sheen:Hide()
+
+    -- Zustand umschalten: bereit (violett + Icon + Sheen) <-> angefragt (grau, aus).
+    function ask:SetAsked(asked)
+        self.asked = asked
+        if asked then
+            self.bg:SetColorTexture(0.22, 0.20, 0.28, 1)
+            self.border:SetBackdropBorderColor(0.40, 0.38, 0.50, 1)
+            self.txt:SetTextColor(unpack(C.DIM))
+            self.txt:SetText(L.loot_asked or "Requested")
+            self.txt:ClearAllPoints(); self.txt:SetPoint("CENTER")
+            self.icon:Hide(); self.sheen:Hide()
+        else
+            self.bg:SetColorTexture(unpack(C.VIOLET))
+            self.border:SetBackdropBorderColor(unpack(C.VIOLET_S))
+            self.txt:SetTextColor(unpack(C.TXT))
+            self.txt:SetText(L.loot_ask or "Ask for it")
+            self.txt:ClearAllPoints(); self.txt:SetPoint("LEFT", self.icon, "RIGHT", 5, 0)
+            self.icon:Show()
+        end
+    end
+
+    ask:SetScript("OnEnter", function(self)
+        if self.asked then return end
+        self.bg:SetColorTexture(0.74, 0.45, 1.0, 1)   -- heller violett beim Hover
+    end)
+    ask:SetScript("OnLeave", function(self)
+        if self.asked then return end
+        self.bg:SetColorTexture(unpack(C.VIOLET))
+    end)
+
+    ask:SetScript("OnClick", function(self)
+        if self.asked then return end
         if self.target and self.link then
-            -- Whisper NUR auf diesen Klick; Text bewusst immer Englisch (int. Gruppen).
+            -- Text bewusst immer Englisch (internationale Gruppen).
             SendChatMessage("May I have " .. self.link .. " please? :)", "WHISPER", nil, self.target)
-            self:SetText(L.loot_asked or "Requested"); self:Disable()
+            self:SetAsked(true)
         end
     end)
+
+    -- Sheen-Animation: kurzer Durchlauf, dann Pause, wiederholt.
+    local SHEEN_W, SWEEP_T, PAUSE_T = 16, 0.7, 1.7
+    ask.phase, ask.t = "pause", 0
+    ask:SetScript("OnUpdate", function(self, elapsed)
+        if self.asked or not self:IsShown() then return end
+        self.t = self.t + elapsed
+        if self.phase == "sweep" then
+            local p = self.t / SWEEP_T
+            if p >= 1 then
+                self.phase, self.t = "pause", 0
+                self.sheen:Hide()
+            else
+                self.sheen:Show()
+                self.sheen:ClearAllPoints()
+                self.sheen:SetPoint("LEFT", self, "LEFT", 1 + p * (self:GetWidth() - SHEEN_W - 2), 0)
+            end
+        elseif self.t >= PAUSE_T then
+            self.phase, self.t = "sweep", 0
+        end
+    end)
+
+    ask:SetAsked(false)
+    f.ask = ask
 
     alertFrame = f
     return f
@@ -127,7 +208,7 @@ local function showRequest(itemLink, playerName, tier)
     f.item:SetText(itemLink or "")
     f.ask.target = playerName
     f.ask.link = itemLink
-    f.ask:SetText(L.loot_ask or "Ask for it"); f.ask:Enable(); f.ask:Show()
+    f.ask:SetAsked(false); f.ask:Show()
     f:SetHeight(96)
     f:Show()
     if PlaySound and SOUNDKIT then pcall(PlaySound, SOUNDKIT.UI_EPICLOOT_TOAST) end
@@ -163,11 +244,11 @@ function MetaMirror:TestLootAlert()
     local data = specID and self:DataFor(classID, specID, "mythicplus")
     local first = data and data.gear and data.gear[1]
     if not first then
-        print("|cffdf5a3f[MM]|r Kein Gear in den Daten fuer diese Spec - Test nicht moeglich.")
+        print("|cffdf5a3f[MM]|r Kein Gear in den Daten für diese Spec - Test nicht möglich.")
         return
     end
     local link = select(2, C_Item.GetItemInfo(first.itemID)) or ("item:" .. first.itemID)
-    print("|cffa855f7[MM]|r LootAlert-Test: erst Glueckwunsch-Banner, dann Bitte-Popup.")
+    print("|cffa855f7[MM]|r LootAlert-Test: erst Glückwunsch-Banner, dann Bitte-Popup.")
     showBanner(link, "BiS")
     C_Timer.After(3, function() showRequest(link, "Testspieler-Testrealm", "BiS") end)
 end
