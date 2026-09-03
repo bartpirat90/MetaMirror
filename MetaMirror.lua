@@ -26,6 +26,9 @@ function MetaMirror.InitDB()
     if db.content == nil then db.content = "mythicplus" end  -- "mythicplus" | "raid"
     if db.tab     == nil then db.tab = "stats" end
     if db.tol     == nil then db.tol = 1.5 end               -- Toleranzband in %-Punkten
+    -- Vom Nutzer per X geschlossen: das Panel bleibt dann auch beim Oeffnen des
+    -- Charakterrahmens zu, bis es per /mm wieder geholt wird.
+    if db.hidden  == nil then db.hidden = false end
     -- Nur eine frei gezogene Position (custom=true) ist gueltig; altes/kaputtes Format verwerfen.
     if db.pos and db.pos.custom ~= true then db.pos = nil end
 end

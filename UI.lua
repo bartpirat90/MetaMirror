@@ -62,7 +62,29 @@ function MetaMirror:BuildPanel()
     Header = fs(Panel, "GameFontNormalSmall", C.DIM)
     Header:SetPoint("TOPLEFT", 12, -33)
 
-    -- Kontext-Umschalter M+/Raid
+    -- Schliessen-Kreuz oben rechts. Eigener schlichter Button statt UIPanelCloseButton:
+    -- dessen 32px-Grafik sprengt die 52px-Kopfzeile und stoesst an die Kontext-Schalter.
+    local close = CreateFrame("Button", nil, Panel)
+    close:SetSize(20, 20); close:SetPoint("TOPRIGHT", -6, -6)
+    local closeX = fs(close, "GameFontNormalLarge", C.DIM)
+    closeX:SetPoint("CENTER", 0, 1); closeX:SetText("\195\151")   -- Multiplikationszeichen als X
+    close:SetScript("OnEnter", function(self)
+        closeX:SetTextColor(unpack(C.VIOLET_S))
+        GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+        GameTooltip:SetText(L.close_hint or "Close", unpack(C.TXT))
+        GameTooltip:AddLine(L.close_note or "", C.DIM[1], C.DIM[2], C.DIM[3], true)
+        GameTooltip:Show()
+    end)
+    close:SetScript("OnLeave", function()
+        closeX:SetTextColor(unpack(C.DIM))
+        GameTooltip:Hide()
+    end)
+    close:SetScript("OnClick", function()
+        MetaMirrorDB.hidden = true    -- bleibt zu, bis /mm es wieder holt
+        Panel:Hide()
+    end)
+
+    -- Kontext-Umschalter M+/Raid (rechts, aber links neben dem Schliessen-Kreuz)
     local function ctxButton(key, label, xoff)
         local b = CreateFrame("Button", nil, Panel)
         b:SetSize(46, 18); b:SetPoint("TOPRIGHT", xoff, -8)
@@ -76,8 +98,8 @@ function MetaMirror:BuildPanel()
         CtxBtns[key] = b
         return b
     end
-    ctxButton("raid",       L.ctx_raid,  -8)
-    ctxButton("mythicplus", L.ctx_mplus, -58)
+    ctxButton("raid",       L.ctx_raid,  -30)   -- 22px nach links: Platz fuer das Kreuz
+    ctxButton("mythicplus", L.ctx_mplus, -80)
 
     -- Tab-Leiste (4 Tabs -> fuellen die Breite gleichmaessig aus)
     local x = 8
@@ -145,6 +167,7 @@ local function safeRefresh()
 end
 
 function MetaMirror:OnCharShow()
+    if MetaMirrorDB and MetaMirrorDB.hidden then return end   -- per X weggeklickt
     self:AnchorToCharacter()
     Panel:Show()          -- zuerst zeigen: ein Render-Fehler darf das Fenster nicht verschlucken
     safeRefresh()
@@ -153,8 +176,10 @@ end
 function MetaMirror:Toggle()
     if not Panel then self:BuildPanel() end
     if Panel:IsShown() then
+        MetaMirrorDB.hidden = true
         Panel:Hide()
     else
+        MetaMirrorDB.hidden = false   -- /mm holt das Fenster bewusst zurueck
         self:AnchorToCharacter()
         Panel:Show()
         safeRefresh()
