@@ -10,6 +10,7 @@ permissions:
 jobs:
   refresh:
     runs-on: ubuntu-latest
+    timeout-minutes: 300
     steps:
       - uses: actions/checkout@v4
 
@@ -29,27 +30,39 @@ jobs:
           WCL_CLIENT_SECRET: ${{ secrets.WCL_CLIENT_SECRET }}
         run: python -m pipeline.run --out Data/MetaMirrorData.lua
 
+      # Quellen fuer Trinkets ohne Journal-Eintrag (Handwerk/Haendler/Tiefen/PvP) aus Wowhead.
+      - name: Resolve item sources
+        run: python -m pipeline.sources --out Data/MetaMirrorSources.lua
+
       - name: Lua syntax gate
         run: |
           sudo apt-get update && sudo apt-get install -y lua5.1
           luac5.1 -p Data/MetaMirrorData.lua
+          luac5.1 -p Data/MetaMirrorSources.lua
 
       - name: Commit data
+        id: commit
         run: |
           git config user.name "metamirror-bot"
           git config user.email "bot@users.noreply.github.com"
-          if ! git diff --quiet Data/MetaMirrorData.lua; then
-            git add Data/MetaMirrorData.lua
+          if ! git diff --quiet Data/MetaMirrorData.lua Data/MetaMirrorSources.lua; then
+            git add Data/MetaMirrorData.lua Data/MetaMirrorSources.lua
             git commit -m "chore(data): weekly meta refresh $(date -u +%F)"
             git push
+            echo "changed=true" >> "$GITHUB_OUTPUT"
           else
             echo "keine Aenderung"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
           fi
 
+      # Laedt nur hoch, wenn CF_PUBLISH=true gesetzt ist UND sich Daten geaendert haben.
       - name: Publish to CurseForge (gated)
-        if: ${{ vars.CF_PUBLISH == 'true' }}
+        if: ${{ vars.CF_PUBLISH == 'true' && steps.commit.outputs.changed == 'true' }}
         env:
           CURSEFORGE_TOKEN: ${{ secrets.CURSEFORGE_TOKEN }}
+          CURSEFORGE_PROJECT_ID: ${{ vars.CURSEFORGE_PROJECT_ID }}
         run: |
-          echo "CurseForge-Upload aktiv — erst nach ToS-Klaerung + Projekt-ID einschalten."
-          # Upload-Schritt (z.B. Zip bauen + CurseForge-Upload-API) hier ergaenzen.
+          python -m pipeline.cf_upload \
+            --release-type release \
+            --append-date \
+            --changelog "Automated weekly meta-data refresh."

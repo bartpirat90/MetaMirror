@@ -48,12 +48,19 @@ function MetaMirror:BuildPanel()
     Panel:SetBackdrop({ edgeFile = "Interface\\Buttons\\WHITE8x8", edgeSize = 1 })
     Panel:SetBackdropBorderColor(unpack(C.VIOLET))
 
-    -- Kopfzeile
+    -- Kopfzeile (zweizeilig: Marken-Zeile oben, Spec-Zeile darunter)
     local head = tex(Panel, "BACKGROUND", C.HEAD)
-    head:SetPoint("TOPLEFT"); head:SetPoint("TOPRIGHT"); head:SetHeight(34)
-    Header = fs(Panel, "GameFontNormal", C.VIOLET_S)
-    Header:SetPoint("TOPLEFT", 12, -10)
-    Header:SetText(L.title)
+    head:SetPoint("TOPLEFT"); head:SetPoint("TOPRIGHT"); head:SetHeight(52)
+    -- Marken-Symbol + Schriftzug "MetaMirror" (Meta hell, Mirror violett)
+    local brand = Panel:CreateTexture(nil, "ARTWORK")
+    brand:SetTexture("Interface\\AddOns\\MetaMirror\\Icon")
+    brand:SetSize(22, 22); brand:SetPoint("TOPLEFT", 10, -6)
+    local title = fs(Panel, "GameFontNormalLarge")
+    title:SetPoint("LEFT", brand, "RIGHT", 6, 0)
+    title:SetText("|cffede9feMeta|r|cffa855f7Mirror|r")
+    -- Spec-Zeile (wird in Refresh mit Spec-Name + "auto-detected" gefuellt)
+    Header = fs(Panel, "GameFontNormalSmall", C.DIM)
+    Header:SetPoint("TOPLEFT", 12, -33)
 
     -- Kontext-Umschalter M+/Raid
     local function ctxButton(key, label, xoff)
@@ -76,7 +83,7 @@ function MetaMirror:BuildPanel()
     local x = 8
     for _, key in ipairs(TABS) do
         local b = CreateFrame("Button", nil, Panel)
-        b:SetSize(84, 22); b:SetPoint("TOPLEFT", x, -36)
+        b:SetSize(84, 22); b:SetPoint("TOPLEFT", x, -56)
         local t = tex(b, "BACKGROUND", C.HEAD); t:SetAllPoints(); b.bg = t
         local fstr = fs(b, "GameFontHighlightSmall", C.DIM)
         fstr:SetPoint("CENTER"); fstr:SetText(L[TAB_LABEL[key]]); b.fstr = fstr
@@ -91,7 +98,7 @@ function MetaMirror:BuildPanel()
     -- Inhaltsbereich. Unten 22px fuer die Quellen-Fusszeile reservieren, damit kein
     -- Zeileninhalt darueber clippen kann (eigener Platz fuer die Attribution).
     Body = CreateFrame("Frame", nil, Panel)
-    Body:SetPoint("TOPLEFT", 10, -62)
+    Body:SetPoint("TOPLEFT", 10, -82)
     Body:SetPoint("BOTTOMRIGHT", -10, 22)
 
     -- Andockung an den Charakter-Rahmen
@@ -108,6 +115,10 @@ function MetaMirror:BuildPanel()
     local footer = fs(Panel, "GameFontDisableSmall", C.DIM)
     footer:SetPoint("BOTTOMRIGHT", -8, 5)
     footer:SetText(attrText)
+    -- Autoren-Credit unten links
+    local credit = fs(Panel, "GameFontDisableSmall", C.DIM)
+    credit:SetPoint("BOTTOMLEFT", 8, 5)
+    credit:SetText("by bartpirat")
 
     Panel:Hide()
     MetaMirror:Refresh()
@@ -210,6 +221,16 @@ local function getRow(i)
     r.nums  = fs(r, "GameFontHighlightSmall", C.TXT); r.nums:SetPoint("RIGHT", r.arrow, "LEFT", -6, 0)
     r.track = tex(r, "BORDER", C.PANEL2); r.track:SetPoint("TOPLEFT", 0, -20); r.track:SetSize(404, 13)
     r.fill  = r:CreateTexture(nil, "ARTWORK"); r.fill:SetPoint("TOPLEFT", 0, -20); r.fill:SetHeight(13)
+    -- Pillen-Maske: rundet Spur UND Fuellung ab (Fuellung kommt von links, linke Ecke rund,
+    -- rechts an der Fuellkante geclippt). Eine Maske ueber der vollen Spur, von beiden genutzt.
+    if r.CreateMaskTexture then
+        r.barMask = r:CreateMaskTexture()
+        r.barMask:SetTexture("Interface\\AddOns\\MetaMirror\\bar-mask",
+            "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+        r.barMask:SetAllPoints(r.track)
+        r.track:AddMaskTexture(r.barMask)
+        r.fill:AddMaskTexture(r.barMask)
+    end
     r.mark  = r:CreateTexture(nil, "OVERLAY"); r.mark:SetColorTexture(unpack(C.GOLD)); r.mark:SetSize(2, 17)
     rows[i] = r
     return r
@@ -452,9 +473,30 @@ local function boundLabel(b, toSource)
     else b.label:SetPoint("RIGHT", b, "RIGHT", -4, 0) end
 end
 
--- Quelle einer Gear-Zeile: 1) Boss aus dem Abenteuerfuehrer (klickbar) 2) sonst
--- Klassenset-Label, falls Item-Set-Teil (setID) 3) sonst fallbackText (z.B. "Hergestellt"
--- fuer Trinkets, damit nie eine leere Quelle steht) oder leer, wenn kein Fallback.
+-- Quelle aus der Pipeline-Tabelle (Data/MetaMirrorSources.lua, aus Wowhead): fuer Items,
+-- die NICHT im Abenteuerfuehrer stehen (Handwerk, Haendler, Tiefen, PvP) der einzige Weg
+-- zu einem Quellentext. Liefert nil fuer unbekannte IDs/Arten -> Zeile bleibt leer.
+local function pipelineSourceText(itemID)
+    local root = _G.MetaMirrorItemSources
+    local ps = root and root.items and root.items[itemID]
+    if not ps then return nil end
+    if ps.kind == "crafted" then return L.src_crafted end
+    if ps.kind == "delve" then return L.src_delve end
+    if ps.kind == "pvp" then return L.src_pvp end
+    if ps.kind == "vendor" then
+        local n = ps.name or {}
+        local name = n[GetLocale()] or n.enUS or "?"
+        return string.format(L.src_vendor, name)
+    end
+    return nil
+end
+
+-- Quelle einer Gear-/Trinket-Zeile: 1) Boss aus dem Abenteuerfuehrer (klickbar) 2) sonst
+-- Pipeline-Quelle (Handwerk/Haendler/Tiefen/PvP aus Data/MetaMirrorSources.lua, unklickbar)
+-- 3) sonst Klassenset-Label, falls Item-Set-Teil (setID) 4) sonst "Hergestellt", falls das
+-- Item ein Handwerksqualitaets-Icon traegt (|A:Professions- im Link -> zuverlaessig crafted)
+-- 5) sonst fallbackText, falls ausdruecklich uebergeben, oder leer. Achtung: KEIN pauschaler
+-- "Hergestellt"-Fallback -- das wuerde nicht-craftbare Drops faelschlich als Handwerk labeln.
 local function applyRowSource(b, itemID, fallbackText)
     b.src.srcData = nil
     b.src.text:SetText(""); b.src:Hide()
@@ -467,17 +509,25 @@ local function applyRowSource(b, itemID, fallbackText)
         b.src:Show(); boundLabel(b, true)
         return
     end
-    -- Fallback sofort setzen (unklickbar), damit nie eine Leerzeile steht; falls die
-    -- Set-Pruefung unten doch ein Klassenset findet, ueberschreibt sie ihn.
+    -- Pipeline-Quelle hat Vorrang vor einem generischen fallbackText.
+    fallbackText = pipelineSourceText(itemID) or fallbackText
+    -- Fallback sofort setzen (unklickbar), damit nie eine Leerzeile steht; die async
+    -- Pruefung unten (Set / Handwerk) ueberschreibt ihn, sobald sie etwas Genaueres findet.
     if fallbackText and fallbackText ~= "" then
-        b.src.text:SetText(fallbackText); b.src:Show()
+        b.src.text:SetText(fallbackText); b.src:Show(); boundLabel(b, true)
     end
-    -- Kein Journal-Loot -> Set-Teil? (setID aus GetItemInfo, Item muss geladen sein)
+    -- Kein Journal-Loot -> Klassenset (setID) oder Handwerk (Professions-Qualitaetsicon)?
+    -- Item muss geladen sein; GetItemInfo liefert dann Link (mit Icon) + setID.
     local item = Item:CreateFromItemID(itemID)
     item:ContinueOnItemLoad(function()
+        if b.src.srcData then return end   -- Journal-Quelle hat Vorrang
+        local link = select(2, C_Item.GetItemInfo(itemID))
         local setID = select(16, C_Item.GetItemInfo(itemID))
-        if setID and setID > 0 and not b.src.srcData then
+        if setID and setID > 0 then
             b.src.text:SetText(L.src_tier)
+            b.src:Show(); boundLabel(b, true)
+        elseif link and link:find("|A:Professions", 1, true) then
+            b.src.text:SetText(L.src_crafted)
             b.src:Show(); boundLabel(b, true)
         end
     end)
@@ -518,8 +568,8 @@ local SLOT_LABELS = {
 }
 if GetLocale() == "deDE" then
     SLOT_LABELS = {
-        HEAD="Kopf", NECK="Hals", SHOULDER="Schulter", BACK="Ruecken", CHEST="Brust",
-        WRIST="Handgelenke", HANDS="Haende", WAIST="Guertel", LEGS="Beine", FEET="Fuesse",
+        HEAD="Kopf", NECK="Hals", SHOULDER="Schulter", BACK="Rücken", CHEST="Brust",
+        WRIST="Handgelenke", HANDS="Hände", WAIST="Gürtel", LEGS="Beine", FEET="Füße",
         RING1="Ring 1", RING2="Ring 2", TRINKET1="Schmuck 1", TRINKET2="Schmuck 2",
         MAINHAND="Waffe", OFFHAND="Nebenhand",
     }
@@ -824,9 +874,6 @@ local TIER_COLOR = {
     C = { 0.30, 0.80, 0.40 },   -- gruen
     D = { 0.60, 0.60, 0.60 },   -- grau
 }
-local TRINKET_VIEWS = { "overall", "raid", "dungeon" }
-local TRINKET_VIEW_LABEL = { overall = "trinket_overall", raid = "trinket_raid",
-                             dungeon = "trinket_dungeon" }
 
 -- Stat-Modus eines Trinkets (Bloodmallet-Klammer-Suffix) -> lokalisierte Kurzform.
 -- Dieselbe itemID kann in mehreren Modi auftauchen (Rubinwelpenschale 4x); der Modus
@@ -849,6 +896,70 @@ local function trinketData(specID)
     local root = _G.MetaMirrorTrinkets
     if not (root and root.specs and specID) then return nil end
     return root.specs[specID]
+end
+
+-- WCL-Nutzungsdaten (Top-Spieler, getrennt nach Content) fuer den Hybrid-Split.
+local function wclTrinkets(specID)
+    local root = _G.MetaMirrorData
+    if not (root and root.trinkets and specID) then return nil end
+    return root.trinkets[specID]
+end
+
+-- Tier aus der Rang-Position in der Nutzungsliste (glatte, lueckenlose Verteilung statt
+-- harter Nutzungs-Anteil-Cuts: so springt es nie S->B, sondern S->A->B..., auch bei kleinen
+-- Stichproben). Die Reihenfolge (=echte Nutzung) bleibt das Signal, der Tier ist nur die
+-- visuelle Empfehlungsstaerke.
+local function rankTier(pos)
+    if pos <= 1 then return "S"
+    elseif pos <= 3 then return "A"
+    elseif pos <= 6 then return "B"
+    elseif pos <= 10 then return "C"
+    else return "D" end
+end
+
+-- Hybrid-Sicht: vollstaendige Bloodmallet-Sim-Liste (mit Stat-Modi). "overall" bleibt pur
+-- (Sim-DPS). "raid"/"dungeon" werden nach der WCL-Nutzung des jeweiligen Contents umsortiert;
+-- der Tier kommt rang-basiert aus dieser Nutzung (rankTier) -> echter M+/Raid-Unterschied
+-- trotz Einzelziel-Sim. Trinkets ohne WCL-Content-Nutzung stehen (in Sim-Reihenfolge) hinten
+-- mit Tier "D". Stat-Modi desselben Trinkets teilen sich Rang/Tier, bleiben untereinander.
+local function hybridList(specID, view)
+    local bm = trinketData(specID)
+    if not bm then return nil end
+    local simList = bm.overall or {}
+    if view == "overall" then return simList end
+    local wcl = wclTrinkets(specID)
+    local wview = wcl and wcl[view]
+    if not wview or #wview == 0 then return simList end   -- keine WCL-Daten -> Sim-Fallback
+    local rank = {}
+    for i, e in ipairs(wview) do
+        if e.itemID and not rank[e.itemID] then rank[e.itemID] = i end
+    end
+    local out, seen = {}, {}
+    -- 1) Bloodmallet-Liste (mit Stat-Modi), annotiert mit WCL-Rang + rang-basiertem Tier.
+    for i, e in ipairs(simList) do
+        local pos = rank[e.itemID]
+        out[#out + 1] = {
+            itemID = e.itemID, mode = e.mode,
+            tier = pos and rankTier(pos) or "D",
+            _rank = pos or (1000 + i),               -- ungenutzt -> ans Ende, Sim-Reihenfolge
+            _sim = i,
+        }
+        if e.itemID then seen[e.itemID] = true end
+    end
+    -- 2) Im Content genutzte Trinkets, die Bloodmallet NICHT simuliert (~10%): trotzdem
+    --    aufnehmen (rang-basierter Tier, ohne Stat-Modus), damit keine Empfehlung fehlt.
+    for _, e in ipairs(wview) do
+        if e.itemID and not seen[e.itemID] then
+            seen[e.itemID] = true
+            out[#out + 1] = { itemID = e.itemID, tier = rankTier(rank[e.itemID]),
+                              _rank = rank[e.itemID], _sim = 0 }
+        end
+    end
+    table.sort(out, function(a, b)
+        if a._rank ~= b._rank then return a._rank < b._rank end
+        return a._sim < b._sim                       -- gleiche itemID (Modi) -> Sim-Ordnung
+    end)
+    return out
 end
 
 -- Trinket-Zeile: [Tier] [Icon] [Name] .......... [Quelle]. Feldnamen (icon/src/label)
@@ -896,28 +1007,16 @@ local function getTkRow(parent, i)
     return b
 end
 
--- Umschalter (Gesamt/Raid/Dungeon) + Credit-Zeile + Scrollbereich, einmalig erzeugt.
+-- Metrik-/Credit-Zeile + Scrollbereich, einmalig erzeugt. KEIN eigener M+/Raid-Umschalter
+-- mehr: der Schmuck-Tab folgt dem globalen Kontext-Schalter (M+/Raid) oben im Panel, sonst
+-- gaebe es zwei konkurrierende Umschalter fuer denselben Zweck (verwirrend).
 local function ensureTrinketUI()
     if Body.tkScroll then return Body.tkChild end
-    Body.tkBtns = {}
-    local x = 0
-    for _, v in ipairs(TRINKET_VIEWS) do
-        local b = CreateFrame("Button", nil, Body)
-        b:SetSize(80, 20); b:SetPoint("TOPLEFT", x, 0)
-        local t = tex(b, "BACKGROUND", C.PANEL2); t:SetAllPoints(); b.bg = t
-        local fstr = fs(b, "GameFontHighlightSmall", C.DIM); fstr:SetPoint("CENTER")
-        fstr:SetText(L[TRINKET_VIEW_LABEL[v]]); b.fstr = fstr
-        b:SetScript("OnClick", function()
-            MetaMirrorDB.trinketView = v; MetaMirror:Refresh()
-        end)
-        Body.tkBtns[v] = b
-        x = x + 84
-    end
     Body.tkNote = fs(Body, "GameFontDisableSmall", C.DIM)
-    Body.tkNote:SetPoint("TOPRIGHT", 0, -4); Body.tkNote:SetJustifyH("RIGHT")
+    Body.tkNote:SetPoint("TOPLEFT", 0, -4); Body.tkNote:SetJustifyH("LEFT")
     local sf = CreateFrame("ScrollFrame", "MetaMirrorTkScroll", Body,
                            "UIPanelScrollFrameTemplate")
-    sf:SetPoint("TOPLEFT", 0, -26); sf:SetPoint("BOTTOMRIGHT", -22, 0)
+    sf:SetPoint("TOPLEFT", 0, -22); sf:SetPoint("BOTTOMRIGHT", -22, 0)
     sf:EnableMouseWheel(true)
     sf:SetScript("OnMouseWheel", function(self, delta)
         local newv = self:GetVerticalScroll() - delta * 24
@@ -933,7 +1032,6 @@ end
 local function hideTrinkets()
     if Body.tkScroll then Body.tkScroll:Hide() end
     if Body.tkNote then Body.tkNote:Hide() end
-    if Body.tkBtns then for _, b in pairs(Body.tkBtns) do b:Hide() end end
     for j = 1, #tkRows do tkRows[j]:Hide() end
 end
 
@@ -944,7 +1042,6 @@ local function renderTrinkets(self, specID)
     local spec = trinketData(specID)
     if not spec then
         Body.tkNote:Hide()
-        for _, btn in pairs(Body.tkBtns) do btn:Hide() end   -- keine Sichten -> kein Umschalter
         for j = 1, #tkRows do tkRows[j]:Hide() end
         local b = getTkRow(child, 1)
         b:ClearAllPoints(); b:SetPoint("TOPLEFT", 8, 0)
@@ -959,30 +1056,24 @@ local function renderTrinkets(self, specID)
         child:SetHeight(48)
         return
     end
-    -- Umschalter spiegeln. Liegt nur die Einzelziel-Sim vor (singleSource), waeren
-    -- Raid/Dungeon mit Gesamt identisch -> diese Knoepfe ausblenden, nur "Gesamt" zeigen
-    -- (der Hinweis "nur Einzelziel" erklaert es), damit keine drei gleichen Sichten stehen.
-    local view = MetaMirrorDB.trinketView
-    if view ~= "overall" and view ~= "raid" and view ~= "dungeon" then view = "overall" end
-    if spec.singleSource then view = "overall" end
-    MetaMirrorDB.trinketView = view
-    for key, btn in pairs(Body.tkBtns) do
-        if spec.singleSource and key ~= "overall" then
-            btn:Hide()
-        else
-            local on = (key == view)
-            btn.bg:SetColorTexture(unpack(on and C.VIOLET or C.PANEL2))
-            btn.fstr:SetTextColor(unpack(on and { 1, 1, 1, 1 } or C.DIM))
-            btn:Show()
-        end
+    -- Sicht folgt dem globalen Kontext-Schalter oben (M+/Raid): Raid -> Raid-Nutzung,
+    -- M+ -> Dungeon-Nutzung. Fehlt fuer den gewaehlten Inhalt eine WCL-Stichprobe, faellt
+    -- die Sicht auf die reine Sim-Rangliste ("overall") zurueck.
+    local wcl = wclTrinkets(specID)
+    local want = (MetaMirrorDB.content == "raid") and "raid" or "dungeon"
+    local hasWant = (wcl and wcl[want] and #wcl[want] > 0) or false
+    local view = hasWant and want or "overall"
+    -- Metrik-Hinweis: Raid/Dungeon = Reihenfolge nach Top-Spieler-Nutzung (Warcraft Logs);
+    -- Sim-Fallback = Sim-DPS-Rangliste (bloodmallet.com), M+/Raid dann identisch.
+    local note
+    if view == "overall" then
+        note = L.trinket_note .. " " .. L.trinket_single
+    else
+        note = L.trinket_note_use
     end
-    -- Hinweis: Tiers = Sim-DPS-Rueckstand (bloodmallet.com). Fehlt eine Dungeon-Sim,
-    -- steht "nur Einzelziel" dabei (Gesamt/Raid/Dungeon zeigen dann dieselbe Rangliste).
-    local note = L.trinket_note
-    if spec.singleSource then note = note .. " " .. L.trinket_single end
     Body.tkNote:SetText(DIM_HEX .. note .. "|r"); Body.tkNote:Show()
 
-    local list = spec[view] or {}
+    local list = hybridList(specID, view) or {}
     local y, i = 0, 0
     for _, e in ipairs(list) do
         i = i + 1
@@ -998,8 +1089,11 @@ local function renderTrinkets(self, specID)
         setItemRow(b, nil, e.itemID, nil, nil, { MYTH_6_6_BONUS }, trinketModeLabel(e.mode))
         b.tier:SetText(e.tier or "")
         b.tier:SetTextColor(unpack(TIER_COLOR[e.tier] or C.DIM))
-        -- Quelle rechts (Boss/Klassenset); ohne Journal-Quelle -> "Hergestellt" statt leer.
-        applyRowSource(b, e.itemID, L.src_crafted)
+        -- Quelle rechts genau wie im Gear-Tab: Boss (Abenteuerfuehrer), sonst Klassenset,
+        -- sonst "Hergestellt" NUR bei echtem Handwerks-Icon. KEIN pauschaler Fallback --
+        -- ein nicht-craftbares Drop-Trinket (auch aus aelteren Seasons) bleibt sonst leer,
+        -- statt faelschlich "Hergestellt" zu behaupten.
+        applyRowSource(b, e.itemID)
         y = y + 26
     end
     -- Leere Sicht (z.B. Spec ohne Raid- oder M+-Stichprobe) -> Hinweiszeile.

@@ -1,14 +1,17 @@
 ## Interface: 120100
 ## Title: MetaMirror
-## Notes: Zeigt die Top-Spieler-Meta pro Spec und vergleicht deine Sekundaerwerte live dagegen.
+## Notes: Zeigt die Top-Spieler-Meta pro Spec und vergleicht deine Sekundärwerte live dagegen.
 ## Author: Franz Petschull
 ## Version: 0.9
+## IconTexture: Interface\AddOns\MetaMirror\Icon
 ## SavedVariablesPerCharacter: MetaMirrorDB
+## SavedVariables: MetaMirrorSrcCache
 
 Localization.lua
 MetaMirror.lua
 Data\MetaMirrorData.lua
 Data\MetaMirrorTrinkets.lua
+Data\MetaMirrorSources.lua
 Logic.lua
 Player.lua
 Source.lua
