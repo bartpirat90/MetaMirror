@@ -1,0 +1,1 @@
+Top-player meta, mirrored to your character: live secondary-stat targets, best-in-slot gear with drop sources, trinket tiers split by M+ and Raid, exact enchants/gems/consumables, and a one-click BiS-drop whisper. Auto-detects your spec — just type /mm.
