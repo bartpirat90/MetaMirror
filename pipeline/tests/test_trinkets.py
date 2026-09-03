@@ -5,7 +5,7 @@ Stat-Modi desselben Trinkets (gleiche itemID) bleiben getrennte, mit Modus marki
 Eintraege (Rubinwelpenschale 4x)."""
 from pipeline.trinkets import (
     slug, endpoint, parse_ranking, with_tiers, blend_overall,
-    build_spec_views, emit_lua, _mode_of,
+    build_spec_views, emit_lua, _mode_of, drop_prev_seasons,
 )
 
 
@@ -61,6 +61,33 @@ def test_parse_ranking_keeps_all_variants_no_dedup():
     assert 999 not in ids                  # PvP raus
     # hoechster ilvl-Step gewertet, absteigend sortiert
     assert raw[0]["itemID"] == 250215 and raw[0]["dps"] == 110.0
+
+
+def test_parse_ranking_carries_ilvl_cap():
+    # Jeder Eintrag traegt sein hoechstes simuliertes Item-Level (fuer den Season-Filter).
+    raw = parse_ranking(_payload())
+    caps = {t["itemID"]: t["ilvl"] for t in raw}
+    assert caps[250215] == 340 and caps[193757] == 340
+
+
+def test_drop_prev_seasons_removes_below_floor():
+    # Mischung aus S2 (334), PvP (315) und Season 1 (298); nur S2 darf bleiben.
+    ranking = [
+        {"itemID": 1, "name": "s2a", "ilvl": 334, "mode": None, "dps": 100.0},
+        {"itemID": 2, "name": "s2b", "ilvl": 331, "mode": None, "dps": 99.0},
+        {"itemID": 3, "name": "pvp", "ilvl": 315, "mode": None, "dps": 98.0},
+        {"itemID": 4, "name": "s1a", "ilvl": 298, "mode": None, "dps": 97.0},
+        {"itemID": 5, "name": "s1b", "ilvl": 292, "mode": None, "dps": 96.0},
+    ]
+    kept = drop_prev_seasons(ranking, floor=320)
+    assert [t["itemID"] for t in kept] == [1, 2]     # 315/298/292 raus
+
+
+def test_drop_prev_seasons_keeps_upscaled_legacy():
+    # Ein altes Effekt-Trinket, das Bloodmallet auf S2-Ilvl hochskaliert, bleibt erhalten.
+    ranking = [{"itemID": 193757, "name": "Ruby Whelp Shell [Crit]",
+                "ilvl": 334, "mode": "Crit", "dps": 100.0}]
+    assert drop_prev_seasons(ranking, floor=320) == ranking
 
 
 def test_parse_ranking_carries_mode():

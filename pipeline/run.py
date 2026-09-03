@@ -1,4 +1,5 @@
 import argparse
+import json
 import os
 import sys
 from collections import defaultdict
@@ -35,9 +36,22 @@ def build_and_write(records, season, version, season_name, out_path, item_name,
     if errors:
         return errors
 
+    # Trinket-Floor fuer den WCL-Pfad = handgepflegte Konstante (ein aus dem Ilvl-Cluster
+    # abgeleiteter Floor scheiterte bei breiter Stichprobe, siehe season_markers.py).
+    # Die Bonus-ID-Konstanten werden gegen die Daten geprueft (Season-Wechsel-Waechter);
+    # bei Widerspruch nur WARNUNG im Log, kein Abbruch.
+    from pipeline.season_markers import entries_from_records, check_markers
+    entries = entries_from_records(records)
+    floor = season.get("TRINKET_MIN_ILVL", season_mod.TRINKET_MIN_ILVL)
+    log(f"Trinket-Floor (WCL-Pfad): {floor}  [{len(entries)} Gear-Eintraege]")
+    check_markers(entries,
+                  season.get("TRINKET_CURRENT_TRACK_BONUS", season_mod.TRINKET_CURRENT_TRACK_BONUS),
+                  season.get("TRINKET_PREV_SEASON_BONUS", season_mod.TRINKET_PREV_SEASON_BONUS),
+                  floor=floor, log=log)
+
     # Trinket-Tierlisten nur fuer Specs, die es in den Datensatz geschafft haben.
     kept = {sid for cid in plain for sid in plain[cid]}
-    trinkets = build_trinket_table(records, item_name, only_specs=kept)
+    trinkets = build_trinket_table(records, item_name, only_specs=kept, floor=floor)
 
     lua = emit_lua(plain, version=version, season=season_name, trinkets=trinkets)
     os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
@@ -119,6 +133,21 @@ def collect_records(client, specs, contents, season, sample=50, log=print):
     return records
 
 
+def save_records(records, path):
+    """Rohdaten (ParseRecords) als JSON sichern: ein WCL-Lauf kostet Stunden und Kontingent,
+    die Aggregation danach Sekunden -> mit --from-records laesst sie sich offline wiederholen."""
+    from dataclasses import asdict
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump([asdict(r) for r in records], f)
+
+
+def load_records(path):
+    from pipeline.models import ParseRecord
+    with open(path, encoding="utf-8") as f:
+        return [ParseRecord(**d) for d in json.load(f)]
+
+
 def item_name_stub(item_id):
     # Item-Namen werden zur Laufzeit im Addon aufgeloest; hier nur Fallback-Text.
     return f"item:{item_id}"
@@ -137,6 +166,9 @@ def build_season(mod):
         "MPLUS_ENCOUNTER_IDS": mod.MPLUS_ENCOUNTER_IDS,
         "MPLUS_DIFFICULTY": mod.MPLUS_DIFFICULTY,
         "SAMPLE_TARGET": mod.SAMPLE_TARGET,
+        "TRINKET_MIN_ILVL": mod.TRINKET_MIN_ILVL,
+        "TRINKET_CURRENT_TRACK_BONUS": mod.TRINKET_CURRENT_TRACK_BONUS,
+        "TRINKET_PREV_SEASON_BONUS": mod.TRINKET_PREV_SEASON_BONUS,
     }
 
 
@@ -161,18 +193,30 @@ def main(argv=None):
     ap.add_argument("--out", default="Data/MetaMirrorData.lua")
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--min-sample", type=int, default=8)
+    ap.add_argument("--dump-records", default="pipeline/cache/records.json",
+                    help="Rohdaten nach dem WCL-Abruf hier sichern (gitignored)")
+    ap.add_argument("--from-records", default=None,
+                    help="statt WCL-Abruf gesicherte Rohdaten laden (offline neu aggregieren)")
     args = ap.parse_args(argv)
 
-    client_id, client_secret = load_credentials()
-    if not client_id or not client_secret:
-        print("WCL-Zugangsdaten fehlen (Umgebungsvariablen oder pipeline/local_secrets.json)",
-              file=sys.stderr)
-        return 2
-
-    from pipeline.wcl import WclClient
-    client = WclClient(client_id, client_secret)
     season = build_season(season_mod)
-    records = collect_records(client, SPECS, CONTENTS, season, sample=season_mod.SAMPLE_TARGET)
+    if args.from_records:
+        records = load_records(args.from_records)
+        print(f"{len(records)} Records aus {args.from_records} geladen (kein WCL-Abruf)")
+    else:
+        client_id, client_secret = load_credentials()
+        if not client_id or not client_secret:
+            print("WCL-Zugangsdaten fehlen (Umgebungsvariablen oder pipeline/local_secrets.json)",
+                  file=sys.stderr)
+            return 2
+
+        from pipeline.wcl import WclClient
+        client = WclClient(client_id, client_secret)
+        records = collect_records(client, SPECS, CONTENTS, season,
+                                  sample=season_mod.SAMPLE_TARGET)
+        if args.dump_records:
+            save_records(records, args.dump_records)
+            print(f"Rohdaten gesichert -> {args.dump_records}")
 
     from datetime import date
     version = f"wcl-{date.today().isoformat()}"

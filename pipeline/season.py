@@ -19,6 +19,45 @@ MPLUS_ZONE_ID = 55               # "Mythic+ Season 2"
 MPLUS_DIFFICULTY = 10            # 10 = Dungeon
 MPLUS_ENCOUNTER_IDS = [12993, 12825, 61762, 12813, 112521, 61877, 12859, 12923]
 
+# --- Trinket-Season-Filter (Bloodmallet listet ALLE Seasons) ----------------
+# Bloodmallet simuliert jedes Trinket bei seinem hoechsten Item-Level; dieses Cap
+# trennt die Seasons sauber. In Midnight-S2 (via Demonology-Sim 2026-09-01 geprueft):
+#   Season 2 (aktuell):  331 / 334 / 344   <- behalten
+#   aktuelle PvP-Season:            315     <- raus (PvE-Meta-Addon)
+#   Season 1 (veraltet):     292 / 298      <- raus
+# Ein Trinket bleibt nur, wenn sein Sim-Cap >= diesem Floor liegt (auf S2-Niveau).
+# Uralte Effekt-Trinkets, die Bloodmallet SELBST auf 334 hochskaliert (z.B. Rubin-
+# welpenschale), liegen damit ueber dem Floor und bleiben -> genau "auf S2 gehoben".
+# ZU JEDER SEASON PRUEFEN: knapp unter das neue Season-Cap setzen (hier zwischen 315
+# und 331), damit Vorsaison + PvP herausfallen, aber alle S2-Difficulties bleiben.
+# Fuer den WCL-Pfad ist dieser Wert nur der FALLBACK: run.py leitet den Floor pro Lauf
+# selbst aus dem Ilvl-Cluster der Top-Parses ab (pipeline/season_markers.py).
+TRINKET_MIN_ILVL = 320
+
+# --- Trinket-Season-Erkennung ueber Bonus-IDs (praeziser als Ilvl) ---------------
+# Aus 1226 Gear-Eintraegen echter Top-Parses (2026-09-02) abgeleitet: jede dieser
+# Bonus-IDs kommt AUSSCHLIESSLICH mit genau einem Item-Level vor -> Upgrade-Track-Stufe.
+#   Hero-Track : 12843=311 (3/6)  12844=315 (4/6)  12845=318 (5/6)  12846=321 (6/6)
+#   Myth-Track : 12849=318 (1/6)  12850=321  12851=324  12852=328  12853=331  12854=334
+# Champion-Track und Hero 1/6-2/6 sind in den Daten zu selten belegt -> nicht geraten;
+# solche Items laufen ueber den Ilvl-Pfad (TRINKET_MIN_ILVL + Ausreisser-Schutz).
+# Ein Gear-Eintrag mit Track-Bonus ist ein POSITIVBEWEIS fuer "aktuelle Season", auch
+# wenn sein Ilvl unter dem Floor liegt (Hero 5/6 = 318).
+TRINKET_CURRENT_TRACK_BONUS = frozenset({
+    12843, 12844, 12845, 12846,                    # Hero 3/6 .. 6/6
+    12849, 12850, 12851, 12852, 12853, 12854,      # Myth 1/6 .. 6/6
+})
+# Vorsaison-Marker: 13654 haengt an 25/26 der 298er-Items (S1-Voidforged-Cap) und an
+# keinem einzigen S2-Item. Ein Eintrag mit diesem Bonus zaehlt NIE als hebbar.
+TRINKET_PREV_SEASON_BONUS = frozenset({13654})
+# Ausreisser-Schutz fuer den Ilvl-Pfad: ohne Track-Bonus muessen mindestens so viele
+# Parses das Trinket >= TRINKET_MIN_ILVL tragen, sonst gilt es als nicht hebbar
+# (ein einzelner Parse mit hohem Ilvl haelt sonst ein altes Item in der Liste).
+TRINKET_MIN_LIFTABLE_PARSES = 2
+# ZU JEDER SEASON PRUEFEN: Track-Bonus-Familie und Vorsaison-Marker neu ableiten
+# (Bonus-IDs, die an genau EIN Ilvl im dominanten Cluster gebunden sind, bzw. die
+# exklusiv am isolierten Vorsaison-Cluster haengen).
+
 # --- Consumable-Buff (aura.ability = Spell-ID) -> Kategorie + Item-ID --------
 # Quelle: CombatantInfo-Auren realer Top-Parses (2026-08-31 verifiziert). Nur Buffs,
 # die zum Pull als *dauerhafte* Aura anliegen, sind hier ableitbar -> zuverlaessig
@@ -134,6 +173,7 @@ ENCHANT_ITEM_BY_ID = {
 }
 
 # Parses pro Spec x Content. Kosten ~2.6 WCL-Punkte/Parse; Limit 3600 Punkte/Stunde.
-# 15 -> ganzer Lauf (39 Specs x 2 Modi) bleibt unter einer Stunde, kein Rate-Limit-Abbruch.
-# Hoeher (Richtung 50) erst, wenn der Client stundenweise pausieren kann (offen).
-SAMPLE_TARGET = 15
+# 50 -> ganzer Lauf (39 Specs x 2 Modi) ~10.000 Punkte, ca. 3 Stunden: der WclClient
+# fragt das Kontingent ab und pausiert bis zum Stunden-Reset (wcl.py, rateLimitData).
+# Fuer schnelle Test-Laeufe auf 15 senken (bleibt unter einer Stunde).
+SAMPLE_TARGET = 50

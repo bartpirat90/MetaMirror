@@ -17,6 +17,7 @@ import re
 import sys
 
 from pipeline.specs import SPECS
+from pipeline.season import TRINKET_MIN_ILVL
 
 BASE = "https://bloodmallet.com/chart/get"
 
@@ -66,13 +67,23 @@ def parse_ranking(payload):
         steps = [int(k) for k in per_ilvl.keys() if str(k).isdigit()]
         if not steps:
             continue
-        dps = per_ilvl.get(str(max(steps)))
+        cap = max(steps)                 # hoechstes simuliertes Item-Level = Sim-BiS-Cap
+        dps = per_ilvl.get(str(cap))
         if not dps:
             continue
-        out.append({"itemID": int(iid), "name": name,
+        out.append({"itemID": int(iid), "name": name, "ilvl": cap,
                     "mode": _mode_of(name), "dps": float(dps)})
     out.sort(key=lambda t: t["dps"], reverse=True)
     return out
+
+
+def drop_prev_seasons(ranking, floor=TRINKET_MIN_ILVL):
+    """Entfernt Trinkets unter dem Season-Floor. Bloodmallet simuliert jedes Trinket bei
+    SEINEM hoechsten Item-Level; liegt dieses Cap unter dem Floor, ist es Vorsaison oder
+    PvP (nicht auf aktuellem Season-Niveau) -> raus. Ein alter Effekt, den Bloodmallet
+    selbst auf S2-Ilvl hochskaliert, liegt ueber dem Floor und bleibt. Erwartet
+    parse_ranking-Eintraege (Feld 'ilvl')."""
+    return [t for t in ranking if t.get("ilvl", 0) >= floor]
 
 
 # S-Tier NICHT prozentual: Sim-DPS liegen so dicht beieinander (Top-Feld < 1% Spanne),
@@ -196,17 +207,22 @@ def _first_nonempty(client, class_name, spec_name, styles):
     return []
 
 
-def collect(client, specs, log=print):
+def collect(client, specs, log=print, floor=TRINKET_MIN_ILVL):
     result = {}
     for spec in specs:
-        raid_raw = _first_nonempty(client, spec.class_name, spec.spec_name, SINGLE_TARGET_STYLES)
-        dung_raw = _first_nonempty(client, spec.class_name, spec.spec_name, DUNGEON_STYLES)
+        raid_all = _first_nonempty(client, spec.class_name, spec.spec_name, SINGLE_TARGET_STYLES)
+        dung_all = _first_nonempty(client, spec.class_name, spec.spec_name, DUNGEON_STYLES)
+        # Vorsaison + PvP herausfiltern (nur Trinkets auf aktuellem Season-Ilvl behalten).
+        raid_raw = drop_prev_seasons(raid_all, floor)
+        dung_raw = drop_prev_seasons(dung_all, floor)
         if not raid_raw and not dung_raw:
-            log(f"  keine Bloodmallet-Daten: {spec.class_name}/{spec.spec_name}")
+            log(f"  keine aktuellen Bloodmallet-Daten: {spec.class_name}/{spec.spec_name}")
             continue
         result[spec.spec_id] = build_spec_views(raid_raw, dung_raw)
         tag = " [nur Einzelziel]" if result[spec.spec_id]["singleSource"] else ""
-        log(f"{spec.class_name}/{spec.spec_name}: single={len(raid_raw)} dungeon={len(dung_raw)}{tag}")
+        dropped = (len(raid_all) - len(raid_raw)) + (len(dung_all) - len(dung_raw))
+        log(f"{spec.class_name}/{spec.spec_name}: single={len(raid_raw)} dungeon={len(dung_raw)}"
+            f" (Vorsaison/PvP entfernt: {dropped}){tag}")
     return result
 
 

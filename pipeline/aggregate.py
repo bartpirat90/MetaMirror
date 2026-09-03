@@ -2,6 +2,8 @@ from collections import Counter, defaultdict
 from statistics import median
 from pipeline.models import AggregatedSpec
 from pipeline.specs import STAT_KEYS
+from pipeline.season import (TRINKET_MIN_ILVL, TRINKET_CURRENT_TRACK_BONUS,
+                             TRINKET_PREV_SEASON_BONUS, TRINKET_MIN_LIFTABLE_PARSES)
 
 _CONS_CATS = ["flask", "phial", "potion", "food", "oil", "rune"]
 
@@ -15,13 +17,41 @@ _TRINKET_MAX = 12
 _TRINKET_TIER_CUTS = [(0.70, "S"), (0.45, "A"), (0.25, "B"), (0.10, "C")]
 
 
-def trinket_view(records, item_name):
-    """records (eines Specs, evtl. gemischter Content) -> gerankte, getierte Trinket-Liste."""
+def trinket_view(records, item_name, floor=TRINKET_MIN_ILVL,
+                 track_bonus=TRINKET_CURRENT_TRACK_BONUS,
+                 prev_bonus=TRINKET_PREV_SEASON_BONUS,
+                 min_liftable=TRINKET_MIN_LIFTABLE_PARSES):
+    """records (eines Specs, evtl. gemischter Content) -> gerankte, getierte Trinket-Liste.
+    Vorsaison-/PvP-Trinkets werden herausgefiltert. Ob ein Trinket auf Season-2-Niveau
+    HEBBAR ist, wird primaer ueber Upgrade-Track-Bonus-IDs entschieden (praeziser als Ilvl):
+      - traegt ein Gear-Eintrag einen Vorsaison-Marker (TRINKET_PREV_SEASON_BONUS), zaehlt
+        dieser Eintrag NIE als hebbar, egal wie hoch sein Ilvl ist (hartes Aus).
+      - sonst zaehlt ein Eintrag mit S2-Track-Bonus (TRINKET_CURRENT_TRACK_BONUS) als
+        POSITIVBEWEIS, selbst wenn sein Ilvl unter dem Floor liegt (z.B. Hero 5/6 = 318).
+      - sonst faellt der Eintrag auf den Ilvl-Pfad zurueck (>= floor); hier braucht es
+        mindestens min_liftable solche Parses (Ausreisser-Schutz: ein einzelner hoher
+        Ilvl-Parse haelt sonst allein ein altes Item in der Liste).
+    Ein Trinket bleibt, wenn es mindestens einen Track-Bonus-Treffer ODER genug
+    Ilvl-Treffer hat. Das Ranking (counts) zaehlt weiterhin ALLE Vorkommen, unabhaengig
+    vom Filter -- der Filter entscheidet nur ueber bleiben/raus."""
     counts = Counter()
+    track_hits = Counter()
+    ilvl_hits = Counter()
     for r in records:
         for g in r.gear:
             if g.get("slot") in _TRINKET_SLOTS and g.get("item_id"):
-                counts[g["item_id"]] += 1
+                iid = g["item_id"]
+                counts[iid] += 1
+                bonus = set(g.get("bonus_ids") or [])
+                if bonus & prev_bonus:
+                    continue
+                if bonus & track_bonus:
+                    track_hits[iid] += 1
+                elif (g.get("item_level") or 0) >= floor:
+                    ilvl_hits[iid] += 1
+    for iid in [i for i in counts
+                if track_hits.get(i, 0) < 1 and ilvl_hits.get(i, 0) < min_liftable]:
+        del counts[iid]
     if not counts:
         return []
     ranked = counts.most_common()
@@ -38,9 +68,12 @@ def trinket_view(records, item_name):
     return out
 
 
-def build_trinket_table(records, item_name, only_specs=None):
+def build_trinket_table(records, item_name, only_specs=None, floor=None):
     """Flache Recordliste -> {spec_id: {overall, raid, dungeon}} als Tierlisten.
-    only_specs: optionale Menge erlaubter spec_ids (duenne Specs auslassen)."""
+    only_specs: optionale Menge erlaubter spec_ids (duenne Specs auslassen).
+    floor: Ilvl-Floor fuer den Ilvl-Pfad von trinket_view; None = Konstante aus season.py.
+    Die Pipeline (run.py) leitet ihn ueber season_markers aus den Daten selbst ab."""
+    view_kw = {} if floor is None else {"floor": floor}
     by_spec = defaultdict(lambda: {"raid": [], "dungeon": [], "all": []})
     for r in records:
         if only_specs is not None and r.spec_id not in only_specs:
@@ -54,9 +87,9 @@ def build_trinket_table(records, item_name, only_specs=None):
     table = {}
     for sid, b in by_spec.items():
         views = {
-            "overall": trinket_view(b["all"], item_name),
-            "raid": trinket_view(b["raid"], item_name),
-            "dungeon": trinket_view(b["dungeon"], item_name),
+            "overall": trinket_view(b["all"], item_name, **view_kw),
+            "raid": trinket_view(b["raid"], item_name, **view_kw),
+            "dungeon": trinket_view(b["dungeon"], item_name, **view_kw),
         }
         if views["overall"] or views["raid"] or views["dungeon"]:
             table[sid] = views
