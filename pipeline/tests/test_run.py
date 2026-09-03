@@ -93,3 +93,48 @@ def test_build_and_write_returns_errors_and_skips_on_bad_data(tmp_path):
                              out_path=str(out), item_name=lambda i: f"item{i}", min_sample=15)
     assert errors
     assert not out.exists()      # bei rot NICHT schreiben
+
+
+class _Spec:
+    def __init__(self, class_name, spec_name, spec_id):
+        self.class_name, self.spec_name, self.spec_id = class_name, spec_name, spec_id
+
+
+def _fake_collect_spec(fail_on, calls):
+    def fake(client, spec, content, season, sample, log):
+        key = f"{spec.class_name}/{spec.spec_name}/{content}"
+        calls.append(key)
+        if key in fail_on:
+            raise RuntimeError("WCL down")
+        return [_rec(1, spec.spec_id, content)]
+    return fake
+
+
+def test_collect_records_resumes_from_checkpoint(tmp_path, monkeypatch):
+    import pipeline.run as run
+    specs = [_Spec("Warrior", "Arms", 71), _Spec("Warrior", "Fury", 72)]
+    cp = str(tmp_path / "cache" / "checkpoint.json")
+
+    # Lauf 1: zweite Kombination scheitert -> zaehlt NICHT als fertig.
+    calls1 = []
+    monkeypatch.setattr(run, "_collect_spec", _fake_collect_spec({"Warrior/Fury/raid"}, calls1))
+    recs1 = run.collect_records(None, specs, ["raid"], {}, checkpoint=cp, log=lambda *_: None)
+    assert [r.spec_id for r in recs1] == [71]
+    done, saved = run.load_checkpoint(cp)
+    assert done == {"Warrior/Arms/raid"} and len(saved) == 1
+
+    # Lauf 2 mit resume: nur die offene Kombination wird abgerufen, Ergebnis vollstaendig.
+    calls2, logs = [], []
+    monkeypatch.setattr(run, "_collect_spec", _fake_collect_spec(set(), calls2))
+    recs2 = run.collect_records(None, specs, ["raid"], {}, checkpoint=cp, resume=True,
+                                log=logs.append)
+    assert calls2 == ["Warrior/Fury/raid"]
+    assert sorted(r.spec_id for r in recs2) == [71, 72]
+    assert any("Fortsetzung: 1 Kombinationen" in m for m in logs)
+
+    # Ohne resume wird der Zwischenstand ignoriert (frischer Lauf, alles neu).
+    calls3 = []
+    monkeypatch.setattr(run, "_collect_spec", _fake_collect_spec(set(), calls3))
+    run.collect_records(None, specs, ["raid"], {}, checkpoint=cp, log=lambda *_: None)
+    assert len(calls3) == 2
+    assert not os.path.exists(cp + ".tmp")

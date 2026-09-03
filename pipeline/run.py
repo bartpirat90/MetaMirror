@@ -119,17 +119,59 @@ def _collect_spec(client, spec, content, season, sample, log):
     return out
 
 
-def collect_records(client, specs, contents, season, sample=50, log=print):
-    """Live-Abruf ueber die WCL-API: Rankings -> CombatantInfo -> ParseRecords."""
-    records = []
+def _combo_key(spec, content):
+    return f"{spec.class_name}/{spec.spec_name}/{content}"
+
+
+def load_checkpoint(path):
+    """Zwischenstand eines abgebrochenen Laufs: (fertige Kombinationen, bisherige Records)."""
+    if not path or not os.path.exists(path):
+        return set(), []
+    from pipeline.models import ParseRecord
+    with open(path, encoding="utf-8") as f:
+        d = json.load(f)
+    return set(d.get("done", [])), [ParseRecord(**r) for r in d.get("records", [])]
+
+
+def save_checkpoint(path, done, records):
+    """Atomar schreiben (tmp + replace), damit ein Abbruch waehrend des Schreibens den
+    Zwischenstand nicht zerstoert."""
+    from dataclasses import asdict
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump({"done": sorted(done), "records": [asdict(r) for r in records]}, f)
+    os.replace(tmp, path)
+
+
+def collect_records(client, specs, contents, season, sample=50, log=print,
+                    checkpoint=None, resume=False):
+    """Live-Abruf ueber die WCL-API: Rankings -> CombatantInfo -> ParseRecords.
+
+    checkpoint: Pfad, an dem nach JEDER fertigen Kombination der Zwischenstand gesichert
+    wird (ein Lauf kostet ~2-3 h und ~10.000 WCL-Punkte; ohne Zwischenstand kostet ein
+    Abbruch alles). resume=True laedt den Zwischenstand und ueberspringt fertige
+    Kombinationen; fehlgeschlagene Kombinationen zaehlen nicht als fertig und werden
+    beim Fortsetzen erneut versucht."""
+    done, records = (set(), [])
+    if checkpoint and resume:
+        done, records = load_checkpoint(checkpoint)
+        if done:
+            log(f"Fortsetzung: {len(done)} Kombinationen ({len(records)} Records) aus {checkpoint}")
     for spec in specs:
         for content in contents:
+            key = _combo_key(spec, content)
+            if key in done:
+                continue
             try:
                 recs = _collect_spec(client, spec, content, season, sample, log)
                 records.extend(recs)
-                log(f"{spec.class_name}/{spec.spec_name}/{content}: {len(recs)} Parses")
+                done.add(key)
+                log(f"{key}: {len(recs)} Parses")
+                if checkpoint:
+                    save_checkpoint(checkpoint, done, records)
             except Exception as e:
-                log(f"FEHLER {spec.class_name}/{spec.spec_name}/{content}: {e}")
+                log(f"FEHLER {key}: {e}")
     return records
 
 
@@ -197,6 +239,10 @@ def main(argv=None):
                     help="Rohdaten nach dem WCL-Abruf hier sichern (gitignored)")
     ap.add_argument("--from-records", default=None,
                     help="statt WCL-Abruf gesicherte Rohdaten laden (offline neu aggregieren)")
+    ap.add_argument("--checkpoint", default="pipeline/cache/checkpoint.json",
+                    help="Zwischenstand je fertiger Kombination (gitignored); '' = aus")
+    ap.add_argument("--resume", action="store_true",
+                    help="abgebrochenen Lauf aus --checkpoint fortsetzen (fertige Kombinationen ueberspringen)")
     args = ap.parse_args(argv)
 
     season = build_season(season_mod)
@@ -213,7 +259,8 @@ def main(argv=None):
         from pipeline.wcl import WclClient
         client = WclClient(client_id, client_secret)
         records = collect_records(client, SPECS, CONTENTS, season,
-                                  sample=season_mod.SAMPLE_TARGET)
+                                  sample=season_mod.SAMPLE_TARGET,
+                                  checkpoint=args.checkpoint or None, resume=args.resume)
         if args.dump_records:
             save_records(records, args.dump_records)
             print(f"Rohdaten gesichert -> {args.dump_records}")
