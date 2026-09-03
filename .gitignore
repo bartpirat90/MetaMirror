@@ -6,3 +6,10 @@ __pycache__/
 # lokale Zugangsdaten — NIEMALS committen
 pipeline/local_secrets.json
 .env
+
+# Rohdaten-Dump der Pipeline (gross, jederzeit neu erzeugbar)
+pipeline/cache/
+
+# Screenshot mit WCL-Zugangsdaten und Release-ZIP (Build-Artefakt) - NIEMALS committen
+warcraftlogs secret key.png
+release/*.zip
