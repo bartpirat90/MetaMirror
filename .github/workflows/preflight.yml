@@ -1,0 +1,78 @@
+name: Selbsttest (ohne Datenabruf)
+
+# Prueft in gut zwei Minuten alles, woran der woechentliche Lauf scheitern koennte --
+# ausser dem teuren WCL-Abruf selbst. Gedacht als Probe VOR dem ersten echten Lauf und
+# nach Aenderungen an Pipeline oder Workflow. Nur manuell startbar.
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: write        # nur fuer die Push-Probe (--dry-run, schreibt nichts)
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install deps
+        run: pip install -r pipeline/requirements.txt
+
+      - name: Unit tests
+        run: python -m pytest pipeline/ -q
+
+      # Genau der Gate, der im Wochenlauf NACH zwei Stunden Abruf greift: hier vorab
+      # gegen die bereits im Repo liegenden Datendateien.
+      - name: Lua syntax gate
+        run: |
+          sudo apt-get update && sudo apt-get install -y lua5.1
+          luac5.1 -p Data/MetaMirrorData.lua
+          luac5.1 -p Data/MetaMirrorSources.lua
+
+      - name: Addon-ZIP bauen (ohne Upload)
+        run: python -m pipeline.cf_upload --dry-run
+
+      # Beweist, dass die Repository-Secrets gesetzt sind UND funktionieren: holt ein
+      # Token und fragt den Punktestand ab (kostet 1 Punkt). Gibt niemals Werte aus.
+      - name: WCL-Zugangsdaten pruefen
+        env:
+          WCL_CLIENT_ID: ${{ secrets.WCL_CLIENT_ID }}
+          WCL_CLIENT_SECRET: ${{ secrets.WCL_CLIENT_SECRET }}
+        run: |
+          if [ -z "$WCL_CLIENT_ID" ] || [ -z "$WCL_CLIENT_SECRET" ]; then
+            echo "FEHLT: WCL_CLIENT_ID und/oder WCL_CLIENT_SECRET sind nicht gesetzt."
+            echo "Settings -> Secrets and variables -> Actions -> New repository secret."
+            exit 1
+          fi
+          python - <<'PY'
+          from pipeline.run import load_credentials
+          from pipeline.wcl import WclClient
+          info = WclClient(*load_credentials()).rate_limit()
+          print("WCL erreichbar. Kontingent pro Stunde:", info.get("limitPerHour"))
+          print("bereits verbraucht:", info.get("pointsSpentThisHour"))
+          PY
+
+      # Prueft die Schreibrechte des Roboters, ohne etwas zu veraendern.
+      - name: Push-Berechtigung pruefen
+        run: |
+          git config user.name "metamirror-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git push --dry-run origin HEAD:${{ github.ref_name }}
+          echo "Schreibrechte vorhanden."
+
+      - name: Zusammenfassung
+        run: |
+          {
+            echo "### Selbsttest bestanden"
+            echo ""
+            echo "- Unit-Tests, Lua-Syntax und ZIP-Bau in Ordnung"
+            echo "- Warcraft-Logs-Zugangsdaten funktionieren"
+            echo "- Der Roboter darf in das Repository schreiben"
+            echo ""
+            echo "Der woechentliche Lauf kann gestartet werden."
+          } >> "$GITHUB_STEP_SUMMARY"
