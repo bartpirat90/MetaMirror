@@ -46,7 +46,7 @@ test("DataFor_present", function()
     assertEqual(d ~= nil, true, "arms mplus present")
     -- Stats sind nach Rating sortiert; welcher Key oben steht, haengt von den
     -- Live-Daten ab -> nur Struktur pruefen, keinen konkreten Stat festnageln.
-    assertEqual(#d.stats, 4, "vier Sekundaerwerte")
+    assertEqual(#d.stats, 4, "vier Sekundärwerte")
     local valid = { haste = true, crit = true, mastery = true, vers = true }
     assertEqual(valid[d.stats[1].key] == true, true, "erster Stat ist gueltiger Key")
     assertEqual(type(d.stats[1].rating), "number", "erster Stat hat Rating")
@@ -121,16 +121,27 @@ local function showCopy(text, title)
         f:SetScript("OnDragStart", f.StartMoving); f:SetScript("OnDragStop", f.StopMoving)
         f.title = f:CreateFontString(nil, "OVERLAY", "GameFontNormal")
         f.title:SetPoint("TOP", 0, -9)
-        local close = CreateFrame("Button", nil, f, "UIPanelCloseButton")
-        close:SetPoint("TOPRIGHT", -2, -2)
         local sf = CreateFrame("ScrollFrame", "MetaMirrorDumpScroll", f, "UIPanelScrollFrameTemplate")
-        sf:SetPoint("TOPLEFT", 12, -32); sf:SetPoint("BOTTOMRIGHT", -30, 12)
+        sf:SetPoint("TOPLEFT", 12, -32); sf:SetPoint("BOTTOMRIGHT", -30, 40)
         local eb = CreateFrame("EditBox", nil, sf)
         eb:SetMultiLine(true); eb:SetFontObject(ChatFontNormal)
         eb:SetWidth(380); eb:SetAutoFocus(false)
-        eb:SetScript("OnEscapePressed", function(s) s:ClearFocus() end)
+        -- Escape: Fokus loesen UND Fenster schliessen (Text steht weiter im Frame).
+        eb:SetScript("OnEscapePressed", function(s) s:ClearFocus(); f:Hide() end)
         sf:SetScrollChild(eb)
         f.eb = eb
+        -- Schliessen-Kreuz NACH dem ScrollFrame anlegen und explizit ueber alles heben:
+        -- bei sehr langen Dumps (scansrc) lag es sonst hinter Scroll-Inhalt/Scrollbar und
+        -- "verschwand". Zusaetzlich ein Textknopf unten als zweiter Weg.
+        local close = CreateFrame("Button", nil, f, "UIPanelCloseButton")
+        close:SetPoint("TOPRIGHT", -2, -2)
+        close:SetFrameLevel(f:GetFrameLevel() + 20)
+        close:SetScript("OnClick", function() f:Hide() end)
+        local btn = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
+        btn:SetSize(110, 22); btn:SetPoint("BOTTOM", 0, 10)
+        btn:SetText(CLOSE or "Schliessen")
+        btn:SetFrameLevel(f:GetFrameLevel() + 20)
+        btn:SetScript("OnClick", function() f:Hide() end)
         dumpFrame = f
     end
     dumpFrame.title:SetText("MetaMirror \226\128\148 " .. (title or "Enchant-Dump") .. " (Strg+C, dann schicken)")
@@ -255,12 +266,12 @@ end
 function MetaMirror:DumpQuality()
     local classID, specID = self:CurrentSpecKey()
     local d = classID and specID and self:DataFor(classID, specID, MetaMirrorDB.content)
-    if not d then print("|cffa855f7[MM]|r Keine Daten fuer aktuelle Spec.") return end
+    if not d then print("|cffa855f7[MM]|r Keine Daten für aktuelle Spec.") return end
     local lines, pending = {}, 0
     local function finishMaybe()
         if pending == 0 then
             showCopy(table.concat(lines, "\n"))
-            print("|cffa855f7[MM]|r Qualitaets-Dump fertig \226\128\148 Fenster offen (Strg+C).")
+            print("|cffa855f7[MM]|r Qualitäts-Dump fertig \226\128\148 Fenster offen (Strg+C).")
         end
     end
     -- GEAR
@@ -308,12 +319,49 @@ function MetaMirror:DumpQuality()
     finishMaybe()
 end
 
+-- Diagnose + Reparatur: /mm scansrc -> Abenteuerfuehrer-Index synchron neu aufbauen,
+-- je Tier/Instanz/Boss protokollieren (Fehler, Bosse ohne Loot) und danach alle Trinkets
+-- der aktuellen Spec auflisten, die weder Journal- noch Pipeline-Quelle haben.
+function MetaMirror:ScanSourceDiag()
+    local report = {}
+    local t0 = debugprofilestop and debugprofilestop() or 0
+    local n = self:RescanSourcesSync(report)
+    local ms = debugprofilestop and (debugprofilestop() - t0) or 0
+    local lines = { string.format("Quellen-Rescan: %d Items indiziert in %.0f ms", n, ms) }
+    for _, l in ipairs(report) do lines[#lines + 1] = l end
+    -- Trinkets ohne jede Quelle (aktuelle Spec, Bloodmallet + WCL)
+    local classID, specID = self:CurrentSpecKey()
+    local ids, seen = {}, {}
+    local function add(list)
+        for _, e in ipairs(list or {}) do
+            if e.itemID and not seen[e.itemID] then seen[e.itemID] = true; ids[#ids + 1] = e.itemID end
+        end
+    end
+    local bm = _G.MetaMirrorTrinkets and _G.MetaMirrorTrinkets.specs and _G.MetaMirrorTrinkets.specs[specID]
+    if bm then add(bm.overall); add(bm.raid); add(bm.dungeon) end
+    local wcl = _G.MetaMirrorData and _G.MetaMirrorData.trinkets and _G.MetaMirrorData.trinkets[specID]
+    if wcl then add(wcl.overall); add(wcl.raid); add(wcl.dungeon) end
+    local ps = _G.MetaMirrorItemSources and _G.MetaMirrorItemSources.items or {}
+    lines[#lines + 1] = "Trinkets ohne Quelle (Spec " .. tostring(specID) .. "):"
+    local missing = 0
+    for _, id in ipairs(ids) do
+        if not self:GetItemSource(id) and not ps[id] then
+            missing = missing + 1
+            local name = C_Item.GetItemInfo and select(1, C_Item.GetItemInfo(id)) or nil
+            lines[#lines + 1] = string.format("  %d  %s", id, name or "(Name nicht geladen)")
+        end
+    end
+    if missing == 0 then lines[#lines + 1] = "  keine" end
+    showCopy(table.concat(lines, "\n"))
+    print(string.format("|cffa855f7[MM]|r Quellen-Rescan fertig: %d Items, %d Trinkets ohne Quelle \226\128\148 Fenster offen (Strg+C).", n, missing))
+end
+
 -- Diagnose: /mm dumpsrc  -> je Gear-Item Slot/itemID/Name, Equip-Location und die
 -- vom Abenteuerfuehrer-Index gefundene Quelle (oder "—" = nicht im Journal).
 function MetaMirror:DumpSource()
     local classID, specID = self:CurrentSpecKey()
     local d = classID and specID and self:DataFor(classID, specID, MetaMirrorDB.content)
-    if not d then print("|cffa855f7[MM]|r Keine Daten fuer aktuelle Spec.") return end
+    if not d then print("|cffa855f7[MM]|r Keine Daten für aktuelle Spec.") return end
     local lines, pending = {}, 0
     lines[#lines + 1] = "Quelle-Dump (Content=" .. tostring(MetaMirrorDB.content) .. ")"
     local function finishMaybe()
