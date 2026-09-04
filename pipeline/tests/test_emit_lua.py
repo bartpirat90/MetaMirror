@@ -19,7 +19,7 @@ def test_emit_structure_and_values():
     out = emit_lua(data, version="wcl-2026-08-31", season="TWW-S1")
     assert "MetaMirrorData = {" in out
     assert 'version = "wcl-2026-08-31"' in out
-    assert 'attribution = "Data from Warcraft Logs"' in out
+    assert 'attribution = "Data from bloodmallet.com (SimulationCraft)"' in out
     assert "[1] = {" in out and "[71] = {" in out
     assert "mythicplus = {" in out and "raid = {" in out
     assert 'sampleSize = 42' in out
@@ -38,3 +38,37 @@ def test_emit_is_deterministic():
     a = emit_lua(data, version="v", season="s")
     b = emit_lua(data, version="v", season="s")
     assert a == b
+
+
+def test_emit_attribution_override():
+    data = {1: {71: {"raid": _agg()}}}
+    out = emit_lua(data, version="v", season="s", attribution="Custom attribution")
+    assert 'attribution = "Custom attribution"' in out
+    assert "Warcraft Logs" not in out
+
+
+def test_emit_extra_fields_flat_and_nested_sorted_after_season():
+    data = {1: {71: {"raid": _agg()}}}
+    extra = {
+        "generated": "2026-09-04",
+        "simcHash": "f869791",
+        "fightStyles": {"raid": "castingpatchwerk", "mythicplus": "castingpatchwerk3"},
+    }
+    out = emit_lua(data, version="v", season="s", extra=extra)
+    assert 'generated = "2026-09-04"' in out
+    assert 'simcHash = "f869791"' in out
+    assert 'fightStyles = { mythicplus = "castingpatchwerk3", raid = "castingpatchwerk" }' in out
+    # deterministisch nach Key sortiert: fightStyles < generated < simcHash
+    season_pos = out.index('season = "s"')
+    fs_pos = out.index("fightStyles =")
+    gen_pos = out.index("generated =")
+    hash_pos = out.index("simcHash =")
+    attr_pos = out.index("attribution =")
+    assert season_pos < fs_pos < gen_pos < hash_pos < attr_pos
+
+
+def test_emit_extra_none_omits_no_extra_lines():
+    data = {1: {71: {"raid": _agg()}}}
+    out = emit_lua(data, version="v", season="s", extra=None)
+    lines_between = out.split('season = "s",')[1].split("attribution =")[0]
+    assert lines_between.strip() == ""

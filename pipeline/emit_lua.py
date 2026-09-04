@@ -43,6 +43,21 @@ def _spec_block(agg, indent):
     return "\n".join(lines)
 
 
+def _extra_literal(value):
+    """Ein extra-Wert (String/Zahl/verschachteltes Dict) -> Lua-Literal. Dict-Keys werden
+    fuer deterministische Ausgabe sortiert; verschachtelte Dicts rekursiv als Inline-Table."""
+    if isinstance(value, dict):
+        parts = [f"{k} = {_extra_literal(value[k])}" for k in sorted(value)]
+        return "{ " + ", ".join(parts) + " }"
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, (int, float)):
+        return str(value)
+    if value is None:
+        return "nil"
+    return _q(value)
+
+
 def _trinket_block(trinkets, indent):
     """trinkets: {specID: {overall,raid,dungeon}} -> Lua-Block 'trinkets = { ... }'."""
     p = " " * indent
@@ -62,15 +77,21 @@ def _trinket_block(trinkets, indent):
     return "\n".join(lines)
 
 
-def emit_lua(data, version, season, trinkets=None):
+def emit_lua(data, version, season, trinkets=None,
+             attribution="Data from bloodmallet.com (SimulationCraft)", extra=None):
     """data: {classID: {specID: {content: AggregatedSpec}}} -> Lua-Quelltext.
-    trinkets: optionale {specID: {overall,raid,dungeon}}-Tierliste (WCL-Nutzung)."""
+    trinkets: optionale {specID: {overall,raid,dungeon}}-Tierliste (WCL-Nutzung).
+    extra: zusaetzliche Top-Level-Felder nach 'season' (z.B. fightStyles, generated,
+    simcHash, sources) -- Werte sind String/Zahl/verschachteltes Dict, deterministisch
+    (Keys sortiert) ausgegeben."""
     out = ["-- Generiert von der MetaMirror-Pipeline. NICHT von Hand bearbeiten.",
            "MetaMirrorData = {",
            f"    version = {_q(version)},",
-           f"    season = {_q(season)},",
-           '    attribution = "Data from Warcraft Logs",',
-           "    specs = {"]
+           f"    season = {_q(season)},"]
+    for key in sorted(extra or {}):
+        out.append(f"    {key} = {_extra_literal(extra[key])},")
+    out.append(f"    attribution = {_q(attribution)},")
+    out.append("    specs = {")
     for class_id in sorted(data):
         out.append(f"        [{class_id}] = {{")
         for spec_id in sorted(data[class_id]):
