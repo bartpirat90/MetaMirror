@@ -919,8 +919,7 @@ local function renderImprovements(self, data)
 end
 
 -- ===== "Schmuck": Trinket-Tierliste aus Bloodmallet (Sim-BiS) =====
--- Eigene Datenquelle (Data/MetaMirrorTrinkets.lua), unabhaengig von den WCL-Daten:
--- pro Spec drei Sichten (Gesamt/Raid/Dungeon) als S/A/B/C/D-Rangliste. Umschalter oben.
+-- Quelle: Data/MetaMirrorTrinkets.lua, je Spec eine S/A/B/C/D-Rangliste nach Sim-DPS.
 local TIER_COLOR = {
     S = { 1.00, 0.55, 0.10 },   -- orange-gold
     A = { 0.66, 0.35, 0.95 },   -- violett
@@ -946,74 +945,10 @@ local function trinketModeLabel(mode)
 end
 
 local function trinketData(specID)
-    -- Quelle: Bloodmallet-Sim-BiS (Data/MetaMirrorTrinkets.lua), unabhaengig von WCL.
+    -- Quelle: Bloodmallet-Sim-BiS (Data/MetaMirrorTrinkets.lua).
     local root = _G.MetaMirrorTrinkets
     if not (root and root.specs and specID) then return nil end
     return root.specs[specID]
-end
-
--- WCL-Nutzungsdaten (Top-Spieler, getrennt nach Content) fuer den Hybrid-Split.
-local function wclTrinkets(specID)
-    local root = _G.MetaMirrorData
-    if not (root and root.trinkets and specID) then return nil end
-    return root.trinkets[specID]
-end
-
--- Tier aus der Rang-Position in der Nutzungsliste (glatte, lueckenlose Verteilung statt
--- harter Nutzungs-Anteil-Cuts: so springt es nie S->B, sondern S->A->B..., auch bei kleinen
--- Stichproben). Die Reihenfolge (=echte Nutzung) bleibt das Signal, der Tier ist nur die
--- visuelle Empfehlungsstaerke.
-local function rankTier(pos)
-    if pos <= 1 then return "S"
-    elseif pos <= 3 then return "A"
-    elseif pos <= 6 then return "B"
-    elseif pos <= 10 then return "C"
-    else return "D" end
-end
-
--- Hybrid-Sicht: vollstaendige Bloodmallet-Sim-Liste (mit Stat-Modi). "overall" bleibt pur
--- (Sim-DPS). "raid"/"dungeon" werden nach der WCL-Nutzung des jeweiligen Contents umsortiert;
--- der Tier kommt rang-basiert aus dieser Nutzung (rankTier) -> echter M+/Raid-Unterschied
--- trotz Einzelziel-Sim. Trinkets ohne WCL-Content-Nutzung stehen (in Sim-Reihenfolge) hinten
--- mit Tier "D". Stat-Modi desselben Trinkets teilen sich Rang/Tier, bleiben untereinander.
-local function hybridList(specID, view)
-    local bm = trinketData(specID)
-    if not bm then return nil end
-    local simList = bm.overall or {}
-    if view == "overall" then return simList end
-    local wcl = wclTrinkets(specID)
-    local wview = wcl and wcl[view]
-    if not wview or #wview == 0 then return simList end   -- keine WCL-Daten -> Sim-Fallback
-    local rank = {}
-    for i, e in ipairs(wview) do
-        if e.itemID and not rank[e.itemID] then rank[e.itemID] = i end
-    end
-    local out, seen = {}, {}
-    -- 1) Bloodmallet-Liste (mit Stat-Modi), annotiert mit WCL-Rang + rang-basiertem Tier.
-    for i, e in ipairs(simList) do
-        local pos = rank[e.itemID]
-        out[#out + 1] = {
-            itemID = e.itemID, mode = e.mode,
-            tier = pos and rankTier(pos) or "D",
-            _rank = pos or (1000 + i),               -- ungenutzt -> ans Ende, Sim-Reihenfolge
-            _sim = i,
-        }
-        if e.itemID then seen[e.itemID] = true end
-    end
-    -- 2) Im Content genutzte Trinkets, die Bloodmallet NICHT simuliert (~10%): trotzdem
-    --    aufnehmen (rang-basierter Tier, ohne Stat-Modus), damit keine Empfehlung fehlt.
-    for _, e in ipairs(wview) do
-        if e.itemID and not seen[e.itemID] then
-            seen[e.itemID] = true
-            out[#out + 1] = { itemID = e.itemID, tier = rankTier(rank[e.itemID]),
-                              _rank = rank[e.itemID], _sim = 0 }
-        end
-    end
-    table.sort(out, function(a, b)
-        if a._rank ~= b._rank then return a._rank < b._rank end
-        return a._sim < b._sim                       -- gleiche itemID (Modi) -> Sim-Ordnung
-    end)
-    return out
 end
 
 -- Trinket-Zeile: [Tier] [Icon] [Name] .......... [Quelle]. Feldnamen (icon/src/label)
@@ -1110,25 +1045,12 @@ local function renderTrinkets(self, specID)
         child:SetHeight(48)
         return
     end
-    -- Sicht folgt dem globalen Kontext-Schalter oben (M+/Raid): Raid -> Raid-Nutzung,
-    -- M+ -> Dungeon-Nutzung. Fehlt fuer den gewaehlten Inhalt eine WCL-Stichprobe, faellt
-    -- die Sicht auf die reine Sim-Rangliste ("overall") zurueck.
-    local wcl = wclTrinkets(specID)
-    local want = (MetaMirrorDB.content == "raid") and "raid" or "dungeon"
-    local hasWant = (wcl and wcl[want] and #wcl[want] > 0) or false
-    local view = hasWant and want or "overall"
-    -- Metrik-Hinweis: Reihenfolge nach simuliertem Schaden. Die frueher hier genutzte
-    -- Umsortierung nach echter Nutzung entfaellt seit dem Wegfall der WCL-Daten;
-    -- Sim-Fallback = Sim-DPS-Rangliste (bloodmallet.com), M+/Raid dann identisch.
-    local note
-    if view == "overall" then
-        note = L.trinket_note .. " " .. L.trinket_single
-    else
-        note = L.trinket_note_use
-    end
-    Body.tkNote:SetText(DIM_HEX .. note .. "|r"); Body.tkNote:Show()
+    -- Hinweiszeile: Rangliste nach simuliertem Schaden (bloodmallet.com, Einzelziel);
+    -- der globale M+/Raid-Schalter aendert an dieser Liste nichts.
+    Body.tkNote:SetText(DIM_HEX .. L.trinket_note .. " " .. L.trinket_single .. "|r")
+    Body.tkNote:Show()
 
-    local list = hybridList(specID, view) or {}
+    local list = spec.overall or {}
     local y, i = 0, 0
     for _, e in ipairs(list) do
         i = i + 1
@@ -1151,7 +1073,7 @@ local function renderTrinkets(self, specID)
         applyRowSource(b, e.itemID)
         y = y + 26
     end
-    -- Leere Sicht (z.B. Spec ohne Raid- oder M+-Stichprobe) -> Hinweiszeile.
+    -- Leere Liste -> Hinweiszeile.
     if i == 0 then
         i = 1
         local b = getTkRow(child, 1)
@@ -1172,9 +1094,8 @@ function MetaMirror.RenderBody(self, classID, specID)
         Body.msg = fs(Body, "GameFontHighlight", C.DIM)
         Body.msg:SetPoint("TOPLEFT")
     end
-    -- Schmuck-Tab hat eine eigene Datenquelle (Bloodmallet) und ist unabhaengig von
-    -- den WCL-Daten -> vor dem DataFor-Check behandeln, damit er auch ohne WCL-Datensatz
-    -- fuer die Spec rendert.
+    -- Schmuck-Tab hat eine eigene Datenquelle (Bloodmallet) -> vor dem DataFor-Check
+    -- behandeln, damit er auch fuer Specs ohne Sim-Datensatz rendert.
     if MetaMirrorDB.tab == "schmuck" then
         for j = 1, #rows do rows[j]:Hide() end
         hideStatsNote()
