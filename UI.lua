@@ -11,7 +11,7 @@ local TAB_LABEL = {
 local VALID_TABS = { stats = true, gear = true,
                      schmuck = true, improve = true }
 
-local Panel, Tabs, Body, Header, CtxBtns = nil, {}, nil, nil, {}
+local Panel, Tabs, Body, Header, Stamp, CtxBtns = nil, {}, nil, nil, nil, {}
 
 local function tex(parent, layer, col)
     local t = parent:CreateTexture(nil, layer)
@@ -61,6 +61,11 @@ function MetaMirror:BuildPanel()
     -- Spec-Zeile (wird in Refresh mit Spec-Name + "auto-detected" gefuellt)
     Header = fs(Panel, "GameFontNormalSmall", C.DIM)
     Header:SetPoint("TOPLEFT", 12, -33)
+
+    -- Datenstand rechts in der Spec-Zeile, unter dem M+/Raid-Schalter (der den
+    -- Fight-Style bestimmt). In jedem Tab sichtbar; Text kommt aus DataStamp in Refresh.
+    Stamp = fs(Panel, "GameFontDisableSmall", C.DIM)
+    Stamp:SetPoint("TOPRIGHT", -12, -34); Stamp:SetJustifyH("RIGHT")
 
     -- Schliessen-Kreuz oben rechts. Eigener schlichter Button statt UIPanelCloseButton:
     -- dessen 32px-Grafik sprengt die 52px-Kopfzeile und stoesst an die Kontext-Schalter.
@@ -231,6 +236,8 @@ function MetaMirror:Refresh()
     local classID, specID = self:CurrentSpecKey()
     local specName = specID and select(2, GetSpecializationInfoByID(specID)) or "?"
     Header:SetText(specName .. "  |cff9a92c0" .. L.autodetect .. "|r")
+    local stamp = self:DataStamp(MetaMirrorDB.tab, MetaMirrorDB.content)
+    Stamp:SetText(stamp or "")
     -- Inhalt
     self:RenderBody(classID, specID)
 end
@@ -330,33 +337,7 @@ local function renderStats(self, data)
         r:Show()
     end
     for j = i + 1, #rows do rows[j]:Hide() end
-
-    -- Gedaempfter Sim-Referenz-Hinweis unten im Tab: Fight-Style + Erzeugungsdatum der
-    -- Sim-Daten, analog zum trinket_note-Mechanismus im Schmuck-Tab. Nur sichtbar, wenn
-    -- MetaMirrorData tatsaechlich ein Erzeugungsdatum mitbringt (neuer Vertrag).
-    if not Body.statsNote then
-        Body.statsNote = fs(Body, "GameFontDisableSmall", C.DIM)
-        Body.statsNote:SetPoint("BOTTOMLEFT", 0, 0); Body.statsNote:SetJustifyH("LEFT")
-    end
-    local root = _G.MetaMirrorData
-    if root and root.generated then
-        local style = root.fightStyles and root.fightStyles[MetaMirrorDB.content]
-        local styleLabel = (style == "castingpatchwerk" and L.fight_raid)
-            or (style == "castingpatchwerk3" and L.fight_mplus)
-            or style or ""
-        Body.statsNote:SetText(string.format(L.sim_note, styleLabel, root.generated))
-        Body.statsNote:Show()
-    else
-        Body.statsNote:Hide()
-    end
 end
-
--- Blendet den Stats-Tab-Hinweis (siehe renderStats) ueberall dort aus, wo auch die
--- Stats-Zeilen (rows) verschwinden -- sonst bliebe er beim Tab-Wechsel sichtbar stehen.
-local function hideStatsNote()
-    if Body.statsNote then Body.statsNote:Hide() end
-end
-
 
 -- Generische klickbare Item-Zeile (Shift-Klick -> Chat / AH-Suche).
 -- Wiederverwendet fuer Verbrauchsgueter, Gear, Steine und Verzauberungen.
@@ -589,7 +570,6 @@ end
 -- Nur der Gear-Tab nutzt diese Liste -> hier auch Quelle + Besitz-Haken setzen.
 local function renderItemList(entries)
     for j = 1, #rows do rows[j]:Hide() end
-    hideStatsNote()
     if Body.msg then Body.msg:Hide() end
     local owned = MetaMirror:BuildOwnedSet()
     local i = 0
@@ -849,7 +829,6 @@ end
 
 local function renderImprovements(self, data)
     for j = 1, #rows do rows[j]:Hide() end
-    hideStatsNote()
     hideItemRows()
     if Body.msg then Body.msg:Hide() end
     MetaMirrorDB.collapsed = MetaMirrorDB.collapsed or {}
@@ -1098,7 +1077,6 @@ function MetaMirror.RenderBody(self, classID, specID)
     -- behandeln, damit er auch fuer Specs ohne Sim-Datensatz rendert.
     if MetaMirrorDB.tab == "schmuck" then
         for j = 1, #rows do rows[j]:Hide() end
-        hideStatsNote()
         hideItemRows(); hideImprovements()
         Body.msg:Hide()
         renderTrinkets(self, specID)
@@ -1108,7 +1086,6 @@ function MetaMirror.RenderBody(self, classID, specID)
     local data = self:DataFor(classID, specID, MetaMirrorDB.content)
     if not data then
         for j = 1, #rows do rows[j]:Hide() end
-        hideStatsNote()
         hideItemRows()
         hideImprovements()
         Body.msg:Show(); Body.msg:SetText(L.no_data)
