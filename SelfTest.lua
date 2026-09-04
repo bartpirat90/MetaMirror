@@ -76,6 +76,32 @@ test("DataStamp_nil_without_date", function()
     assertEqual(MetaMirror:DataStamp("schmuck", "raid", {}, {}), nil, "kein version -> nil")
 end)
 
+test("GearStatus_equipped_on_reference", function()
+    local ctx = { equipped = { [100] = 350 }, bags = {} }
+    assertEqual(MetaMirror:GearStatus(100, ctx, 350), "equipped", "gleiche Stufe")
+    assertEqual(MetaMirror:GearStatus(100, ctx, 340), "equipped", "hoeher als Referenz")
+end)
+test("GearStatus_weaker_below_reference", function()
+    local ctx = { equipped = { [100] = 330 }, bags = {} }
+    assertEqual(MetaMirror:GearStatus(100, ctx, 350), "weaker", "niedrigere Stufe")
+end)
+test("GearStatus_unknown_levels_never_weaker", function()
+    assertEqual(MetaMirror:GearStatus(100, { equipped = { [100] = 0 }, bags = {} }, 350), "equipped", "eigene Stufe unbekannt")
+    assertEqual(MetaMirror:GearStatus(100, { equipped = { [100] = 330 }, bags = {} }, nil), "equipped", "Referenz unbekannt")
+    assertEqual(MetaMirror:GearStatus(100, { equipped = { [100] = 330 }, bags = {} }, 0), "equipped", "Referenz 0")
+end)
+test("GearStatus_bag", function()
+    assertEqual(MetaMirror:GearStatus(100, { equipped = {}, bags = { [100] = true } }, 350), "bag", "im Beutel")
+end)
+test("GearStatus_missing", function()
+    assertEqual(MetaMirror:GearStatus(100, { equipped = {}, bags = {} }, 350), "missing", "fehlt")
+    assertEqual(MetaMirror:GearStatus(nil, { equipped = {}, bags = {} }, 350), "missing", "keine itemID")
+end)
+test("GearStatus_equipped_beats_bag", function()
+    local ctx = { equipped = { [100] = 350 }, bags = { [100] = true } }
+    assertEqual(MetaMirror:GearStatus(100, ctx, 350), "equipped", "angelegt hat Vorrang")
+end)
+
 -- ---------------------------------------------------------------------------
 -- /mm dumpench : liest die Enchant-Namen zu unseren permanentEnchant-IDs aus.
 -- Einmaliger Season-Schritt, um die feste enchantID->itemID-Tabelle zu bauen.

@@ -27,7 +27,7 @@ end
 function MetaMirror:BuildPanel()
     if Panel then return end
     Panel = CreateFrame("Frame", "MetaMirrorPanel", UIParent, "BackdropTemplate")
-    Panel:SetSize(440, 500)
+    Panel:SetSize(440, 524)   -- 524: 16 Gear-Zeilen (416 px) passen in den Body, ohne in die Fusszeile zu ragen
     Panel:SetFrameStrata("HIGH")
     Panel:EnableMouse(true)
     Panel:SetMovable(true)
@@ -347,7 +347,7 @@ local function getItemRow(i)
     local b = CreateFrame("Button", nil, Body)
     b:SetSize(404, 26)
     b:RegisterForClicks("AnyUp")
-    -- Besitz-Highlight: gruener Schimmer/Fuellung ueber die ganze Zeile (Class-Codex-Optik).
+    -- Status-Highlight (Ampel, siehe applyGearStatus): Schimmer + Akzentstreifen links.
     b.hl = b:CreateTexture(nil, "BACKGROUND")
     b.hl:SetPoint("TOPLEFT", 0, 0); b.hl:SetPoint("BOTTOMRIGHT", 0, 0)
     b.hl:SetColorTexture(0.20, 0.85, 0.35, 0.16)
@@ -385,6 +385,11 @@ local function getItemRow(i)
         if not self.link then return end
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         GameTooltip:SetHyperlink(self.link)
+        -- Ampel-Klartext (nur Gear-Tab, siehe applyGearStatus) als letzte Zeile.
+        if self.statusText then
+            local c = self.statusColor or C.DIM
+            GameTooltip:AddLine(self.statusText, c[1], c[2], c[3])
+        end
         GameTooltip:Show()
     end)
     b:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -412,7 +417,8 @@ end
 -- fallback: Text, wenn kein Item aufloesbar ist; enchantID: optional in den
 -- Item-Link injiziert; bonusIDs: Upgrade-/Sockel-Bonusliste -> voller Link mit
 -- korrekter Maximalstufe und Sockelplaetzen (sonst rendert der Client die Grundform).
-local function setItemRow(b, label, itemID, fallback, enchantID, bonusIDs, suffix)
+-- onLoad(link): optionaler Callback nach dem Laden (z.B. Ampel im Gear-Tab).
+local function setItemRow(b, label, itemID, fallback, enchantID, bonusIDs, suffix, onLoad)
     -- Leeres/fehlendes Label -> nur der Item-Name (z.B. Edelsteine ohne Slot-Bezug).
     local prefix = (label and label ~= "") and (label .. ": ") or ""
     -- Suffix (z.B. Trinket-Stat-Modus "(Tempo)"): unterscheidet Varianten mit gleicher
@@ -446,6 +452,7 @@ local function setItemRow(b, label, itemID, fallback, enchantID, bonusIDs, suffi
                 b.link = link
                 b.icon:SetTexture(item:GetItemIcon())
                 b.label:SetText(prefix .. stripQualityIcon(link) .. suff)
+                if onLoad then onLoad(b.link) end
             end)
         else
             local item = Item:CreateFromItemID(itemID)
@@ -460,6 +467,7 @@ local function setItemRow(b, label, itemID, fallback, enchantID, bonusIDs, suffi
                 b.icon:SetTexture(item:GetItemIcon())
                 -- Vollen Link als Text -> WoW rendert ihn farbig in eckigen Klammern.
                 b.label:SetText(prefix .. (stripQualityIcon(link) or ("[" .. name .. "]")) .. suff)
+                if onLoad then onLoad(b.link) end
             end)
         end
     else
@@ -471,7 +479,7 @@ local function setItemRow(b, label, itemID, fallback, enchantID, bonusIDs, suffi
 end
 
 local function hideItemRows()
-    for j = 1, #itemRows do itemRows[j]:Hide() end
+    for j = 1, #itemRows do itemRows[j].statusText = nil; itemRows[j]:Hide() end
 end
 
 -- Upgrade-Stufen-Bonus-IDs (Midnight S2, via /mm dumpq abgeleitet):
@@ -566,23 +574,56 @@ local function applyRowSource(b, itemID, fallbackText)
     end)
 end
 
+-- Ampel-Farben je Status (GearStatus.lua). "missing" nur als gedaempfter Streifen, ohne
+-- Schimmer -- sonst leuchtet bei den meisten Spielern fast jede Zeile rot.
+local GEAR_STATUS = {
+    equipped = { col = "GREEN", text = "gs_equipped", fill = true  },
+    weaker   = { col = "AMBER", text = "gs_weaker",   fill = true  },
+    bag      = { col = "BLUE",  text = "gs_bag",      fill = true  },
+    missing  = { col = "CORAL", text = "gs_missing",  fill = false },
+}
+
+-- Referenz-Gegenstandsstufe aus dem geladenen Link (Mythos 6/6 via normalizeToMyth).
+local function referenceIlvl(link)
+    if not (link and C_Item and C_Item.GetDetailedItemLevelInfo) then return nil end
+    local ok, v = pcall(C_Item.GetDetailedItemLevelInfo, link)
+    return (ok and type(v) == "number") and v or nil
+end
+
+-- Faerbt eine Gear-Zeile nach Status und setzt den Tooltip-Klartext.
+local function applyGearStatus(b, itemID, ctx, link)
+    local ref = referenceIlvl(link)
+    local status = MetaMirror:GearStatus(itemID, ctx, ref)
+    local def = GEAR_STATUS[status]
+    local c = C[def.col]
+    b.hl:SetColorTexture(c[1], c[2], c[3], 0.16)
+    b.hlEdge:SetColorTexture(c[1], c[2], c[3], def.fill and 0.85 or 0.45)
+    b.hl:SetShown(def.fill); b.hlEdge:Show()
+    b.statusColor = c
+    if status == "weaker" then
+        b.statusText = string.format(L.gs_weaker, ctx.equipped[itemID] or 0, ref or 0)
+    else
+        b.statusText = L[def.text]
+    end
+end
+
 -- entries: Liste aus { label, itemID, fallback, enchantID, bonusIDs }.
--- Nur der Gear-Tab nutzt diese Liste -> hier auch Quelle + Besitz-Haken setzen.
+-- Nur der Gear-Tab nutzt diese Liste -> hier auch Quelle + Ampel setzen.
 local function renderItemList(entries)
     for j = 1, #rows do rows[j]:Hide() end
     if Body.msg then Body.msg:Hide() end
-    local owned = MetaMirror:BuildOwnedSet()
+    local ctx = MetaMirror:BuildGearContext()
     local i = 0
     for _, e in ipairs(entries) do
         i = i + 1
         local b = getItemRow(i)
         b:ClearAllPoints(); b:SetPoint("TOPLEFT", 0, -(i - 1) * 26)
-        -- Slotname in die eigene Spalte; der Itemname kommt ohne Praefix (label=nil).
-        setItemRow(b, nil, e.itemID, e.fallback, e.enchantID, e.bonusIDs)
+        -- Ampel sofort mit unbekannter Referenzstufe setzen (angelegt/Beutel/fehlt), nach
+        -- dem Laden des Links mit der echten Referenzstufe verfeinern (-> "schwaecher").
+        applyGearStatus(b, e.itemID, ctx, nil)
+        setItemRow(b, nil, e.itemID, e.fallback, e.enchantID, e.bonusIDs, nil,
+                   function(link) applyGearStatus(b, e.itemID, ctx, link) end)
         b.slot:SetText(e.label or "")
-        -- Besitz-Schimmer (Abgleich nur ueber Basis-itemID -> upgrade-unabhaengig).
-        local own = (e.itemID and owned[e.itemID]) or false
-        b.hl:SetShown(own); b.hlEdge:SetShown(own)
         applyRowSource(b, e.itemID)
     end
     for j = i + 1, #itemRows do itemRows[j]:Hide() end

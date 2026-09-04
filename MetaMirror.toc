@@ -16,6 +16,7 @@ Data\MetaMirrorSources.lua
 Logic.lua
 Player.lua
 Source.lua
+GearStatus.lua
 LootAlert.lua
 SelfTest.lua
 UI.lua
