@@ -1,0 +1,61 @@
+name: sim-data
+
+# Woechentlicher Daten-Refresh: baut Data/MetaMirrorData.lua neu aus
+# bloodmallet-Sekundärstat-Simulationen + SimulationCraft-Referenzprofilen
+# (pipeline/build_sim.py) und committet sie nur, wenn sich etwas geaendert hat.
+# KEIN CurseForge-Upload hier -- der fruehere CF_PUBLISH-Schalter und die
+# zugehoerigen Secrets werden bewusst nicht uebernommen.
+on:
+  schedule:
+    - cron: "0 6 * * 1"   # jeden Montag 06:00 UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Python-Abhaengigkeiten installieren
+        run: pip install httpx pytest
+
+      - name: Pipeline-Unittests
+        run: python -m pytest pipeline/ -q
+
+      - name: Sim-Daten bauen
+        run: python -m pipeline.build_sim --out Data/MetaMirrorData.lua
+
+      - name: lua5.1 installieren
+        run: sudo apt-get update && sudo apt-get install -y lua5.1
+
+      - name: Lua-Syntax der neuen Datendatei pruefen
+        run: luac5.1 -p Data/MetaMirrorData.lua
+
+      - name: Diff pruefen
+        id: diff
+        run: |
+          if git diff --quiet -- Data/MetaMirrorData.lua; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Patch-Version erhoehen
+        if: steps.diff.outputs.changed == 'true'
+        run: python -m pipeline.bump_version
+
+      - name: Aenderungen committen und pushen
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Data/MetaMirrorData.lua MetaMirror.toc
+          git commit -m "chore(data): weekly sim refresh $(date -u +%F)"
+          git push

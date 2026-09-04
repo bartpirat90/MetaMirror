@@ -1,12 +1,12 @@
 <img src="release/branding/logo-horizontal.png" alt="MetaMirror" width="420">
 
-**Trinket tiers and item sources, right beside your character sheet.** A World of
-Warcraft addon for *Midnight* (Interface 120100).
+**Stat targets, gear and trinket tiers, right beside your character sheet.** A World
+of Warcraft addon for *Midnight* (Interface 120100).
 
-MetaMirror ranks trinkets for *your* spec from public simulation data and tells you
-where each item actually comes from. No browser tabs: open your character sheet and
-the list is right there next to it. Your spec is auto-detected, there is nothing to
-configure.
+MetaMirror builds stat, gear and trinket recommendations for *your* spec from public
+simulation data and tells you where each item actually comes from. No browser tabs:
+open your character sheet and the list is right there next to it. Your spec is
+auto-detected, there is nothing to configure.
 
 ---
 
@@ -14,14 +14,16 @@ configure.
 
 | Tab | What you get |
 | --- | --- |
+| **Stats** | Secondary stat targets from bloodmallet.com's best secondary-stat distribution per spec: one target for Raid (single-target sim), three for Mythic+ (multi-target sim), compared live against your own gear. |
+| **Gear** | A full recommended gear set per spec - items, gems and enchants - taken from the current season's SimulationCraft reference profile. |
 | **Trinkets** | Simulated DPS tiers from bloodmallet.com, ranked separately for Mythic+ and Raid, each entry with its source: boss, craft, vendor, delve or PvP. |
+| **Upgrades** | Enchants, gems and consumables for your spec on one page, each with its source. |
+
+There is also a **BiS-drop alert**: when a boss in your group drops an item matching
+the gear or trinket recommendation for your spec, MetaMirror flags it, whether you or
+a group member wins the roll.
 
 Type `/mm` to toggle the window, or just open your character sheet.
-
-> **Stats, Gear and Upgrades are empty right now, and the BiS-drop alert is off.**
-> Those parts were fed by an aggregate built from the Warcraft Logs API, which had
-> to be removed (see *About Warcraft Logs* below). Until a different data source is
-> in place, they show "No data for this spec yet."
 
 ## Install
 
@@ -38,25 +40,31 @@ The addon ships with pre-built data files. Nothing is fetched at runtime, so the
 addon never talks to the network while you play.
 
 ```
-bloodmallet.com  ─┬─►  pipeline/  ─►  Data/MetaMirrorTrinkets.lua
-Wowhead          ─┘                   Data/MetaMirrorSources.lua
+bloodmallet.com        ─┬─►  pipeline/  ─┬─►  Data/MetaMirrorData.lua
+SimulationCraft profiles┘                ├─►  Data/MetaMirrorTrinkets.lua
+Wowhead                 ────────────────►┴─►  Data/MetaMirrorSources.lua
 ```
 
-- **bloodmallet.com** supplies simulated trinket DPS per spec and content type.
+- **bloodmallet.com** supplies two things: simulated trinket DPS per spec and
+  content type, and each spec's best secondary-stat distribution (single-target
+  for Raid, three-target for Mythic+), which becomes the Stats-tab target.
+- **SimulationCraft reference profiles** (the `simc` project's own per-spec
+  profiles for the current season) supply the recommended gear, gems and
+  enchants shown on the Gear and Upgrades tabs.
 - **Wowhead** fills in item sources the Adventure Guide does not carry, such as
-  crafted, vendor, delve and PvP trinkets.
+  crafted, vendor, delve and PvP items.
+
+A weekly job re-runs the simulations and reference profiles and commits the
+refreshed data; there is no "top players" telemetry involved anywhere in this
+pipeline.
 
 ### About Warcraft Logs
 
 Earlier versions of this addon shipped an aggregate built from the Warcraft Logs
-API — what top parses actually wear and use. **That data has been removed.**
-
-On 2026-09-04 RPGLogs confirmed in writing that their Terms of Service do not
-permit views of data from their sites to be redistributed through other channels,
-and that addons are specifically named as a channel they do not allow. The weekly
-refresh has been switched off, the generated file is gone from this repository and
-its history, and the addon no longer loads or displays it. Please do not send pull
-requests that reintroduce it.
+API. On 2026-09-04 RPGLogs confirmed in writing that their Terms of Service do
+not permit that data to be redistributed through other channels, addons
+specifically included, so it was removed from the addon and this repository's
+history. Please do not send pull requests that reintroduce it.
 
 ## Development
 
@@ -69,5 +77,6 @@ and inspect the item-source index, `dumpsrc`, `dumpench`, `dumpgems` for raw dum
 
 ---
 
-Data from [bloodmallet.com](https://bloodmallet.com/). Item sources from
+Data from [bloodmallet.com](https://bloodmallet.com/) and
+[SimulationCraft](https://github.com/simulationcraft/simc). Item sources from
 [Wowhead](https://www.wowhead.com/). Not affiliated with Blizzard Entertainment.

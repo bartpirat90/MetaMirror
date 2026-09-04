@@ -133,7 +133,9 @@ function MetaMirror:BuildPanel()
     local footBar = tex(Panel, "BACKGROUND", C.BG_MAIN)
     footBar:SetPoint("BOTTOMLEFT", 1, 1); footBar:SetPoint("BOTTOMRIGHT", -1, 1)
     footBar:SetHeight(18)
-    local attrText = (MetaMirrorTrinkets and MetaMirrorTrinkets.source) or "Data from bloodmallet.com"
+    local attrText = (MetaMirrorData and MetaMirrorData.attribution)
+        or (MetaMirrorTrinkets and MetaMirrorTrinkets.source)
+        or "Data from bloodmallet.com"
     local footer = fs(Panel, "GameFontDisableSmall", C.DIM)
     footer:SetPoint("BOTTOMRIGHT", -8, 5)
     footer:SetText(attrText)
@@ -328,6 +330,31 @@ local function renderStats(self, data)
         r:Show()
     end
     for j = i + 1, #rows do rows[j]:Hide() end
+
+    -- Gedaempfter Sim-Referenz-Hinweis unten im Tab: Fight-Style + Erzeugungsdatum der
+    -- Sim-Daten, analog zum trinket_note-Mechanismus im Schmuck-Tab. Nur sichtbar, wenn
+    -- MetaMirrorData tatsaechlich ein Erzeugungsdatum mitbringt (neuer Vertrag).
+    if not Body.statsNote then
+        Body.statsNote = fs(Body, "GameFontDisableSmall", C.DIM)
+        Body.statsNote:SetPoint("BOTTOMLEFT", 0, 0); Body.statsNote:SetJustifyH("LEFT")
+    end
+    local root = _G.MetaMirrorData
+    if root and root.generated then
+        local style = root.fightStyles and root.fightStyles[MetaMirrorDB.content]
+        local styleLabel = (style == "castingpatchwerk" and L.fight_raid)
+            or (style == "castingpatchwerk3" and L.fight_mplus)
+            or style or ""
+        Body.statsNote:SetText(string.format(L.sim_note, styleLabel, root.generated))
+        Body.statsNote:Show()
+    else
+        Body.statsNote:Hide()
+    end
+end
+
+-- Blendet den Stats-Tab-Hinweis (siehe renderStats) ueberall dort aus, wo auch die
+-- Stats-Zeilen (rows) verschwinden -- sonst bliebe er beim Tab-Wechsel sichtbar stehen.
+local function hideStatsNote()
+    if Body.statsNote then Body.statsNote:Hide() end
 end
 
 
@@ -562,6 +589,7 @@ end
 -- Nur der Gear-Tab nutzt diese Liste -> hier auch Quelle + Besitz-Haken setzen.
 local function renderItemList(entries)
     for j = 1, #rows do rows[j]:Hide() end
+    hideStatsNote()
     if Body.msg then Body.msg:Hide() end
     local owned = MetaMirror:BuildOwnedSet()
     local i = 0
@@ -821,6 +849,7 @@ end
 
 local function renderImprovements(self, data)
     for j = 1, #rows do rows[j]:Hide() end
+    hideStatsNote()
     hideItemRows()
     if Body.msg then Body.msg:Hide() end
     MetaMirrorDB.collapsed = MetaMirrorDB.collapsed or {}
@@ -1148,6 +1177,7 @@ function MetaMirror.RenderBody(self, classID, specID)
     -- fuer die Spec rendert.
     if MetaMirrorDB.tab == "schmuck" then
         for j = 1, #rows do rows[j]:Hide() end
+        hideStatsNote()
         hideItemRows(); hideImprovements()
         Body.msg:Hide()
         renderTrinkets(self, specID)
@@ -1157,6 +1187,7 @@ function MetaMirror.RenderBody(self, classID, specID)
     local data = self:DataFor(classID, specID, MetaMirrorDB.content)
     if not data then
         for j = 1, #rows do rows[j]:Hide() end
+        hideStatsNote()
         hideItemRows()
         hideImprovements()
         Body.msg:Show(); Body.msg:SetText(L.no_data)

@@ -1,1 +1,1 @@
-Trinket tiers for your spec from bloodmallet.com sims, split by Mythic+ and Raid, each with its real source: boss, craft, vendor, delve or PvP. Docks to your character sheet - just type /mm.
+Stat targets, gear and trinket tiers for your spec from bloodmallet.com and SimulationCraft sim data, split by Mythic+ and Raid, each item with its real source. Docks to your character sheet - just type /mm.
