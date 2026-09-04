@@ -4,7 +4,7 @@
 
 MetaMirror shows you exactly what the best players of *your* spec are running — and holds it up against your own character, live. No browser tabs, no spreadsheets: open your character sheet and the meta is right there next to it.
 
-Data is built from **Warcraft Logs** (what top parses actually use) and **bloodmallet.com** (trinket sim DPS). Your spec is auto-detected — nothing to configure.
+Data is built from **bloodmallet.com** (trinket sim DPS). Your spec is auto-detected — nothing to configure.
 
 ---
 
@@ -37,4 +37,4 @@ When a top-tier item drops for someone in your group, MetaMirror flags it and of
 
 - Built for **World of Warcraft: Midnight** (Interface 120100).
 - Item sources are read from the Adventure Guide the first time you log in after a game patch, then cached — so there's no repeated loading hitch on later logins.
-- Data from **Warcraft Logs** and **bloodmallet.com**.
+- Data from **bloodmallet.com**.

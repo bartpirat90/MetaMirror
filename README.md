@@ -37,45 +37,29 @@ this repository is build tooling.
 
 ## How the data is made
 
-The addon ships with a pre-built data file. It is not fetched at runtime, so the
+The addon ships with pre-built data files. Nothing is fetched at runtime, so the
 addon never talks to the network while you play.
 
 ```
-Warcraft Logs API  ─┐
-bloodmallet.com    ─┼─►  pipeline/  ─►  Data/MetaMirrorData.lua
-Wowhead            ─┘                   Data/MetaMirrorSources.lua
+bloodmallet.com  ─┬─►  pipeline/  ─►  Data/MetaMirrorTrinkets.lua
+Wowhead          ─┘                   Data/MetaMirrorSources.lua
 ```
 
-- **Warcraft Logs** supplies the top parses per spec and content type. The pipeline
-  reads each player's gear, stats and consumables and aggregates what the field
-  actually runs, 50 parses per spec and content type.
-- **bloodmallet.com** supplies trinket sim DPS, which is then re-ranked by real usage.
+- **bloodmallet.com** supplies simulated trinket DPS per spec and content type.
 - **Wowhead** fills in item sources the Adventure Guide does not carry, such as
   crafted, vendor, delve and PvP trinkets.
 
-A season filter keeps last season's items out. It works on gear track bonus IDs
-rather than item level, because item level alone stops separating seasons once the
-sample gets large.
+### About Warcraft Logs
 
-Run it yourself:
+Earlier versions of this addon shipped an aggregate built from the Warcraft Logs
+API — what top parses actually wear and use. **That data has been removed.**
 
-```bash
-pip install -r pipeline/requirements.txt
-python -m pipeline.run --out Data/MetaMirrorData.lua
-```
-
-A run takes a good two hours and pauses on its own when the Warcraft Logs point
-budget runs out. If it is interrupted, `python -m pipeline.run --resume` continues
-from the last finished spec instead of starting over. Credentials go into
-`pipeline/local_secrets.json`, which is excluded from version control.
-
-## Automation
-
-`.github/workflows/update-data.yml` refreshes the data every Monday. It runs the
-test suite, rebuilds both data files, checks their Lua syntax, and commits only when
-something actually changed. On a real change it also bumps the patch version so each
-CurseForge upload gets a unique file name. Publishing stays off until the repository
-variable `CF_PUBLISH` is set to `true`. See [pipeline/CURSEFORGE.md](pipeline/CURSEFORGE.md).
+On 2026-09-04 RPGLogs confirmed in writing that their Terms of Service do not
+permit views of data from their sites to be redistributed through other channels,
+and that addons are specifically named as a channel they do not allow. The weekly
+refresh has been switched off, the generated file is gone from this repository and
+its history, and the addon no longer loads or displays it. Please do not send pull
+requests that reintroduce it.
 
 ## Development
 
@@ -88,6 +72,5 @@ and inspect the item-source index, `dumpsrc`, `dumpench`, `dumpgems` for raw dum
 
 ---
 
-Data from [Warcraft Logs](https://www.warcraftlogs.com/) and
-[bloodmallet.com](https://bloodmallet.com/). Item sources from
+Data from [bloodmallet.com](https://bloodmallet.com/). Item sources from
 [Wowhead](https://www.wowhead.com/). Not affiliated with Blizzard Entertainment.

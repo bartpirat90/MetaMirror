@@ -9,7 +9,6 @@
 
 Localization.lua
 MetaMirror.lua
-Data\MetaMirrorData.lua
 Data\MetaMirrorTrinkets.lua
 Data\MetaMirrorSources.lua
 Logic.lua

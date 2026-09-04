@@ -4,7 +4,7 @@
 
 MetaMirror zeigt dir genau das, was die besten Spieler *deiner* Spezialisierung tatsächlich spielen — und hält es live gegen deinen eigenen Charakter. Keine Browser-Tabs, keine Tabellen: Öffne dein Charakterfenster, und die Meta steht direkt daneben.
 
-Die Daten stammen aus **Warcraft Logs** (was Top-Parses wirklich nutzen) und **bloodmallet.com** (Trinket-Sim-DPS). Deine Spec wird automatisch erkannt — nichts einzustellen.
+Die Daten stammen aus **bloodmallet.com** (Trinket-Sim-DPS). Deine Spec wird automatisch erkannt — nichts einzustellen.
 
 ---
 
@@ -37,4 +37,4 @@ Wenn ein Top-Item für jemanden in deiner Gruppe droppt, hebt MetaMirror es herv
 
 - Entwickelt für **World of Warcraft: Midnight** (Interface 120100).
 - Item-Quellen werden beim ersten Login nach einem Spiel-Patch aus dem Abenteuerführer gelesen und danach zwischengespeichert — daher gibt es bei späteren Logins keinen wiederkehrenden Ladehänger.
-- Daten von **Warcraft Logs** und **bloodmallet.com**.
+- Daten von **bloodmallet.com**.

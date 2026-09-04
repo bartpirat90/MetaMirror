@@ -128,12 +128,12 @@ function MetaMirror:BuildPanel()
     CharacterFrame:HookScript("OnShow", function() MetaMirror:OnCharShow() end)
     CharacterFrame:HookScript("OnHide", function() Panel:Hide() end)
 
-    -- Quellen-Attribution (RPGLogs-API-ToS verlangt Nennung). Eigener Fusszeilen-Streifen
+    -- Quellen-Attribution. Eigener Fusszeilen-Streifen
     -- mit deckendem Hintergrund unten -> Body endet darueber, nichts clippt hinein.
     local footBar = tex(Panel, "BACKGROUND", C.BG_MAIN)
     footBar:SetPoint("BOTTOMLEFT", 1, 1); footBar:SetPoint("BOTTOMRIGHT", -1, 1)
     footBar:SetHeight(18)
-    local attrText = (MetaMirrorData and MetaMirrorData.attribution) or "Data from Warcraft Logs"
+    local attrText = (MetaMirrorTrinkets and MetaMirrorTrinkets.source) or "Data from bloodmallet.com"
     local footer = fs(Panel, "GameFontDisableSmall", C.DIM)
     footer:SetPoint("BOTTOMRIGHT", -8, 5)
     footer:SetText(attrText)
@@ -1088,7 +1088,8 @@ local function renderTrinkets(self, specID)
     local want = (MetaMirrorDB.content == "raid") and "raid" or "dungeon"
     local hasWant = (wcl and wcl[want] and #wcl[want] > 0) or false
     local view = hasWant and want or "overall"
-    -- Metrik-Hinweis: Raid/Dungeon = Reihenfolge nach Top-Spieler-Nutzung (Warcraft Logs);
+    -- Metrik-Hinweis: Reihenfolge nach simuliertem Schaden. Die frueher hier genutzte
+    -- Umsortierung nach echter Nutzung entfaellt seit dem Wegfall der WCL-Daten;
     -- Sim-Fallback = Sim-DPS-Rangliste (bloodmallet.com), M+/Raid dann identisch.
     local note
     if view == "overall" then
