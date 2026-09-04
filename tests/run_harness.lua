@@ -26,6 +26,7 @@ if not okData then print("HINWEIS: Data/MetaMirrorData.lua nicht geladen") end
 dofile(DIR .. "/Logic.lua")
 dofile(DIR .. "/Player.lua")
 dofile(DIR .. "/GearStatus.lua")
+dofile(DIR .. "/Tooltip.lua")
 dofile(DIR .. "/SelfTest.lua")
 
 -- ---- SelfTest ausfuehren ------------------------------------------------

@@ -56,6 +56,10 @@ L.loot_grats   = "Congratulations! BiS item dropped!"
 L.loot_drop_title = "%s drop for %s"
 L.loot_ask     = "Ask for it"
 L.loot_asked   = "Requested"
+L.tt_bis       = "BiS for %s (%s)"
+L.tt_strinket  = "S-tier trinket for %s (%s)"
+L.tt_on        = "Tooltip hints on."
+L.tt_off       = "Tooltip hints off. /mm tooltip turns them back on."
 L.slash_hint   = "MetaMirror: /mm opens or closes the panel."
 
 if GetLocale() == "deDE" then
@@ -108,6 +112,10 @@ if GetLocale() == "deDE" then
     L.loot_drop_title = "%s-Drop für %s"
     L.loot_ask     = "Darum bitten"
     L.loot_asked   = "Angefragt"
+    L.tt_bis       = "BiS für %s (%s)"
+    L.tt_strinket  = "S-Tier-Schmuck für %s (%s)"
+    L.tt_on        = "Tooltip-Hinweise an."
+    L.tt_off       = "Tooltip-Hinweise aus. /mm tooltip schaltet sie wieder ein."
     L.slash_hint   = "MetaMirror: /mm öffnet oder schließt das Panel."
 end
 

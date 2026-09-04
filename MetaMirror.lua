@@ -29,6 +29,7 @@ function MetaMirror.InitDB()
     -- Vom Nutzer per X geschlossen: das Panel bleibt dann auch beim Oeffnen des
     -- Charakterrahmens zu, bis es per /mm wieder geholt wird.
     if db.hidden  == nil then db.hidden = false end
+    if db.tooltip == nil then db.tooltip = true end   -- BiS-Zeilen im Item-Tooltip
     -- Nur eine frei gezogene Position (custom=true) ist gueltig; altes/kaputtes Format verwerfen.
     if db.pos and db.pos.custom ~= true then db.pos = nil end
 end
@@ -72,6 +73,9 @@ SlashCmdList["METAMIRROR"] = function(msg)
         if MetaMirror.ScanSourceDiag then MetaMirror:ScanSourceDiag() end
     elseif msg == "testloot" then
         if MetaMirror.TestLootAlert then MetaMirror:TestLootAlert() end
+    elseif msg == "tooltip" then
+        MetaMirrorDB.tooltip = not MetaMirrorDB.tooltip
+        print("|cffa855f7[MM]|r " .. (MetaMirrorDB.tooltip and MetaMirror.L.tt_on or MetaMirror.L.tt_off))
     elseif msg == "reset" then
         MetaMirrorDB.pos = nil
         print("|cffa855f7[MM]|r Position zurückgesetzt.")

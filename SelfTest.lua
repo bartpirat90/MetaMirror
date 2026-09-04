@@ -102,6 +102,66 @@ test("GearStatus_equipped_beats_bag", function()
     assertEqual(MetaMirror:GearStatus(100, ctx, 350), "equipped", "angelegt hat Vorrang")
 end)
 
+-- Fake-Daten fuer den Tooltip-Index: Klasse 8 (Magier) mit zwei Specs.
+local function ttFixture()
+    local root = { specs = { [8] = {
+        [64] = { mythicplus = { gear = { { slot = "HEAD", itemID = 500 }, { slot = "BACK", itemID = 501 } } },
+                 raid       = { gear = { { slot = "HEAD", itemID = 500 } } } },
+        [63] = { mythicplus = { gear = { { slot = "HEAD", itemID = 502 } } },
+                 raid       = { gear = { { slot = "HEAD", itemID = 502 } } } },
+    } } }
+    local troot = { specs = {
+        [64] = { singleSource = true, overall = { { itemID = 600, tier = "S" }, { itemID = 601, tier = "A" } } },
+        [63] = { raid = { { itemID = 600, tier = "S" } }, dungeon = { { itemID = 601, tier = "S" } } },
+    } }
+    local specs = { { specID = 64, name = "Frost" }, { specID = 63, name = "Fire" } }
+    return root, troot, specs
+end
+test("TooltipIndex_bis_both_contents", function()
+    local root, troot, specs = ttFixture()
+    local idx = MetaMirror:BuildTooltipIndex(8, specs, root, troot)
+    local e = idx[500][1]
+    assertEqual(e.name, "Frost", "Spec-Name")
+    assertEqual(e.kind, "bis", "Art")
+    assertEqual(e.mplus and e.raid, true, "M+ und Raid")
+    assertEqual(idx[501][1].raid, false, "Back nur M+")
+    assertEqual(idx[999], nil, "unbekanntes Item")
+end)
+test("TooltipIndex_strinket_views", function()
+    local root, troot, specs = ttFixture()
+    local idx = MetaMirror:BuildTooltipIndex(8, specs, root, troot)
+    -- 600: Frost singleSource (overall gilt fuer beide) + Fire nur Raid
+    local frost, fire
+    for _, e in ipairs(idx[600]) do
+        if e.name == "Frost" then frost = e elseif e.name == "Fire" then fire = e end
+    end
+    assertEqual(frost.kind, "strinket", "Frost S-Trinket")
+    assertEqual(frost.mplus and frost.raid, true, "Frost beide Sichten")
+    assertEqual(fire.mplus, false, "Fire nur Raid")
+    assertEqual(fire.raid, true, "Fire Raid")
+    -- 601: Frost Tier A -> kein Eintrag; Fire nur Dungeon
+    assertEqual(#idx[601], 1, "nur Fire")
+    assertEqual(idx[601][1].mplus, true, "Fire M+")
+end)
+test("TooltipLines_format", function()
+    local root, troot, specs = ttFixture()
+    local idx = MetaMirror:BuildTooltipIndex(8, specs, root, troot)
+    local lines = MetaMirror:TooltipLinesForIndex(idx, 500)
+    assertEqual(#lines, 1, "eine Zeile")
+    assertEqual(lines[1]:find("Frost", 1, true) ~= nil, true, "Spec im Text")
+    assertEqual(lines[1]:find(MetaMirror.L.ctx_mplus, 1, true) ~= nil, true, "M+ im Text")
+    assertEqual(lines[1]:find(MetaMirror.L.ctx_raid, 1, true) ~= nil, true, "Raid im Text")
+    assertEqual(#MetaMirror:TooltipLinesForIndex(idx, 999), 0, "unbekannt -> leer")
+end)
+test("TooltipLines_current_spec_first", function()
+    local root, troot, _ = ttFixture()
+    -- Reihenfolge der specs-Liste = Reihenfolge der Zeilen (Aufrufer sortiert aktuelle Spec nach vorn).
+    local idx = MetaMirror:BuildTooltipIndex(8, { { specID = 63, name = "Fire" }, { specID = 64, name = "Frost" } }, root, troot)
+    local lines = MetaMirror:TooltipLinesForIndex(idx, 600)
+    assertEqual(#lines, 2, "zwei Zeilen")
+    assertEqual(lines[1]:find("Fire", 1, true) ~= nil, true, "Fire zuerst")
+end)
+
 -- ---------------------------------------------------------------------------
 -- /mm dumpench : liest die Enchant-Namen zu unseren permanentEnchant-IDs aus.
 -- Einmaliger Season-Schritt, um die feste enchantID->itemID-Tabelle zu bauen.
