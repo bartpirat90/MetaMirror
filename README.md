@@ -1,14 +1,12 @@
 <img src="release/branding/logo-horizontal.png" alt="MetaMirror" width="420">
 
-**Top-player meta, mirrored to your character.** A World of Warcraft addon for
-*Midnight* (Interface 120100).
+**Trinket tiers and item sources, right beside your character sheet.** A World of
+Warcraft addon for *Midnight* (Interface 120100).
 
-MetaMirror shows what the best players of *your* spec are running and holds it up
-against your own character, live. No browser tabs, no spreadsheets: open your
-character sheet and the meta is right there next to it. Your spec is auto-detected,
-there is nothing to configure.
-
-![MetaMirror next to the character sheet](release/gallery/00-hero.png)
+MetaMirror ranks trinkets for *your* spec from public simulation data and tells you
+where each item actually comes from. No browser tabs: open your character sheet and
+the list is right there next to it. Your spec is auto-detected, there is nothing to
+configure.
 
 ---
 
@@ -16,15 +14,14 @@ there is nothing to configure.
 
 | Tab | What you get |
 | --- | --- |
-| **Stats** | Every secondary stat against the top-player target: fill bar, target marker, your live rating. Swap a piece of gear and the bars move instantly. |
-| **Gear** | The meta piece per slot with **where it drops**, read from the in-game Adventure Guide, plus how many top players use it and what you already own. |
-| **Trinkets** | Sim tiers from bloodmallet.com, re-ordered by real top-player usage. Mythic+ and Raid are ranked separately. |
-| **Upgrades** | The exact enchants, gems and consumables the top players run. |
-
-On top of that, a **BiS-drop alert**: when a top-tier item drops for someone in your
-group, MetaMirror flags it and offers a one-click polite whisper to ask for it.
+| **Trinkets** | Simulated DPS tiers from bloodmallet.com, ranked separately for Mythic+ and Raid, each entry with its source: boss, craft, vendor, delve or PvP. |
 
 Type `/mm` to toggle the window, or just open your character sheet.
+
+> **Stats, Gear and Upgrades are empty right now, and the BiS-drop alert is off.**
+> Those parts were fed by an aggregate built from the Warcraft Logs API, which had
+> to be removed (see *About Warcraft Logs* below). Until a different data source is
+> in place, they show "No data for this spec yet."
 
 ## Install
 

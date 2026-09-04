@@ -1,1 +1,1 @@
-Top-player meta, mirrored to your character: live secondary-stat targets, best-in-slot gear with drop sources, trinket tiers split by M+ and Raid, exact enchants/gems/consumables, and a one-click BiS-drop whisper. Auto-detects your spec — just type /mm.
+Trinket tiers for your spec from bloodmallet.com sims, split by Mythic+ and Raid, each with its real source: boss, craft, vendor, delve or PvP. Docks to your character sheet - just type /mm.
