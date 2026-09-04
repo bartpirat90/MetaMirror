@@ -1,0 +1,31 @@
+name: tests
+
+# Pruefungslauf fuer jeden Push und jeden Pull Request: Pipeline-Unittests
+# (pytest) plus ein reiner Syntax-Check der Lua-Dateien (luac -p) -- kein
+# Netzzugriff, kein Datenrefresh, kein Upload. Der Datenrefresh selbst laeuft
+# in sim-data.yml.
+on:
+  push:
+  pull_request:
+
+jobs:
+  pipeline-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Python-Abhaengigkeiten installieren
+        run: pip install httpx pytest
+
+      - name: Pipeline-Unittests
+        run: python -m pytest pipeline/ -q
+
+      - name: lua5.1 installieren
+        run: sudo apt-get update && sudo apt-get install -y lua5.1
+
+      - name: Lua-Syntax pruefen (Addon + Datendateien)
+        run: luac5.1 -p *.lua Data/*.lua

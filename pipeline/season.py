@@ -172,6 +172,23 @@ ENCHANT_ITEM_BY_ID = {
     #   3368/3847 (Legacy-Waffenrunen).
 }
 
+# ---- SimC-Verbrauchsgueter-Slugs -> (Kategorie, itemID) --------------------
+# Die SimulationCraft-Profile (profiles/MID2/*.simc) nennen Verbrauchsgueter als Slug
+# (z.B. "flask_of_the_shattered_sun_2"); der Rang-Suffix "_<n>" wird vor dem Lookup
+# abgeschnitten (simc_profile.consumable_item_ids). IDs identisch zu den oben bereits
+# verifizierten Item-IDs (CONSUMABLE_SPELL_TO_ITEM / CURATED_OIL_BY_STAT) -- keine neuen
+# erfunden, nur der Slug->ID-Pfad ergaenzt.
+SIMC_CONSUMABLE_ITEMS = {
+    "flask_of_the_shattered_sun": ("flask", 241326),
+    "flask_of_the_magisters": ("flask", 241322),
+    "flask_of_the_blood_knights": ("flask", 241325),
+    "void_touched_augment_rune": ("rune", 259085),
+    # Das DK-Profil (MID2) schreibt nur "augmentation=void_touched" -- gleiches Item.
+    "void_touched": ("rune", 259085),
+    "ethereal_augment_rune": ("rune", 243191),
+    "thalassian_phoenix_oil": ("oil", 243733),
+}
+
 # Parses pro Spec x Content. Kosten ~2.6 WCL-Punkte/Parse; Limit 3600 Punkte/Stunde.
 # 50 -> ganzer Lauf (39 Specs x 2 Modi) ~10.000 Punkte, ca. 3 Stunden: der WclClient
 # fragt das Kontingent ab und pausiert bis zum Stunden-Reset (wcl.py, rateLimitData).
