@@ -11,19 +11,25 @@ Die Daten stammen aus **bloodmallet.com** (Sekundärwert-Verteilungen und Schmuc
 ## Funktionen
 
 ### 📊 Stat-Ziele aus bloodmallets bester Verteilung
-Sekundärwert-Ziele pro Spec, aus bloodmallet.coms bester Sekundärwert-Verteilung: ein Ziel für Raid (Einzelziel-Sim), drei für Mythisch+ (Mehrziel-Sim). Deine eigenen Live-Werte werden direkt dagegen verglichen.
+Sekundärwert-Ziele pro Spec, aus bloodmallet.coms bester Sekundärwert-Verteilung: ein Ziel für Raid (Einzelziel-Sim), drei für Mythisch+ (Mehrziel-Sim). Deine eigenen Live-Werte werden direkt dagegen verglichen. In der Kopfzeile jedes Tabs steht ein Datenstand, z. B. „Sim-Referenz · 3 Ziele · 2026-09-04", damit du immer siehst, wie aktuell die Zahlen sind.
 
 ### 🛡️ Ausrüstungsset aus dem SimulationCraft-Referenzprofil der Season
 Ein vollständiges Ausrüstungsset pro Spec — Items, Steine und Verzauberungen — aus dem SimulationCraft-Referenzprofil der aktuellen Season.
 
-### 💎 Schmuck-Tierliste — getrennt nach Inhalt
-Sim-DPS-Tiers von bloodmallet.com für deine Spec. Mythisch+ und Raid werden getrennt gewertet, sodass sich die Liste tatsächlich unterscheidet, statt zweimal dieselbe Reihenfolge zu zeigen.
+### 🚦 Gear-Ampel
+Jede Referenz-Zeile im Ausrüstungs-Tab bekommt eine Ampel: grün, wenn das Teil auf Referenz-Gegenstandsstufe angelegt ist, gelb/amber, wenn es angelegt, aber schwächer ist (niedrigere Gegenstandsstufe als die Referenz auf Mythos 6/6), blau, wenn es im Beutel liegt, rot (gedämpft), wenn du es nicht besitzt. Der Tooltip der Zeile zeigt die genauen Gegenstandsstufen.
+
+### 💎 Schmuck-Tierliste
+Sim-DPS-Tiers von bloodmallet.com für deine Spec, S bis D. bloodmallet simuliert Schmuck nur im Einzelziel, deshalb teilen sich Mythisch+ und Raid eine Liste — der Tab sagt das auch, statt etwas anderes vorzutäuschen.
 
 ### ⬆️ Verbesserungen auf einen Blick
 Verzauberungen, Steine und Verbrauchsmaterial für deine Spec auf einer Seite, jeweils mit Quelle.
 
 ### 🔔 BiS-Drop-Alarm
 Droppt ein Boss in deiner Gruppe ein Item, das der Ausrüstungs- oder Schmuck-Empfehlung deiner Spec entspricht, meldet MetaMirror es — egal ob du oder ein Gruppenmitglied das Los gewinnt.
+
+### 🏷️ Tooltip-Hinweise
+Fährst du über ein Item — Beutefenster, Beutel, Chat-Link, Händler —, hängt MetaMirror Zeilen an den Tooltip an, z. B. „MetaMirror: BiS für Frost (M+ · Raid)" oder „MetaMirror: S-Tier-Schmuck für Feuer (Raid)". Für alle Specs deiner Klasse, deine aktuelle Spec zuerst, sodass Offspec-Loot sofort auffällt. Ein-/ausschaltbar mit `/mm tooltip`.
 
 ### 🔎 Woher kommt das Teil?
 Zu jedem Item steht die Quelle: Boss und Instanz direkt aus dem Abenteuerführer, dazu hergestellte Teile, Händler, Tiefen und PvP aus Wowhead.

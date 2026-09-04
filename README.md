@@ -16,12 +16,26 @@ auto-detected, there is nothing to configure.
 | --- | --- |
 | **Stats** | Secondary stat targets from bloodmallet.com's best secondary-stat distribution per spec: one target for Raid (single-target sim), three for Mythic+ (multi-target sim), compared live against your own gear. |
 | **Gear** | A full recommended gear set per spec - items, gems and enchants - taken from the current season's SimulationCraft reference profile. |
-| **Trinkets** | Simulated DPS tiers from bloodmallet.com, ranked separately for Mythic+ and Raid, each entry with its source: boss, craft, vendor, delve or PvP. |
+| **Trinkets** | Simulated DPS tiers from bloodmallet.com (single-target sim, so Mythic+ and Raid share one list), each entry with its source: boss, craft, vendor, delve or PvP. |
 | **Upgrades** | Enchants, gems and consumables for your spec on one page, each with its source. |
+
+Every tab's header shows a data stamp - the sim's fight style and the date the data
+was generated, e.g. "sim reference · 3 targets · 2026-09-04" - so you always know how
+fresh the numbers are.
+
+The Gear tab marks each reference item with a traffic light: green if it's equipped at
+reference item level, amber if it's equipped but below it (Mythic 6/6), blue if it's in
+your bags, and dimmed red if you don't have it. The tooltip on each row spells out the
+exact item levels.
 
 There is also a **BiS-drop alert**: when a boss in your group drops an item matching
 the gear or trinket recommendation for your spec, MetaMirror flags it, whether you or
 a group member wins the roll.
+
+Hovering any item - loot window, bags, chat link, vendor - adds MetaMirror lines to its
+tooltip, e.g. "MetaMirror: BiS for Frost (M+ · Raid)", for every spec of your class with
+your current spec listed first, so off-spec loot is obvious at a glance. Toggle it with
+`/mm tooltip`.
 
 Type `/mm` to toggle the window, or just open your character sheet.
 
@@ -73,7 +87,8 @@ python -m pytest pipeline/ -q
 ```
 
 In-game diagnostics live behind `/mm`: `status` for panel state, `scansrc` to rebuild
-and inspect the item-source index, `dumpsrc`, `dumpench`, `dumpgems` for raw dumps.
+and inspect the item-source index, `dumpsrc`, `dumpench`, `dumpgems` for raw dumps,
+`tooltip` to toggle the item-tooltip hints.
 
 ---
 
