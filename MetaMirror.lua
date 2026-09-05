@@ -67,6 +67,8 @@ SlashCmdList["METAMIRROR"] = function(msg)
         if MetaMirror.DumpGems then MetaMirror:DumpGems() end
     elseif msg == "dumpq" then
         if MetaMirror.DumpQuality then MetaMirror:DumpQuality() end
+    elseif msg == "ilvl" then
+        if MetaMirror.DumpItemLevels then MetaMirror:DumpItemLevels() end
     elseif msg == "dumpsrc" then
         if MetaMirror.DumpSource then MetaMirror:DumpSource() end
     elseif msg == "scansrc" then

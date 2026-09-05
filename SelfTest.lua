@@ -530,3 +530,60 @@ function MetaMirror:DumpSource()
     end
     finishMaybe()
 end
+
+-- /mm ilvl : misst, welche Gegenstandsstufe ein Referenz-Item im Spiel tatsaechlich
+-- bekommt. Vier Spalten je Slot: Stufe aus den Sim-Daten, Stufe des Links so wie das
+-- Addon ihn baut, und Stufe desselben Links mit angehaengtem Mythos-6/6-Bonus (12854,
+-- per /mm dumpq verifiziert). Damit laesst sich mit Messwerten statt Vermutungen
+-- entscheiden, ob sich die Referenzstufe ueberhaupt in einen Item-Link kodieren laesst.
+function MetaMirror:DumpItemLevels()
+    local classID, specID = self:CurrentSpecKey()
+    local d = classID and specID and self:DataFor(classID, specID, MetaMirrorDB.content)
+    if not d then print("|cffa855f7[MM]|r Keine Daten für aktuelle Spec.") return end
+    local MYTH = 12854
+    local lines = { "Slot | itemID | Daten | Link | Link+Mythos6/6 | bonusIDs" }
+    local gear = {}
+    for _, g in ipairs(d.gear or {}) do gear[#gear + 1] = g end
+    table.sort(gear, function(a, b) return (a.slot or "") < (b.slot or "") end)
+
+    local pending = #gear
+    local function finishMaybe()
+        if pending > 0 then return end
+        table.sort(lines, function(a, b) return a < b end)
+        showCopy(table.concat(lines, "\n"))
+        print("|cffa855f7[MM]|r Ilvl-Dump fertig \226\128\148 Fenster offen (Strg+C).")
+    end
+    if pending == 0 then finishMaybe() return end
+
+    local function ilvlOf(link)
+        if not (C_Item and C_Item.GetDetailedItemLevelInfo) then return 0 end
+        local ok, v = pcall(C_Item.GetDetailedItemLevelInfo, link)
+        return (ok and type(v) == "number") and v or 0
+    end
+
+    for _, g in ipairs(gear) do
+        local ids = g.bonusIDs or {}
+        local hasMyth = false
+        for _, id in ipairs(ids) do if id == MYTH then hasMyth = true end end
+        local function core(extra)
+            local list = {}
+            for _, id in ipairs(ids) do list[#list + 1] = id end
+            if extra and not hasMyth then list[#list + 1] = extra end
+            return string.format("item:%d:0:0:0:0:0:0:0:0:0:0:0:%d:%s",
+                g.itemID, #list, table.concat(list, ":"))
+        end
+        local plain, boosted = core(nil), core(MYTH)
+        local item = Item:CreateFromItemLink(plain)
+        item:ContinueOnItemLoad(function()
+            local a = ilvlOf(plain)
+            local it2 = Item:CreateFromItemLink(boosted)
+            it2:ContinueOnItemLoad(function()
+                lines[#lines + 1] = string.format("%s | %d | %d | %d | %d | %s",
+                    g.slot or "?", g.itemID or 0, g.itemLevel or 0, a, ilvlOf(boosted),
+                    table.concat(ids, "/"))
+                pending = pending - 1
+                finishMaybe()
+            end)
+        end)
+    end
+end
