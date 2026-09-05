@@ -439,14 +439,8 @@ local function getItemRow(i)
         GameTooltip:Show()
     end)
     b.src:SetScript("OnLeave", function() GameTooltip:Hide() end)
-    -- Referenzstufe als eigene Spalte: sie steckt bei einem Teil der Slots nur in den
-    -- Sim-Daten und laesst sich nicht in den Item-Link kodieren, taucht im Blizzard-
-    -- Tooltip also gar nicht auf.
-    b.ilvl = fs(b, "GameFontDisableSmall", C.DIM)
-    b.ilvl:SetPoint("RIGHT", b.src, "LEFT", -6, 0)
-    b.ilvl:SetWidth(30); b.ilvl:SetJustifyH("RIGHT"); b.ilvl:SetWordWrap(false)
     b.label = fs(b, "GameFontHighlight", C.TXT); b.label:SetPoint("LEFT", b.icon, "RIGHT", 8, 0)
-    b.label:SetPoint("RIGHT", b.ilvl, "LEFT", -6, 0)
+    b.label:SetPoint("RIGHT", b.src, "LEFT", -6, 0)
     b.label:SetWordWrap(false); b.label:SetJustifyH("LEFT")
     b:SetScript("OnEnter", function(self)
         if not self.link then return end
@@ -486,9 +480,6 @@ end
 -- korrekter Maximalstufe und Sockelplaetzen (sonst rendert der Client die Grundform).
 -- onLoad(link): optionaler Callback nach dem Laden (z.B. Ampel im Gear-Tab).
 local function setItemRow(b, label, itemID, fallback, enchantID, bonusIDs, suffix, onLoad)
-    -- Zeilen werden zwischen den Tabs wiederverwendet; alte Stufe darf nicht stehen
-    -- bleiben. Nur Gear-Zeilen haben die Spalte ueberhaupt.
-    if b.ilvl then b.ilvl:SetText("") end
     -- Leeres/fehlendes Label -> nur der Item-Name (z.B. Edelsteine ohne Slot-Bezug).
     local prefix = (label and label ~= "") and (label .. ": ") or ""
     -- Suffix (z.B. Trinket-Stat-Modus "(Tempo)"): unterscheidet Varianten mit gleicher
@@ -549,11 +540,7 @@ local function setItemRow(b, label, itemID, fallback, enchantID, bonusIDs, suffi
 end
 
 local function hideItemRows()
-    for j = 1, #itemRows do
-        itemRows[j].statusText = nil
-        if itemRows[j].ilvl then itemRows[j].ilvl:SetText("") end
-        itemRows[j]:Hide()
-    end
+    for j = 1, #itemRows do itemRows[j].statusText = nil; itemRows[j]:Hide() end
     if Body and Body.gearNote then Body.gearNote:Hide() end
 end
 
@@ -679,7 +666,6 @@ local function applyGearStatus(b, itemID, ctx, link, dataIlvl)
     b.hl:SetShown(def.fill); b.hlEdge:Show()
     b.statusColor = c
     b.statusText = L[def.text]
-    if b.ilvl then b.ilvl:SetText((ref and ref > 0) and tostring(ref) or "") end
     if ref and ref > 0 and L.ilvl_ref then
         b.statusText = b.statusText .. "\n" .. string.format(L.ilvl_ref, ref)
     end

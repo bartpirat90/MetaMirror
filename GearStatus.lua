@@ -41,8 +41,8 @@ end
 -- refIlvl: Gegenstandsstufe der Referenz (nil/0 = unbekannt -> nie "weaker").
 -- Drei Zustaende, bewusst ohne Stufen-Vergleich: wer das Item traegt, bekommt gruen --
 -- egal auf welchem Aufwertungspfad. Dass ein hoeheres Item-Level besser ist, weiss
--- jeder; eine gelbe Zeile dafuer waere nur Laerm. Die Referenzstufe steht weiterhin in
--- der eigenen Spalte, als Information statt als Wertung.
+-- jeder; eine gelbe Zeile dafuer waere nur Laerm. Die Referenzstufe nennt der Tooltip
+-- der Zeile, als Information statt als Wertung.
 function MetaMirror:GearStatus(itemID, ctx)
     if not itemID then return "missing" end
     if ctx.equipped[itemID] then return "equipped" end

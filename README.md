@@ -26,8 +26,7 @@ fresh the numbers are.
 The Gear tab marks each reference item with a traffic light: green if you have it
 equipped, blue if it's sitting in your bags, dimmed red if you don't have it at all. The
 upgrade track deliberately plays no part - owning the item is what the colour answers.
-Each row carries the reference item level in its own column, as information rather than
-a verdict.
+Hovering a row names the reference item level, as information rather than a verdict.
 
 There is also a **reference-drop alert**: when a boss in your group drops an item
 matching the gear or trinket recommendation for your spec, MetaMirror flags it, whether
