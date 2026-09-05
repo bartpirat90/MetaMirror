@@ -17,7 +17,7 @@ Sekundärwert-Ziele pro Spec von bloodmallet.com: ein Ziel für Raid (Einzelziel
 Ein vollständiges Ausrüstungsset pro Spec — Items, Steine und Verzauberungen — aus dem SimulationCraft-Referenzprofil der aktuellen Season. Pro Spec gibt es genau ein Profil, deshalb gilt dasselbe Set für Mythisch+ und Raid — der Tab sagt das auch, statt so zu tun, als würde der Schalter etwas ändern.
 
 ### 🚦 Gear-Ampel
-Jede Referenz-Zeile im Ausrüstungs-Tab bekommt eine Ampel: grün, wenn das Teil auf Referenz-Gegenstandsstufe angelegt ist, gelb/amber, wenn es angelegt, aber schwächer ist (niedrigere Gegenstandsstufe als die Referenz auf Mythos 6/6), blau, wenn es im Beutel liegt, rot (gedämpft), wenn du es nicht besitzt. Der Tooltip der Zeile zeigt die genauen Gegenstandsstufen.
+Jede Referenz-Zeile im Ausrüstungs-Tab bekommt eine Ampel: grün, wenn du das Teil angelegt hast, blau, wenn es im Beutel liegt, rot (gedämpft), wenn du es nicht besitzt. Der Aufwertungspfad spielt bewusst keine Rolle — dass eine höhere Gegenstandsstufe besser ist, weiß jeder, das einzufärben wäre nur Lärm. Die Referenzstufe steht stattdessen in einer eigenen Spalte, als Information statt als Wertung.
 
 ### 💎 Schmuck-Tierliste
 Sim-DPS-Tiers von bloodmallet.com für deine Spec, S bis D. bloodmallet simuliert Schmuck nur im Einzelziel, deshalb teilen sich Mythisch+ und Raid eine Liste — der Tab sagt das auch, statt etwas anderes vorzutäuschen.

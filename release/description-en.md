@@ -17,7 +17,7 @@ Secondary stat targets per spec from bloodmallet.com: one target for Raid (singl
 A full recommended gear set per spec - items, gems and enchants - taken from the current season's SimulationCraft reference profile. There is one profile per spec, so the same set applies to Mythic+ and Raid - the tab says so instead of pretending the toggle changes something.
 
 ### 🚦 Gear traffic light
-Each reference item on the Gear tab gets a traffic light: green if you've got it equipped at reference item level, amber if it's equipped but below it (Mythic 6/6), blue if it's sitting in your bags, dimmed red if you don't have it at all. Hover the row for the exact item levels.
+Each reference item on the Gear tab gets a traffic light: green if you have it equipped, blue if it's sitting in your bags, dimmed red if you don't have it at all. The upgrade track plays no part - everyone knows a higher item level is better, so colouring that in would only add noise. The reference item level sits in its own column instead, as information rather than a verdict.
 
 ### 💎 Trinket tier list
 Simulated DPS tiers from bloodmallet.com for your spec, S to D. bloodmallet sims trinkets single-target only, so Mythic+ and Raid share one list - the tab says so instead of pretending otherwise.

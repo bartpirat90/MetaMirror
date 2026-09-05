@@ -39,13 +39,13 @@ function MetaMirror:BuildGearContext()
 end
 
 -- refIlvl: Gegenstandsstufe der Referenz (nil/0 = unbekannt -> nie "weaker").
-function MetaMirror:GearStatus(itemID, ctx, refIlvl)
+-- Drei Zustaende, bewusst ohne Stufen-Vergleich: wer das Item traegt, bekommt gruen --
+-- egal auf welchem Aufwertungspfad. Dass ein hoeheres Item-Level besser ist, weiss
+-- jeder; eine gelbe Zeile dafuer waere nur Laerm. Die Referenzstufe steht weiterhin in
+-- der eigenen Spalte, als Information statt als Wertung.
+function MetaMirror:GearStatus(itemID, ctx)
     if not itemID then return "missing" end
-    local have = ctx.equipped[itemID]
-    if have then
-        if refIlvl and refIlvl > 0 and have > 0 and have < refIlvl then return "weaker" end
-        return "equipped"
-    end
+    if ctx.equipped[itemID] then return "equipped" end
     if ctx.bags[itemID] then return "bag" end
     return "missing"
 end

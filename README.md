@@ -23,10 +23,11 @@ Every tab's header shows a data stamp - the sim's fight style and the date the d
 was generated, e.g. "sim reference · 5 targets · 2026-09-05" - so you always know how
 fresh the numbers are.
 
-The Gear tab marks each reference item with a traffic light: green if it's equipped at
-reference item level, amber if it's equipped but below it (Mythic 6/6), blue if it's in
-your bags, and dimmed red if you don't have it. The tooltip on each row spells out the
-exact item levels.
+The Gear tab marks each reference item with a traffic light: green if you have it
+equipped, blue if it's sitting in your bags, dimmed red if you don't have it at all. The
+upgrade track deliberately plays no part - owning the item is what the colour answers.
+Each row carries the reference item level in its own column, as information rather than
+a verdict.
 
 There is also a **reference-drop alert**: when a boss in your group drops an item
 matching the gear or trinket recommendation for your spec, MetaMirror flags it, whether

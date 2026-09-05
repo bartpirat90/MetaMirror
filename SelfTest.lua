@@ -110,30 +110,28 @@ test("Data_gear_carries_reference_item_level", function()
     assertEqual(withLevel > 0, true, "mindestens ein Eintrag traegt eine Referenzstufe")
 end)
 
-test("GearStatus_equipped_on_reference", function()
-    local ctx = { equipped = { [100] = 350 }, bags = {} }
-    assertEqual(MetaMirror:GearStatus(100, ctx, 350), "equipped", "gleiche Stufe")
-    assertEqual(MetaMirror:GearStatus(100, ctx, 340), "equipped", "hoeher als Referenz")
+test("GearStatus_equipped_regardless_of_item_level", function()
+    -- Angelegt ist angelegt: die Stufe darf den Zustand nicht mehr beeinflussen,
+    -- sonst wird eine Selbstverstaendlichkeit ("hoeher ist besser") eingefaerbt.
+    assertEqual(MetaMirror:GearStatus(100, { equipped = { [100] = 350 }, bags = {} }), "equipped", "auf Referenzstufe")
+    assertEqual(MetaMirror:GearStatus(100, { equipped = { [100] = 330 }, bags = {} }), "equipped", "niedrigere Stufe")
+    assertEqual(MetaMirror:GearStatus(100, { equipped = { [100] = 0 }, bags = {} }), "equipped", "Stufe unbekannt")
 end)
-test("GearStatus_weaker_below_reference", function()
-    local ctx = { equipped = { [100] = 330 }, bags = {} }
-    assertEqual(MetaMirror:GearStatus(100, ctx, 350), "weaker", "niedrigere Stufe")
-end)
-test("GearStatus_unknown_levels_never_weaker", function()
-    assertEqual(MetaMirror:GearStatus(100, { equipped = { [100] = 0 }, bags = {} }, 350), "equipped", "eigene Stufe unbekannt")
-    assertEqual(MetaMirror:GearStatus(100, { equipped = { [100] = 330 }, bags = {} }, nil), "equipped", "Referenz unbekannt")
-    assertEqual(MetaMirror:GearStatus(100, { equipped = { [100] = 330 }, bags = {} }, 0), "equipped", "Referenz 0")
+test("GearStatus_ignores_extra_arguments", function()
+    -- Alte Aufrufer uebergaben eine Referenzstufe als drittes Argument; die darf
+    -- nichts mehr bewirken.
+    assertEqual(MetaMirror:GearStatus(100, { equipped = { [100] = 330 }, bags = {} }, 350), "equipped", "Reststufe ohne Wirkung")
 end)
 test("GearStatus_bag", function()
-    assertEqual(MetaMirror:GearStatus(100, { equipped = {}, bags = { [100] = true } }, 350), "bag", "im Beutel")
+    assertEqual(MetaMirror:GearStatus(100, { equipped = {}, bags = { [100] = true } }), "bag", "im Beutel")
 end)
 test("GearStatus_missing", function()
-    assertEqual(MetaMirror:GearStatus(100, { equipped = {}, bags = {} }, 350), "missing", "fehlt")
-    assertEqual(MetaMirror:GearStatus(nil, { equipped = {}, bags = {} }, 350), "missing", "keine itemID")
+    assertEqual(MetaMirror:GearStatus(100, { equipped = {}, bags = {} }), "missing", "fehlt")
+    assertEqual(MetaMirror:GearStatus(nil, { equipped = {}, bags = {} }), "missing", "keine itemID")
 end)
 test("GearStatus_equipped_beats_bag", function()
     local ctx = { equipped = { [100] = 350 }, bags = { [100] = true } }
-    assertEqual(MetaMirror:GearStatus(100, ctx, 350), "equipped", "angelegt hat Vorrang")
+    assertEqual(MetaMirror:GearStatus(100, ctx), "equipped", "angelegt hat Vorrang")
 end)
 
 -- Fake-Daten fuer den Tooltip-Index: Klasse 8 (Magier) mit zwei Specs.

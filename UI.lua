@@ -653,7 +653,6 @@ end
 -- Schimmer -- sonst leuchtet bei den meisten Spielern fast jede Zeile rot.
 local GEAR_STATUS = {
     equipped = { col = "GREEN", text = "gs_equipped", fill = true  },
-    weaker   = { col = "AMBER", text = "gs_weaker",   fill = true  },
     bag      = { col = "BLUE",  text = "gs_bag",      fill = true  },
     missing  = { col = "CORAL", text = "gs_missing",  fill = false },
 }
@@ -670,29 +669,79 @@ end
 -- aus dem Link berechneten Stufe, denn genau bei diesen Slots kodieren die Bonus-IDs die
 -- Stufe NICHT -- der Link zeigt dort die Basisstufe des Items.
 local function applyGearStatus(b, itemID, ctx, link, dataIlvl)
+    -- ref dient nur noch der Anzeige in der Stufenspalte, nicht mehr der Bewertung.
     local ref = (dataIlvl and dataIlvl > 0) and dataIlvl or referenceIlvl(link)
-    local status = MetaMirror:GearStatus(itemID, ctx, ref)
+    local status = MetaMirror:GearStatus(itemID, ctx)
     local def = GEAR_STATUS[status]
     local c = C[def.col]
     b.hl:SetColorTexture(c[1], c[2], c[3], 0.16)
     b.hlEdge:SetColorTexture(c[1], c[2], c[3], def.fill and 0.85 or 0.45)
     b.hl:SetShown(def.fill); b.hlEdge:Show()
     b.statusColor = c
-    if status == "weaker" then
-        b.statusText = string.format(L.gs_weaker, ctx.equipped[itemID] or 0, ref or 0)
-    else
-        b.statusText = L[def.text]
-    end
-    -- Sichtbare Stufenspalte. Bei "weaker" nennt der Status-Text die Referenz schon,
-    -- dort waere eine zweite Zeile im Tooltip nur Wiederholung.
+    b.statusText = L[def.text]
     if b.ilvl then b.ilvl:SetText((ref and ref > 0) and tostring(ref) or "") end
-    if ref and ref > 0 and status ~= "weaker" and L.ilvl_ref then
+    if ref and ref > 0 and L.ilvl_ref then
         b.statusText = b.statusText .. "\n" .. string.format(L.ilvl_ref, ref)
     end
 end
 
 -- entries: Liste aus { label, itemID, fallback, enchantID, bonusIDs }.
 -- Nur der Gear-Tab nutzt diese Liste -> hier auch Quelle + Ampel setzen.
+-- ===== Referenzstufe in den Item-Link bringen =====
+-- Bei einem Teil der Slots steht die Stufe nur im Sim-Feld itemLevel und nicht in den
+-- Bonus-IDs; der Link zeigt dann die unaufgewertete Basisstufe (gemessen mit /mm ilvl:
+-- Schulter 219 statt 334, Ruecken 219 statt 344). Dagegen hilft eine zusaetzliche
+-- Aufwertungs-Bonus-ID -- aber nur die richtige:
+--   * Schulter + 12854 (Mythos 6/6) -> 334 = Referenz, passt.
+--   * Ruecken  + 12854              -> 334, Referenz ist aber 344, passt NICHT.
+--   * Nebenhand (Handwerk) + 12854  -> 347 statt korrekter 331, waere frei erfunden.
+-- Deshalb wird jeder Kandidat gemessen und nur uebernommen, wenn die resultierende
+-- Stufe die Referenz EXAKT trifft. Trifft keiner, bleibt der Link unveraendert und die
+-- Stufenspalte nennt die Referenz -- lieber eine sichtbare Abweichung als eine
+-- erfundene Zahl.
+-- 12854 ist per /mm dumpq belegt; 13848 stammt aus den Messwerten (jedes Item, das
+-- 344 erreicht, traegt sie). Beide sind Kandidaten, keine Annahmen: ohne exakten
+-- Treffer wird nichts angewendet.
+local ILVL_BONUS_CANDIDATES = { MYTH_6_6_BONUS, 13848 }
+
+local function bonusCore(itemID, ids)
+    return string.format("item:%d:0:0:0:0:0:0:0:0:0:0:0:%d:%s",
+        itemID, #ids, table.concat(ids, ":"))
+end
+
+local function linkIlvl(link)
+    if not (C_Item and C_Item.GetDetailedItemLevelInfo) then return nil end
+    local ok, v = pcall(C_Item.GetDetailedItemLevelInfo, link)
+    return (ok and type(v) == "number") and v or nil
+end
+
+-- Ruft cb(bonusIDs) mit dem Satz auf, der die Referenzstufe trifft (oder dem Original).
+local function resolveToReferenceIlvl(itemID, ids, target, cb)
+    ids = ids or {}
+    if not (itemID and target and target > 0) then cb(ids) return end
+    local base = bonusCore(itemID, ids)
+    Item:CreateFromItemLink(base):ContinueOnItemLoad(function()
+        if linkIlvl(base) == target then cb(ids) return end   -- Link stimmt schon
+        local seen = {}
+        for _, id in ipairs(ids) do seen[id] = true end
+        local i = 0
+        local function tryNext()
+            i = i + 1
+            local cand = ILVL_BONUS_CANDIDATES[i]
+            if not cand then cb(ids) return end               -- keiner passt -> Original
+            if seen[cand] then tryNext() return end
+            local test = {}
+            for _, id in ipairs(ids) do test[#test + 1] = id end
+            test[#test + 1] = cand
+            local link = bonusCore(itemID, test)
+            Item:CreateFromItemLink(link):ContinueOnItemLoad(function()
+                if linkIlvl(link) == target then cb(test) else tryNext() end
+            end)
+        end
+        tryNext()
+    end)
+end
+
 -- Hinweiszeile ueber der Gear-Liste: das Set stammt aus EINEM SimulationCraft-
 -- Referenzprofil je Spec, das bloodmallet fuer beide Fight-Styles gleich benutzt. Ohne
 -- diesen Hinweis wirkt der M+/Raid-Schalter im Ausruestungs-Tab defekt, weil sich beim
@@ -706,7 +755,11 @@ end
 
 local GEAR_NOTE_OFFSET = 20   -- Platz fuer die Hinweiszeile ueber der ersten Gear-Zeile
 
+local renderGen = 0
+
 local function renderItemList(entries)
+    renderGen = renderGen + 1
+    local gen = renderGen
     for j = 1, #rows do rows[j]:Hide() end
     if Body.msg then Body.msg:Hide() end
     local note = ensureGearNote()
@@ -722,8 +775,11 @@ local function renderItemList(entries)
         -- dem Laden des Links mit der echten Referenzstufe verfeinern (-> "schwaecher").
         local ilvl = (e.itemLevel and e.itemLevel > 0) and e.itemLevel or nil
         applyGearStatus(b, e.itemID, ctx, nil, ilvl)
-        setItemRow(b, nil, e.itemID, e.fallback, e.enchantID, e.bonusIDs, nil,
-                   function(link) applyGearStatus(b, e.itemID, ctx, link, ilvl) end)
+        resolveToReferenceIlvl(e.itemID, e.bonusIDs, ilvl, function(ids)
+            if gen ~= renderGen then return end   -- Zeile ist inzwischen neu belegt
+            setItemRow(b, nil, e.itemID, e.fallback, e.enchantID, ids, nil,
+                       function(link) applyGearStatus(b, e.itemID, ctx, link, ilvl) end)
+        end)
         b.slot:SetText(e.label or "")
         applyRowSource(b, e.itemID)
     end
