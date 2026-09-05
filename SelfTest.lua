@@ -57,13 +57,27 @@ test("DataFor_missing", function()
 end)
 
 test("DataStamp_mplus_label_and_date", function()
-    local root = { generated = "2026-09-04",
-                   fightStyles = { mythicplus = "castingpatchwerk3", raid = "castingpatchwerk" } }
+    local root = { generated = "2026-09-05",
+                   fightStyles = { mythicplus = "castingpatchwerk5", raid = "castingpatchwerk" } }
     local s = MetaMirror:DataStamp("stats", "mythicplus", root, nil)
-    assertEqual(s ~= nil and s:find("2026-09-04", 1, true) ~= nil, true, "Datum enthalten")
+    assertEqual(s ~= nil and s:find("2026-09-05", 1, true) ~= nil, true, "Datum enthalten")
     assertEqual(s:find(MetaMirror.L.fight_mplus, 1, true) ~= nil, true, "M+-Label enthalten")
     local r = MetaMirror:DataStamp("gear", "raid", root, nil)
     assertEqual(r:find(MetaMirror.L.fight_raid, 1, true) ~= nil, true, "Raid-Label enthalten")
+end)
+test("DataStamp_maps_legacy_three_target_style", function()
+    -- Datendateien von vor dem Wechsel auf fuenf Ziele tragen castingpatchwerk3; die
+    -- sollen weiterhin das M+-Label bekommen statt des rohen Stil-Namens.
+    local root = { generated = "2026-09-04",
+                   fightStyles = { mythicplus = "castingpatchwerk3", raid = "castingpatchwerk" } }
+    local s = MetaMirror:DataStamp("stats", "mythicplus", root, nil)
+    assertEqual(s:find(MetaMirror.L.fight_mplus, 1, true) ~= nil, true, "Alt-Stil -> M+-Label")
+    assertEqual(s:find("castingpatchwerk", 1, true), nil, "roher Stil-Name taucht nicht auf")
+end)
+test("DataStamp_unknown_style_falls_back_to_raw_name", function()
+    local root = { generated = "2026-09-05", fightStyles = { mythicplus = "beastlord" } }
+    local s = MetaMirror:DataStamp("stats", "mythicplus", root, nil)
+    assertEqual(s:find("beastlord", 1, true) ~= nil, true, "unbekannter Stil bleibt lesbar")
 end)
 test("DataStamp_schmuck_from_trinket_version", function()
     local troot = { version = "bm-2026-09-01" }

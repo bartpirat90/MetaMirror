@@ -2,7 +2,7 @@
 
 Ersatz fuer die verlorenen Warcraft-Logs-Daten (RPGLogs-Ablehnung, 2026-09-04): bloodmallet
 simuliert die optimale Sekundaerwert-Verteilung UND liefert in derselben Antwort das dazu
-passende (Sim-BiS-)Gear-Profil. Oeffentlich, kein Login (bloodmallet-FAQ: "All data is free
+passende Referenz-Gear-Profil. Oeffentlich, kein Login (bloodmallet-FAQ: "All data is free
 to use for everyone").
 
 Endpunkt: /chart/get/secondary_distributions/{fight_style}/{class}/{spec}
@@ -26,10 +26,20 @@ from pipeline import season
 BASE = "https://bloodmallet.com/chart/get"
 
 # raid = Einzelziel (castingpatchwerk, wie in trinkets.py der real bespielte Style),
-# mythicplus = 3-Ziel-Variante (castingpatchwerk3). Fuenf-Ziel (castingpatchwerk5) und
-# hecticaddcleave existieren als Fight-Styles, liefern fuer diesen Chart-Typ aber teils
-# keine Daten (hecticaddcleave -> "No standard chart") -- daher hier nicht verwendet.
-FIGHT_STYLE_BY_CONTENT = {"raid": "castingpatchwerk", "mythicplus": "castingpatchwerk3"}
+# mythicplus = Fuenf-Ziel (castingpatchwerk5, live gegen warlock/demonology verifiziert:
+# liefert einen vollen MID2-Chart). Fuenf Ziele liegen naeher an einem echten M+-Pull als
+# die frueher genutzten drei. hecticaddcleave liefert fuer diesen Chart-Typ keine Daten
+# ("No standard chart") -- daher weiterhin nicht verwendet.
+FIGHT_STYLE_BY_CONTENT = {"raid": "castingpatchwerk", "mythicplus": "castingpatchwerk5"}
+
+# Spitzengruppe: alle Verteilungen, deren DPS hoechstens 0,5 % unter der besten liegen,
+# werden DPS-gewichtet gemittelt. Grund: bloodmallet rastert die Verteilungen in 10-%-
+# Schritten, und die Abstaende an der Spitze liegen im Bereich des Sim-Rauschens (bei
+# Demonologie 0,2 % zwischen Platz 1 und 2). Die Top-Verteilung allein ist damit fast ein
+# Muenzwurf und lieferte fuer Einzelziel und Mehrziel oft dasselbe Ergebnis; der Mittelwert
+# der Spitzengruppe ist stabiler und loest das grobe Raster auf. 0,005 ist an den 27 Specs
+# mit Daten kalibriert (Median 4, hoechstens 18 Verteilungen je Gruppe).
+BLEND_TOLERANCE = 0.005
 
 # simc-Slotname -> Addon-Slotname, exakt wie pipeline/fetch.py GEAR_SLOT_BY_INDEX / UI.lua
 # SLOT_ORDER (gegengeprueft, siehe Plan-Abschnitt "Slot-Mapping").
@@ -64,15 +74,50 @@ def _split_ids(field):
     return out
 
 
-def parse_distribution(payload):
-    """Beste Sekundaerwert-Verteilung eines Payloads -> dict mit tier, top_key, pct{...},
+def _pct_from_key(key):
+    """'40_10_40_10' -> {'crit': 40, 'haste': 10, 'mastery': 40, 'vers': 10}.
+    ValueError bei unerwartetem Format."""
+    parts = key.split("_")
+    if len(parts) != 4:
+        raise ValueError(f"bloodmallet: unerwartetes distribution_key-Format: {key!r}")
+    try:
+        crit, haste, mastery, vers = (int(p) for p in parts)
+    except ValueError:
+        raise ValueError(f"bloodmallet: distribution_key nicht numerisch: {key!r}")
+    return {"crit": crit, "haste": haste, "mastery": mastery, "vers": vers}
+
+
+def blend_top_group(tier_data, tolerance=BLEND_TOLERANCE):
+    """Alle Verteilungen eines Tiers innerhalb 'tolerance' der Top-DPS DPS-gewichtet
+    mitteln -> (pct{...} als float, Anzahl der eingeflossenen Verteilungen).
+
+    tolerance=0 waehlt nur die Spitze selbst (und alles exakt DPS-gleiche). Die Summe der
+    vier Prozentwerte bleibt 100, weil jede einzelne Verteilung auf 100 summiert."""
+    top = max(tier_data.values())
+    cutoff = top * (1.0 - tolerance)
+    group = {k: v for k, v in tier_data.items() if v >= cutoff}
+    weight_sum = sum(group.values())
+    if weight_sum <= 0:
+        raise ValueError("bloodmallet: Spitzengruppe ohne positives DPS-Gewicht")
+    pct = {}
+    for stat in ("crit", "haste", "mastery", "vers"):
+        pct[stat] = sum(_pct_from_key(k)[stat] * v for k, v in group.items()) / weight_sum
+    return pct, len(group)
+
+
+def parse_distribution(payload, tolerance=BLEND_TOLERANCE):
+    """Sekundaerwert-Ziel eines Payloads -> dict mit tier, top_key, pct{...}, blended,
     secondary_sum, dps, timestamp, simc_hash. ValueError bei Fehler-Payload oder fehlenden
     Pflichtfeldern.
+
+    pct ist der DPS-gewichtete Mittelwert der Spitzengruppe (siehe BLEND_TOLERANCE), nicht
+    die beste Einzelverteilung; top_key/dps beschreiben weiterhin die Spitze selbst.
 
     bloodmallet liefert aktuell (Midnight, Tier MID2) immer genau einen tier-Key ("MID2");
     fuer den Fall, dass ein Chart doch mehrere Talent-/Profil-Varianten fuehrt, nehmen wir
     die mit der hoechsten Top-DPS -- ein dokumentiertes Tie-Break-Kriterium gibt es nicht,
-    andere Kandidaten (z.B. alphabetisch) waeren ebenso willkuerlich."""
+    andere Kandidaten (z.B. alphabetisch) waeren ebenso willkuerlich. Gemittelt wird nur
+    innerhalb dieses einen Tiers."""
     if is_error(payload):
         raise ValueError("bloodmallet: Fehler-Payload (status=error oder data fehlt)")
     data = payload.get("data") or {}
@@ -93,18 +138,13 @@ def parse_distribution(payload):
     dps = data.get(tier, {}).get(top_key)
     if dps is None:
         raise ValueError("bloodmallet: top_key fehlt in data[tier]")
-    parts = top_key.split("_")
-    if len(parts) != 4:
-        raise ValueError(f"bloodmallet: unerwartetes distribution_key-Format: {top_key!r}")
-    try:
-        crit, haste, mastery, vers = (int(p) for p in parts)
-    except ValueError:
-        raise ValueError(f"bloodmallet: distribution_key nicht numerisch: {top_key!r}")
+    pct, blended = blend_top_group(data[tier], tolerance)
 
     return {
         "tier": tier,
         "top_key": top_key,
-        "pct": {"crit": crit, "haste": haste, "mastery": mastery, "vers": vers},
+        "pct": pct,
+        "blended": blended,
         "secondary_sum": int(secondary_sum),
         "dps": int(dps),
         "timestamp": _timestamp(payload),
@@ -128,10 +168,12 @@ def _timestamp(payload):
 
 def stats_from_distribution(parsed):
     """parsed (aus parse_distribution) -> [{"key","rating"}], absteigend nach Rating,
-    alle vier STAT_KEYS. rating = int(secondary_sum * pct / 100) (Plan: Rating-Ziel)."""
+    alle vier STAT_KEYS. rating = round(secondary_sum * pct / 100); gerundet statt
+    abgeschnitten, weil pct seit der Mittelung der Spitzengruppe keine glatten Zehner
+    mehr sind und Abschneiden das Budget systematisch unterschreiten wuerde."""
     pct = parsed["pct"]
     total = parsed["secondary_sum"]
-    stats = [{"key": key, "rating": int(total * pct[key] / 100)} for key in STAT_KEYS]
+    stats = [{"key": key, "rating": int(round(total * pct[key] / 100))} for key in STAT_KEYS]
     stats.sort(key=lambda s: s["rating"], reverse=True)
     return stats
 

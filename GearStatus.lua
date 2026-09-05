@@ -1,4 +1,4 @@
--- Ampel-Logik fuer den Ausruestungs-Tab: vergleicht ein Referenz-Item (Sim-BiS) mit dem
+-- Ampel-Logik fuer den Ausruestungs-Tab: vergleicht ein Referenz-Item (SimC-Profil) mit dem
 -- eigenen Inventar. Status je Zeile:
 --   "equipped" angelegt, auf/ueber Referenzstufe   "weaker" angelegt, aber niedrigere Stufe
 --   "bag"      im Beutel (nicht angelegt)          "missing" weder angelegt noch im Beutel

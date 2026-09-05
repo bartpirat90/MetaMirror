@@ -1,4 +1,4 @@
-"""Trinket-Ranking aus bloodmallet.com (Sim-BiS) -> Data/MetaMirrorTrinkets.lua.
+"""Trinket-Ranking aus bloodmallet.com (Sim-Rangliste) -> Data/MetaMirrorTrinkets.lua.
 
 Getrennte Quelle vom WCL-Datensatz: Bloodmallet ist oeffentlich (kein Login) und liefert
 die VOLLSTAENDIGE, simulierte Trinket-Rangliste pro Spec -- inkl. Stat-Modi desselben
@@ -67,7 +67,7 @@ def parse_ranking(payload):
         steps = [int(k) for k in per_ilvl.keys() if str(k).isdigit()]
         if not steps:
             continue
-        cap = max(steps)                 # hoechstes simuliertes Item-Level = Sim-BiS-Cap
+        cap = max(steps)                 # hoechstes simuliertes Item-Level = Sim-Cap
         dps = per_ilvl.get(str(cap))
         if not dps:
             continue
@@ -169,7 +169,7 @@ def _lua_view(entries):
 
 def emit_lua(spec_views, version):
     lines = [
-        "-- Generiert aus bloodmallet.com (Sim-BiS Trinkets). NICHT von Hand bearbeiten.",
+        "-- Generiert aus bloodmallet.com (Trinket-Sim-Rangliste). NICHT von Hand bearbeiten.",
         "MetaMirrorTrinkets = {",
         f'    version = "{version}",',
         '    source = "Data from bloodmallet.com",',

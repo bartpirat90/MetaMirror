@@ -10,11 +10,11 @@ Data is built from **bloodmallet.com** (secondary stat distributions and trinket
 
 ## Features
 
-### 📊 Stat targets from bloodmallet's best distribution
-Secondary stat targets per spec, taken from bloodmallet.com's best-performing secondary stat distribution: one target for Raid (single-target sim), three for Mythic+ (multi-target sim). Your own live stats are compared against them. Every tab's header carries a data stamp, e.g. "sim reference · 3 targets · 2026-09-04", so you always see how fresh the numbers are.
+### 📊 Stat targets from bloodmallet's sims
+Secondary stat targets per spec from bloodmallet.com: one target for Raid (single-target sim), one for Mythic+ (five-target sim). Rather than picking the single best distribution off the sim's coarse 10% grid, MetaMirror averages every distribution within 0.5% of the best - the gaps up there are within sim noise, and the average gives you a finer, steadier target. Your own live stats are compared against it. Every tab's header carries a data stamp, e.g. "sim reference · 5 targets · 2026-09-05", so you always see how fresh the numbers are.
 
 ### 🛡️ Gear set from the season's SimulationCraft profile
-A full recommended gear set per spec - items, gems and enchants - taken from the current season's SimulationCraft reference profile.
+A full recommended gear set per spec - items, gems and enchants - taken from the current season's SimulationCraft reference profile. There is one profile per spec, so the same set applies to Mythic+ and Raid - the tab says so instead of pretending the toggle changes something.
 
 ### 🚦 Gear traffic light
 Each reference item on the Gear tab gets a traffic light: green if you've got it equipped at reference item level, amber if it's equipped but below it (Mythic 6/6), blue if it's sitting in your bags, dimmed red if you don't have it at all. Hover the row for the exact item levels.
@@ -25,11 +25,11 @@ Simulated DPS tiers from bloodmallet.com for your spec, S to D. bloodmallet sims
 ### ⬆️ Upgrades in one place
 Enchants, gems and consumables for your spec on a single page, each with its source.
 
-### 🔔 BiS-drop alert
+### 🔔 Reference-drop alert
 When a boss in your group drops an item matching your spec's gear or trinket recommendation, MetaMirror flags it - whether you or a group member wins the roll.
 
 ### 🏷️ Tooltip hints
-Hover any item - loot window, bags, chat link, vendor - and MetaMirror adds lines to its tooltip, e.g. "MetaMirror: BiS for Frost (M+ · Raid)" or "MetaMirror: S-tier trinket for Fire (Raid)". Covers every spec of your class, current spec first, so off-spec loot is obvious right away. Toggle it with `/mm tooltip`.
+Hover any item - loot window, bags, chat link, vendor - and MetaMirror adds lines to its tooltip, e.g. "MetaMirror: Reference for Frost (M+ · Raid)" or "MetaMirror: S-tier trinket for Fire (Raid)". Covers every spec of your class, current spec first, so off-spec loot is obvious right away. Toggle it with `/mm tooltip`.
 
 ### 🔎 Where does it come from?
 Every item carries its source: boss and instance read straight from the in-game Adventure Guide, plus crafted, vendor, delve and PvP items filled in from Wowhead.

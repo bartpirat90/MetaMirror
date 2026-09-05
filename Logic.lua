@@ -39,8 +39,10 @@ function MetaMirror:DataStamp(tab, content, root, troot)
     root = root or _G.MetaMirrorData
     if not (root and root.generated) then return nil end
     local style = root.fightStyles and root.fightStyles[content]
+    -- castingpatchwerk3 bleibt gemappt, damit aeltere Datendateien (vor dem Wechsel
+    -- auf fuenf Ziele) weiterhin ein lesbares Label bekommen statt des rohen Stils.
     local label = (style == "castingpatchwerk" and L.fight_raid)
-        or (style == "castingpatchwerk3" and L.fight_mplus)
+        or ((style == "castingpatchwerk5" or style == "castingpatchwerk3") and L.fight_mplus)
         or style or ""
     return string.format(L.sim_note, label, root.generated)
 end

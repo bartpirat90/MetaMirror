@@ -1,9 +1,9 @@
 -- Generiert von der MetaMirror-Pipeline. NICHT von Hand bearbeiten.
 MetaMirrorData = {
-    version = "sim-2026-09-04",
+    version = "sim-2026-09-05",
     season = "Midnight-S2",
-    fightStyles = { mythicplus = "castingpatchwerk3", raid = "castingpatchwerk" },
-    generated = "2026-09-04",
+    fightStyles = { mythicplus = "castingpatchwerk5", raid = "castingpatchwerk" },
+    generated = "2026-09-05",
     simcHash = "f869791",
     sources = { gear = "SimulationCraft MID2 profiles", stats = "bloodmallet.com secondary distributions" },
     attribution = "Data from bloodmallet.com (SimulationCraft)",
@@ -13,10 +13,10 @@ MetaMirrorData = {
                 mythicplus = {
                     sampleSize = 1,
                     stats = {
-                        { key = "haste", rating = 1220 },
-                        { key = "crit", rating = 1220 },
-                        { key = "mastery", rating = 305 },
-                        { key = "vers", rating = 305 },
+                        { key = "crit", rating = 1221 },
+                        { key = "haste", rating = 732 },
+                        { key = "mastery", rating = 732 },
+                        { key = "vers", rating = 366 },
                     },
                     gear = {
                         { slot = "BACK", itemID = 268253, itemLevel = 0, bonusIDs = { 13335, 13848 }, name = "item:268253" },
@@ -107,10 +107,10 @@ MetaMirrorData = {
                 mythicplus = {
                     sampleSize = 1,
                     stats = {
-                        { key = "haste", rating = 1300 },
-                        { key = "mastery", rating = 975 },
-                        { key = "crit", rating = 650 },
-                        { key = "vers", rating = 325 },
+                        { key = "haste", rating = 1301 },
+                        { key = "mastery", rating = 1084 },
+                        { key = "crit", rating = 434 },
+                        { key = "vers", rating = 433 },
                     },
                     gear = {
                         { slot = "BACK", itemID = 268253, itemLevel = 0, bonusIDs = { 13335, 13848 }, name = "item:268253" },
@@ -155,8 +155,8 @@ MetaMirrorData = {
                 raid = {
                     sampleSize = 1,
                     stats = {
-                        { key = "haste", rating = 1300 },
-                        { key = "mastery", rating = 975 },
+                        { key = "haste", rating = 1301 },
+                        { key = "mastery", rating = 976 },
                         { key = "crit", rating = 650 },
                         { key = "vers", rating = 325 },
                     },
@@ -205,10 +205,10 @@ MetaMirrorData = {
                 mythicplus = {
                     sampleSize = 1,
                     stats = {
-                        { key = "crit", rating = 1218 },
-                        { key = "haste", rating = 609 },
+                        { key = "crit", rating = 1117 },
+                        { key = "haste", rating = 660 },
+                        { key = "vers", rating = 660 },
                         { key = "mastery", rating = 609 },
-                        { key = "vers", rating = 609 },
                     },
                     gear = {
                         { slot = "BACK", itemID = 268253, itemLevel = 0, bonusIDs = {  }, name = "item:268253" },
@@ -251,10 +251,10 @@ MetaMirrorData = {
                 raid = {
                     sampleSize = 1,
                     stats = {
-                        { key = "haste", rating = 1218 },
-                        { key = "crit", rating = 913 },
-                        { key = "mastery", rating = 609 },
-                        { key = "vers", rating = 304 },
+                        { key = "haste", rating = 1117 },
+                        { key = "crit", rating = 964 },
+                        { key = "vers", rating = 507 },
+                        { key = "mastery", rating = 457 },
                     },
                     gear = {
                         { slot = "BACK", itemID = 268253, itemLevel = 0, bonusIDs = {  }, name = "item:268253" },
@@ -301,10 +301,10 @@ MetaMirrorData = {
                 mythicplus = {
                     sampleSize = 1,
                     stats = {
-                        { key = "haste", rating = 1218 },
-                        { key = "crit", rating = 1218 },
-                        { key = "mastery", rating = 304 },
-                        { key = "vers", rating = 304 },
+                        { key = "haste", rating = 1142 },
+                        { key = "crit", rating = 1066 },
+                        { key = "vers", rating = 457 },
+                        { key = "mastery", rating = 380 },
                     },
                     gear = {
                         { slot = "BACK", itemID = 268253, itemLevel = 0, bonusIDs = {  }, name = "item:268253" },
@@ -347,10 +347,10 @@ MetaMirrorData = {
                 raid = {
                     sampleSize = 1,
                     stats = {
-                        { key = "haste", rating = 1522 },
+                        { key = "haste", rating = 1370 },
                         { key = "crit", rating = 913 },
+                        { key = "vers", rating = 457 },
                         { key = "mastery", rating = 304 },
-                        { key = "vers", rating = 304 },
                     },
                     gear = {
                         { slot = "BACK", itemID = 268253, itemLevel = 0, bonusIDs = {  }, name = "item:268253" },
@@ -395,10 +395,10 @@ MetaMirrorData = {
                 mythicplus = {
                     sampleSize = 1,
                     stats = {
-                        { key = "haste", rating = 1218 },
-                        { key = "crit", rating = 914 },
-                        { key = "mastery", rating = 609 },
-                        { key = "vers", rating = 304 },
+                        { key = "haste", rating = 1066 },
+                        { key = "mastery", rating = 914 },
+                        { key = "crit", rating = 762 },
+                        { key = "vers", rating = 305 },
                     },
                     gear = {
                         { slot = "BACK", itemID = 268253, itemLevel = 0, bonusIDs = { 13662, 13848 }, name = "item:268253" },
@@ -442,7 +442,7 @@ MetaMirrorData = {
                         { key = "haste", rating = 914 },
                         { key = "crit", rating = 914 },
                         { key = "mastery", rating = 914 },
-                        { key = "vers", rating = 304 },
+                        { key = "vers", rating = 305 },
                     },
                     gear = {
                         { slot = "BACK", itemID = 268253, itemLevel = 0, bonusIDs = { 13662, 13848 }, name = "item:268253" },
@@ -487,10 +487,10 @@ MetaMirrorData = {
                 mythicplus = {
                     sampleSize = 1,
                     stats = {
-                        { key = "mastery", rating = 1451 },
-                        { key = "haste", rating = 870 },
-                        { key = "crit", rating = 290 },
-                        { key = "vers", rating = 290 },
+                        { key = "mastery", rating = 1515 },
+                        { key = "crit", rating = 484 },
+                        { key = "vers", rating = 484 },
+                        { key = "haste", rating = 419 },
                     },
                     gear = {
                         { slot = "BACK", itemID = 268253, itemLevel = 0, bonusIDs = {  }, name = "item:268253" },
@@ -531,10 +531,10 @@ MetaMirrorData = {
                 raid = {
                     sampleSize = 1,
                     stats = {
-                        { key = "haste", rating = 1160 },
-                        { key = "mastery", rating = 1160 },
-                        { key = "crit", rating = 290 },
-                        { key = "vers", rating = 290 },
+                        { key = "mastery", rating = 1112 },
+                        { key = "haste", rating = 1064 },
+                        { key = "crit", rating = 387 },
+                        { key = "vers", rating = 339 },
                     },
                     gear = {
                         { slot = "BACK", itemID = 268253, itemLevel = 0, bonusIDs = {  }, name = "item:268253" },
@@ -577,10 +577,10 @@ MetaMirrorData = {
                 mythicplus = {
                     sampleSize = 1,
                     stats = {
-                        { key = "crit", rating = 1525 },
-                        { key = "mastery", rating = 915 },
+                        { key = "crit", rating = 1424 },
+                        { key = "mastery", rating = 814 },
+                        { key = "vers", rating = 508 },
                         { key = "haste", rating = 305 },
-                        { key = "vers", rating = 305 },
                     },
                     gear = {
                         { slot = "BACK", itemID = 268253, itemLevel = 0, bonusIDs = {  }, name = "item:268253" },
@@ -621,10 +621,10 @@ MetaMirrorData = {
                 raid = {
                     sampleSize = 1,
                     stats = {
-                        { key = "crit", rating = 1525 },
-                        { key = "mastery", rating = 915 },
+                        { key = "crit", rating = 1373 },
+                        { key = "mastery", rating = 916 },
+                        { key = "vers", rating = 457 },
                         { key = "haste", rating = 305 },
-                        { key = "vers", rating = 305 },
                     },
                     gear = {
                         { slot = "BACK", itemID = 268253, itemLevel = 0, bonusIDs = {  }, name = "item:268253" },
@@ -667,8 +667,8 @@ MetaMirrorData = {
                 mythicplus = {
                     sampleSize = 1,
                     stats = {
-                        { key = "mastery", rating = 1220 },
-                        { key = "haste", rating = 915 },
+                        { key = "mastery", rating = 1144 },
+                        { key = "haste", rating = 992 },
                         { key = "crit", rating = 610 },
                         { key = "vers", rating = 305 },
                     },
@@ -714,7 +714,7 @@ MetaMirrorData = {
                     sampleSize = 1,
                     stats = {
                         { key = "mastery", rating = 1220 },
-                        { key = "haste", rating = 915 },
+                        { key = "haste", rating = 916 },
                         { key = "crit", rating = 610 },
                         { key = "vers", rating = 305 },
                     },
@@ -763,10 +763,10 @@ MetaMirrorData = {
                 mythicplus = {
                     sampleSize = 1,
                     stats = {
-                        { key = "haste", rating = 1218 },
-                        { key = "crit", rating = 1218 },
-                        { key = "mastery", rating = 304 },
-                        { key = "vers", rating = 304 },
+                        { key = "haste", rating = 1320 },
+                        { key = "crit", rating = 1015 },
+                        { key = "mastery", rating = 406 },
+                        { key = "vers", rating = 305 },
                     },
                     gear = {
                         { slot = "BACK", itemID = 268253, itemLevel = 0, bonusIDs = { 13662, 13848 }, name = "item:268253" },
@@ -809,9 +809,9 @@ MetaMirrorData = {
                     sampleSize = 1,
                     stats = {
                         { key = "haste", rating = 1218 },
-                        { key = "crit", rating = 1218 },
-                        { key = "mastery", rating = 304 },
-                        { key = "vers", rating = 304 },
+                        { key = "crit", rating = 1066 },
+                        { key = "mastery", rating = 457 },
+                        { key = "vers", rating = 305 },
                     },
                     gear = {
                         { slot = "BACK", itemID = 268253, itemLevel = 0, bonusIDs = { 13662, 13848 }, name = "item:268253" },
@@ -856,9 +856,9 @@ MetaMirrorData = {
                     sampleSize = 1,
                     stats = {
                         { key = "haste", rating = 1514 },
-                        { key = "crit", rating = 908 },
-                        { key = "mastery", rating = 302 },
-                        { key = "vers", rating = 302 },
+                        { key = "crit", rating = 909 },
+                        { key = "mastery", rating = 303 },
+                        { key = "vers", rating = 303 },
                     },
                     gear = {
                         { slot = "BACK", itemID = 239656, itemLevel = 0, bonusIDs = { 8960, 12384, 13751, 13836, 9627 }, name = "item:239656" },
@@ -902,10 +902,10 @@ MetaMirrorData = {
                 raid = {
                     sampleSize = 1,
                     stats = {
-                        { key = "haste", rating = 1211 },
-                        { key = "crit", rating = 1211 },
-                        { key = "mastery", rating = 302 },
-                        { key = "vers", rating = 302 },
+                        { key = "haste", rating = 1212 },
+                        { key = "crit", rating = 1060 },
+                        { key = "vers", rating = 454 },
+                        { key = "mastery", rating = 303 },
                     },
                     gear = {
                         { slot = "BACK", itemID = 239656, itemLevel = 0, bonusIDs = { 8960, 12384, 13751, 13836, 9627 }, name = "item:239656" },
@@ -951,10 +951,10 @@ MetaMirrorData = {
                 mythicplus = {
                     sampleSize = 1,
                     stats = {
-                        { key = "mastery", rating = 1217 },
-                        { key = "haste", rating = 913 },
-                        { key = "vers", rating = 608 },
-                        { key = "crit", rating = 304 },
+                        { key = "mastery", rating = 1332 },
+                        { key = "crit", rating = 799 },
+                        { key = "vers", rating = 494 },
+                        { key = "haste", rating = 419 },
                     },
                     gear = {
                         { slot = "BACK", itemID = 239656, itemLevel = 0, bonusIDs = { 8791, 8960, 12214, 12384, 13667, 13751, 13836, 12497 }, name = "item:239656" },
@@ -999,10 +999,10 @@ MetaMirrorData = {
                 raid = {
                     sampleSize = 1,
                     stats = {
-                        { key = "mastery", rating = 1522 },
+                        { key = "mastery", rating = 1370 },
                         { key = "haste", rating = 913 },
+                        { key = "vers", rating = 456 },
                         { key = "crit", rating = 304 },
-                        { key = "vers", rating = 304 },
                     },
                     gear = {
                         { slot = "BACK", itemID = 239656, itemLevel = 0, bonusIDs = { 8791, 8960, 12214, 12384, 13667, 13751, 13836, 12497 }, name = "item:239656" },
@@ -1051,10 +1051,10 @@ MetaMirrorData = {
                 mythicplus = {
                     sampleSize = 1,
                     stats = {
-                        { key = "haste", rating = 911 },
-                        { key = "crit", rating = 911 },
-                        { key = "mastery", rating = 911 },
-                        { key = "vers", rating = 303 },
+                        { key = "haste", rating = 1114 },
+                        { key = "crit", rating = 810 },
+                        { key = "mastery", rating = 810 },
+                        { key = "vers", rating = 304 },
                     },
                     gear = {
                         { slot = "BACK", itemID = 268253, itemLevel = 0, bonusIDs = {  }, name = "item:268253" },
@@ -1097,10 +1097,10 @@ MetaMirrorData = {
                 raid = {
                     sampleSize = 1,
                     stats = {
-                        { key = "mastery", rating = 1215 },
-                        { key = "haste", rating = 911 },
-                        { key = "crit", rating = 607 },
-                        { key = "vers", rating = 303 },
+                        { key = "mastery", rating = 1114 },
+                        { key = "haste", rating = 811 },
+                        { key = "crit", rating = 810 },
+                        { key = "vers", rating = 304 },
                     },
                     gear = {
                         { slot = "BACK", itemID = 268253, itemLevel = 0, bonusIDs = {  }, name = "item:268253" },
@@ -1147,10 +1147,10 @@ MetaMirrorData = {
                 mythicplus = {
                     sampleSize = 1,
                     stats = {
-                        { key = "haste", rating = 1218 },
-                        { key = "crit", rating = 1218 },
-                        { key = "mastery", rating = 304 },
-                        { key = "vers", rating = 304 },
+                        { key = "haste", rating = 1295 },
+                        { key = "crit", rating = 990 },
+                        { key = "mastery", rating = 381 },
+                        { key = "vers", rating = 381 },
                     },
                     gear = {
                         { slot = "BACK", itemID = 268253, itemLevel = 0, bonusIDs = {  }, name = "item:268253" },
@@ -1193,10 +1193,10 @@ MetaMirrorData = {
                 raid = {
                     sampleSize = 1,
                     stats = {
-                        { key = "haste", rating = 1218 },
-                        { key = "crit", rating = 1218 },
-                        { key = "mastery", rating = 304 },
-                        { key = "vers", rating = 304 },
+                        { key = "haste", rating = 1295 },
+                        { key = "crit", rating = 990 },
+                        { key = "mastery", rating = 381 },
+                        { key = "vers", rating = 381 },
                     },
                     gear = {
                         { slot = "BACK", itemID = 268253, itemLevel = 0, bonusIDs = {  }, name = "item:268253" },
@@ -1241,8 +1241,8 @@ MetaMirrorData = {
                 mythicplus = {
                     sampleSize = 1,
                     stats = {
-                        { key = "crit", rating = 1220 },
-                        { key = "mastery", rating = 1220 },
+                        { key = "crit", rating = 1372 },
+                        { key = "mastery", rating = 1068 },
                         { key = "haste", rating = 305 },
                         { key = "vers", rating = 305 },
                     },
@@ -1287,8 +1287,8 @@ MetaMirrorData = {
                     sampleSize = 1,
                     stats = {
                         { key = "crit", rating = 1220 },
-                        { key = "mastery", rating = 915 },
-                        { key = "haste", rating = 610 },
+                        { key = "mastery", rating = 763 },
+                        { key = "haste", rating = 762 },
                         { key = "vers", rating = 305 },
                     },
                     gear = {
@@ -1333,9 +1333,9 @@ MetaMirrorData = {
                 mythicplus = {
                     sampleSize = 1,
                     stats = {
-                        { key = "crit", rating = 1525 },
-                        { key = "mastery", rating = 915 },
-                        { key = "haste", rating = 305 },
+                        { key = "crit", rating = 1322 },
+                        { key = "mastery", rating = 1017 },
+                        { key = "haste", rating = 407 },
                         { key = "vers", rating = 305 },
                     },
                     gear = {
@@ -1379,9 +1379,9 @@ MetaMirrorData = {
                 raid = {
                     sampleSize = 1,
                     stats = {
-                        { key = "crit", rating = 1525 },
-                        { key = "mastery", rating = 915 },
-                        { key = "haste", rating = 305 },
+                        { key = "crit", rating = 1322 },
+                        { key = "mastery", rating = 1017 },
+                        { key = "haste", rating = 407 },
                         { key = "vers", rating = 305 },
                     },
                     gear = {
@@ -1429,10 +1429,10 @@ MetaMirrorData = {
                 mythicplus = {
                     sampleSize = 1,
                     stats = {
-                        { key = "haste", rating = 1158 },
-                        { key = "crit", rating = 1158 },
-                        { key = "mastery", rating = 289 },
-                        { key = "vers", rating = 289 },
+                        { key = "crit", rating = 1304 },
+                        { key = "haste", rating = 724 },
+                        { key = "mastery", rating = 580 },
+                        { key = "vers", rating = 290 },
                     },
                     gear = {
                         { slot = "BACK", itemID = 268253, itemLevel = 0, bonusIDs = { 13662, 13848 }, name = "item:268253" },
@@ -1476,10 +1476,10 @@ MetaMirrorData = {
                 raid = {
                     sampleSize = 1,
                     stats = {
-                        { key = "haste", rating = 869 },
-                        { key = "crit", rating = 869 },
-                        { key = "mastery", rating = 869 },
-                        { key = "vers", rating = 289 },
+                        { key = "crit", rating = 1062 },
+                        { key = "haste", rating = 773 },
+                        { key = "mastery", rating = 773 },
+                        { key = "vers", rating = 290 },
                     },
                     gear = {
                         { slot = "BACK", itemID = 268253, itemLevel = 0, bonusIDs = { 13662, 13848 }, name = "item:268253" },
@@ -1525,9 +1525,9 @@ MetaMirrorData = {
                 mythicplus = {
                     sampleSize = 1,
                     stats = {
-                        { key = "mastery", rating = 1220 },
-                        { key = "haste", rating = 915 },
-                        { key = "crit", rating = 610 },
+                        { key = "mastery", rating = 1098 },
+                        { key = "haste", rating = 976 },
+                        { key = "crit", rating = 671 },
                         { key = "vers", rating = 305 },
                     },
                     gear = {
@@ -1574,8 +1574,8 @@ MetaMirrorData = {
                     sampleSize = 1,
                     stats = {
                         { key = "haste", rating = 1220 },
-                        { key = "mastery", rating = 915 },
-                        { key = "crit", rating = 610 },
+                        { key = "mastery", rating = 763 },
+                        { key = "crit", rating = 762 },
                         { key = "vers", rating = 305 },
                     },
                     gear = {
@@ -1625,10 +1625,10 @@ MetaMirrorData = {
                 mythicplus = {
                     sampleSize = 1,
                     stats = {
-                        { key = "haste", rating = 869 },
-                        { key = "crit", rating = 869 },
-                        { key = "mastery", rating = 579 },
-                        { key = "vers", rating = 579 },
+                        { key = "haste", rating = 952 },
+                        { key = "crit", rating = 787 },
+                        { key = "vers", rating = 787 },
+                        { key = "mastery", rating = 373 },
                     },
                     gear = {
                         { slot = "BACK", itemID = 268253, itemLevel = 0, bonusIDs = { 13335, 13848 }, name = "item:268253" },
@@ -1672,10 +1672,10 @@ MetaMirrorData = {
                 raid = {
                     sampleSize = 1,
                     stats = {
-                        { key = "haste", rating = 869 },
-                        { key = "crit", rating = 869 },
-                        { key = "mastery", rating = 869 },
-                        { key = "vers", rating = 289 },
+                        { key = "crit", rating = 825 },
+                        { key = "mastery", rating = 825 },
+                        { key = "haste", rating = 714 },
+                        { key = "vers", rating = 535 },
                     },
                     gear = {
                         { slot = "BACK", itemID = 268253, itemLevel = 0, bonusIDs = { 13335, 13848 }, name = "item:268253" },
@@ -1721,9 +1721,9 @@ MetaMirrorData = {
                 mythicplus = {
                     sampleSize = 1,
                     stats = {
-                        { key = "haste", rating = 1216 },
-                        { key = "mastery", rating = 912 },
-                        { key = "vers", rating = 608 },
+                        { key = "haste", rating = 1338 },
+                        { key = "vers", rating = 852 },
+                        { key = "mastery", rating = 547 },
                         { key = "crit", rating = 304 },
                     },
                     gear = {
@@ -1768,9 +1768,9 @@ MetaMirrorData = {
                 raid = {
                     sampleSize = 1,
                     stats = {
-                        { key = "haste", rating = 1520 },
-                        { key = "mastery", rating = 608 },
-                        { key = "vers", rating = 608 },
+                        { key = "haste", rating = 1399 },
+                        { key = "mastery", rating = 669 },
+                        { key = "vers", rating = 669 },
                         { key = "crit", rating = 304 },
                     },
                     gear = {
@@ -1817,8 +1817,8 @@ MetaMirrorData = {
                 mythicplus = {
                     sampleSize = 1,
                     stats = {
-                        { key = "crit", rating = 1216 },
-                        { key = "mastery", rating = 1216 },
+                        { key = "crit", rating = 1368 },
+                        { key = "mastery", rating = 1064 },
                         { key = "haste", rating = 304 },
                         { key = "vers", rating = 304 },
                     },
@@ -1861,9 +1861,9 @@ MetaMirrorData = {
                 raid = {
                     sampleSize = 1,
                     stats = {
-                        { key = "crit", rating = 1216 },
-                        { key = "mastery", rating = 1216 },
-                        { key = "haste", rating = 304 },
+                        { key = "crit", rating = 1317 },
+                        { key = "mastery", rating = 1014 },
+                        { key = "haste", rating = 405 },
                         { key = "vers", rating = 304 },
                     },
                     gear = {
@@ -1910,9 +1910,9 @@ MetaMirrorData = {
                     sampleSize = 1,
                     stats = {
                         { key = "haste", rating = 1219 },
-                        { key = "crit", rating = 914 },
-                        { key = "vers", rating = 609 },
-                        { key = "mastery", rating = 304 },
+                        { key = "crit", rating = 915 },
+                        { key = "vers", rating = 522 },
+                        { key = "mastery", rating = 392 },
                     },
                     gear = {
                         { slot = "BACK", itemID = 268253, itemLevel = 0, bonusIDs = {  }, name = "item:268253" },
@@ -1956,10 +1956,10 @@ MetaMirrorData = {
                 raid = {
                     sampleSize = 1,
                     stats = {
-                        { key = "crit", rating = 1159 },
-                        { key = "haste", rating = 869 },
+                        { key = "crit", rating = 1111 },
+                        { key = "haste", rating = 918 },
                         { key = "vers", rating = 579 },
-                        { key = "mastery", rating = 289 },
+                        { key = "mastery", rating = 290 },
                     },
                     gear = {
                         { slot = "BACK", itemID = 268253, itemLevel = 0, bonusIDs = {  }, name = "item:268253" },
@@ -2005,10 +2005,10 @@ MetaMirrorData = {
                 mythicplus = {
                     sampleSize = 1,
                     stats = {
-                        { key = "crit", rating = 1217 },
-                        { key = "haste", rating = 912 },
-                        { key = "mastery", rating = 608 },
-                        { key = "vers", rating = 304 },
+                        { key = "crit", rating = 1065 },
+                        { key = "haste", rating = 1014 },
+                        { key = "mastery", rating = 558 },
+                        { key = "vers", rating = 406 },
                     },
                     gear = {
                         { slot = "BACK", itemID = 268253, itemLevel = 0, bonusIDs = {  }, name = "item:268253" },
@@ -2052,10 +2052,10 @@ MetaMirrorData = {
                 raid = {
                     sampleSize = 1,
                     stats = {
-                        { key = "crit", rating = 1217 },
-                        { key = "haste", rating = 912 },
-                        { key = "mastery", rating = 608 },
-                        { key = "vers", rating = 304 },
+                        { key = "crit", rating = 1268 },
+                        { key = "haste", rating = 862 },
+                        { key = "mastery", rating = 507 },
+                        { key = "vers", rating = 406 },
                     },
                     gear = {
                         { slot = "BACK", itemID = 268253, itemLevel = 0, bonusIDs = {  }, name = "item:268253" },
@@ -2101,10 +2101,10 @@ MetaMirrorData = {
                 mythicplus = {
                     sampleSize = 1,
                     stats = {
-                        { key = "crit", rating = 1217 },
-                        { key = "mastery", rating = 912 },
-                        { key = "haste", rating = 608 },
-                        { key = "vers", rating = 304 },
+                        { key = "crit", rating = 1179 },
+                        { key = "mastery", rating = 723 },
+                        { key = "haste", rating = 685 },
+                        { key = "vers", rating = 456 },
                     },
                     gear = {
                         { slot = "BACK", itemID = 268253, itemLevel = 0, bonusIDs = {  }, name = "item:268253" },
@@ -2148,10 +2148,10 @@ MetaMirrorData = {
                 raid = {
                     sampleSize = 1,
                     stats = {
-                        { key = "haste", rating = 912 },
-                        { key = "crit", rating = 912 },
-                        { key = "mastery", rating = 912 },
-                        { key = "vers", rating = 304 },
+                        { key = "mastery", rating = 1065 },
+                        { key = "crit", rating = 964 },
+                        { key = "haste", rating = 659 },
+                        { key = "vers", rating = 355 },
                     },
                     gear = {
                         { slot = "BACK", itemID = 268253, itemLevel = 0, bonusIDs = {  }, name = "item:268253" },
@@ -2199,10 +2199,10 @@ MetaMirrorData = {
                 mythicplus = {
                     sampleSize = 1,
                     stats = {
-                        { key = "crit", rating = 1524 },
+                        { key = "crit", rating = 1372 },
                         { key = "vers", rating = 914 },
-                        { key = "haste", rating = 304 },
-                        { key = "mastery", rating = 304 },
+                        { key = "mastery", rating = 457 },
+                        { key = "haste", rating = 305 },
                     },
                     gear = {
                         { slot = "BACK", itemID = 268253, itemLevel = 0, bonusIDs = { 13848 }, name = "item:268253" },
@@ -2245,10 +2245,10 @@ MetaMirrorData = {
                 raid = {
                     sampleSize = 1,
                     stats = {
-                        { key = "crit", rating = 1524 },
-                        { key = "vers", rating = 914 },
-                        { key = "haste", rating = 304 },
-                        { key = "mastery", rating = 304 },
+                        { key = "crit", rating = 1321 },
+                        { key = "vers", rating = 1016 },
+                        { key = "mastery", rating = 406 },
+                        { key = "haste", rating = 305 },
                     },
                     gear = {
                         { slot = "BACK", itemID = 268253, itemLevel = 0, bonusIDs = { 13848 }, name = "item:268253" },
@@ -2294,8 +2294,8 @@ MetaMirrorData = {
                     sampleSize = 1,
                     stats = {
                         { key = "haste", rating = 1220 },
-                        { key = "mastery", rating = 915 },
-                        { key = "crit", rating = 610 },
+                        { key = "mastery", rating = 1068 },
+                        { key = "crit", rating = 458 },
                         { key = "vers", rating = 305 },
                     },
                     gear = {
@@ -2339,10 +2339,10 @@ MetaMirrorData = {
                 raid = {
                     sampleSize = 1,
                     stats = {
-                        { key = "haste", rating = 915 },
-                        { key = "crit", rating = 915 },
-                        { key = "mastery", rating = 915 },
-                        { key = "vers", rating = 305 },
+                        { key = "haste", rating = 992 },
+                        { key = "mastery", rating = 992 },
+                        { key = "crit", rating = 687 },
+                        { key = "vers", rating = 381 },
                     },
                     gear = {
                         { slot = "BACK", itemID = 268253, itemLevel = 0, bonusIDs = { 13848 }, name = "item:268253" },
@@ -2481,10 +2481,10 @@ MetaMirrorData = {
                 mythicplus = {
                     sampleSize = 1,
                     stats = {
-                        { key = "haste", rating = 1159 },
-                        { key = "crit", rating = 1159 },
-                        { key = "mastery", rating = 289 },
-                        { key = "vers", rating = 289 },
+                        { key = "haste", rating = 1160 },
+                        { key = "crit", rating = 918 },
+                        { key = "vers", rating = 435 },
+                        { key = "mastery", rating = 387 },
                     },
                     gear = {
                         { slot = "BACK", itemID = 268253, itemLevel = 0, bonusIDs = {  }, name = "item:268253" },
@@ -2531,10 +2531,10 @@ MetaMirrorData = {
                 raid = {
                     sampleSize = 1,
                     stats = {
-                        { key = "haste", rating = 1159 },
-                        { key = "crit", rating = 1159 },
-                        { key = "mastery", rating = 289 },
-                        { key = "vers", rating = 289 },
+                        { key = "crit", rating = 1111 },
+                        { key = "haste", rating = 1015 },
+                        { key = "vers", rating = 387 },
+                        { key = "mastery", rating = 386 },
                     },
                     gear = {
                         { slot = "BACK", itemID = 268253, itemLevel = 0, bonusIDs = {  }, name = "item:268253" },

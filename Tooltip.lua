@@ -1,6 +1,6 @@
--- BiS-Hinweis im Item-Tooltip: beim Hovern (Loot-Fenster, Beutel, Chat-Link, Haendler)
+-- Referenz-Hinweis im Item-Tooltip: beim Hovern (Loot-Fenster, Beutel, Chat-Link, Haendler)
 -- haengt das Addon Zeilen an, fuer welche Specs der EIGENEN Klasse das Item Sim-Referenz-
--- BiS ist (M+/Raid) bzw. ein S-Tier-Schmuckstueck. Alle Specs der Klasse (Offspec-Loot),
+-- Teil des Referenz-Sets ist (M+/Raid) bzw. ein S-Tier-Schmuckstueck. Alle Specs der
 -- aktuelle Spec zuerst. Der Index wird einmal je Spec-Wechsel gebaut (Daten sind statisch).
 -- Hook: TooltipDataProcessor (10.0.2+) -> greift fuer GameTooltip, ItemRefTooltip, Vergleich.
 MetaMirror = MetaMirror or {}
@@ -41,7 +41,7 @@ function MetaMirror:BuildTooltipIndex(classID, specs, root, troot)
     end
     local cls = root and root.specs and root.specs[classID]
     for _, spec in ipairs(specs) do
-        -- Gear-BiS je Content.
+        -- Referenz-Gear je Content.
         local sd = cls and cls[spec.specID]
         for _, content in ipairs(CONTENTS) do
             local d = sd and sd[content]

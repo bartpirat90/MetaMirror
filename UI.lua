@@ -27,7 +27,7 @@ end
 function MetaMirror:BuildPanel()
     if Panel then return end
     Panel = CreateFrame("Frame", "MetaMirrorPanel", UIParent, "BackdropTemplate")
-    Panel:SetSize(440, 524)   -- 524: 16 Gear-Zeilen (416 px) passen in den Body, ohne in die Fusszeile zu ragen
+    Panel:SetSize(440, 544)   -- 544: Gear-Hinweiszeile (20 px) + 16 Gear-Zeilen (416 px) passen in den Body
     Panel:SetFrameStrata("HIGH")
     Panel:EnableMouse(true)
     Panel:SetMovable(true)
@@ -480,6 +480,7 @@ end
 
 local function hideItemRows()
     for j = 1, #itemRows do itemRows[j].statusText = nil; itemRows[j]:Hide() end
+    if Body and Body.gearNote then Body.gearNote:Hide() end
 end
 
 -- Upgrade-Stufen-Bonus-IDs (Midnight S2, via /mm dumpq abgeleitet):
@@ -609,15 +610,31 @@ end
 
 -- entries: Liste aus { label, itemID, fallback, enchantID, bonusIDs }.
 -- Nur der Gear-Tab nutzt diese Liste -> hier auch Quelle + Ampel setzen.
+-- Hinweiszeile ueber der Gear-Liste: das Set stammt aus EINEM SimulationCraft-
+-- Referenzprofil je Spec, das bloodmallet fuer beide Fight-Styles gleich benutzt. Ohne
+-- diesen Hinweis wirkt der M+/Raid-Schalter im Ausruestungs-Tab defekt, weil sich beim
+-- Umschalten nichts aendert.
+local function ensureGearNote()
+    if Body.gearNote then return Body.gearNote end
+    Body.gearNote = fs(Body, "GameFontDisableSmall", C.DIM)
+    Body.gearNote:SetPoint("TOPLEFT", 0, -4); Body.gearNote:SetJustifyH("LEFT")
+    return Body.gearNote
+end
+
+local GEAR_NOTE_OFFSET = 20   -- Platz fuer die Hinweiszeile ueber der ersten Gear-Zeile
+
 local function renderItemList(entries)
     for j = 1, #rows do rows[j]:Hide() end
     if Body.msg then Body.msg:Hide() end
+    local note = ensureGearNote()
+    note:SetText(L.gear_note)   -- Farbe kommt aus fs(..., C.DIM); kein Hex-Praefix noetig
+    note:Show()
     local ctx = MetaMirror:BuildGearContext()
     local i = 0
     for _, e in ipairs(entries) do
         i = i + 1
         local b = getItemRow(i)
-        b:ClearAllPoints(); b:SetPoint("TOPLEFT", 0, -(i - 1) * 26)
+        b:ClearAllPoints(); b:SetPoint("TOPLEFT", 0, -GEAR_NOTE_OFFSET - (i - 1) * 26)
         -- Ampel sofort mit unbekannter Referenzstufe setzen (angelegt/Beutel/fehlt), nach
         -- dem Laden des Links mit der echten Referenzstufe verfeinern (-> "schwaecher").
         applyGearStatus(b, e.itemID, ctx, nil)
@@ -938,7 +955,7 @@ local function renderImprovements(self, data)
     for j = ri + 1, #impRows do impRows[j]:Hide() end
 end
 
--- ===== "Schmuck": Trinket-Tierliste aus Bloodmallet (Sim-BiS) =====
+-- ===== "Schmuck": Trinket-Tierliste aus Bloodmallet (Sim-Rangliste) =====
 -- Quelle: Data/MetaMirrorTrinkets.lua, je Spec eine S/A/B/C/D-Rangliste nach Sim-DPS.
 local TIER_COLOR = {
     S = { 1.00, 0.55, 0.10 },   -- orange-gold
@@ -965,7 +982,7 @@ local function trinketModeLabel(mode)
 end
 
 local function trinketData(specID)
-    -- Quelle: Bloodmallet-Sim-BiS (Data/MetaMirrorTrinkets.lua).
+    -- Quelle: Bloodmallet-Sim-Rangliste (Data/MetaMirrorTrinkets.lua).
     local root = _G.MetaMirrorTrinkets
     if not (root and root.specs and specID) then return nil end
     return root.specs[specID]
