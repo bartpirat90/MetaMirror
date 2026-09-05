@@ -20,7 +20,7 @@ Ein vollständiges Ausrüstungsset pro Spec — Items, Steine und Verzauberungen
 Jede Referenz-Zeile im Ausrüstungs-Tab bekommt eine Ampel: grün, wenn du das Teil angelegt hast, blau, wenn es im Beutel liegt, rot (gedämpft), wenn du es nicht besitzt. Der Aufwertungspfad spielt bewusst keine Rolle — dass eine höhere Gegenstandsstufe besser ist, weiß jeder, das einzufärben wäre nur Lärm. Die Referenzstufe nennt der Tooltip der Zeile, als Information statt als Wertung.
 
 ### 💎 Schmuck-Tierliste
-Sim-DPS-Tiers von bloodmallet.com für deine Spec, S bis D. bloodmallet simuliert Schmuck nur im Einzelziel, deshalb teilen sich Mythisch+ und Raid eine Liste — der Tab sagt das auch, statt etwas anderes vorzutäuschen.
+Sim-DPS-Tiers von bloodmallet.com für deine Spec, S bis D. bloodmallet simuliert Schmuck nur im Einzelziel, deshalb teilen sich Mythisch+ und Raid eine Liste — der Tab sagt das auch, statt etwas anderes vorzutäuschen. Goldene Zeilen sind die zwei Schmuckstücke, die das Referenzprofil im Gear-Tab tatsächlich trägt: die Tierliste simuliert jedes Trinket einzeln gegen dasselbe Basisprofil, das Referenzprofil ist ein fertig gebauter Charakter — deshalb stimmen die beiden Reihenfolgen selten exakt überein.
 
 ### ⬆️ Verbesserungen auf einen Blick
 Verzauberungen, Steine und Verbrauchsmaterial für deine Spec auf einer Seite, jeweils mit Quelle.

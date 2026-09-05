@@ -8,6 +8,25 @@ function MetaMirror:DataFor(classID, specID, content)
     return s and s[content] or nil
 end
 
+-- ItemIDs der beiden Schmuckstuecke aus dem Referenzprofil, als Set.
+-- Der Schmuck-Tab zeigt eine ANDERE Quelle: eine Einzelziel-Rangliste, in der jedes
+-- Trinket allein gegen dasselbe Basisprofil simuliert wird. Das Referenzprofil dagegen
+-- ist ein fertig gebauter Charakter (Set-Boni, Stat-Verteilung, Fight Style). Beide
+-- Reihenfolgen weichen deshalb regelmaessig voneinander ab -- das ist kein Fehler,
+-- aber ohne Markierung wirkt es wie einer.
+-- Leeres Set statt nil: die Aufrufer sollen nur EINEN Fall pruefen muessen.
+function MetaMirror:ReferenceTrinkets(classID, specID, content)
+    local set = {}
+    local data = self:DataFor(classID, specID, content)
+    for _, g in ipairs(data and data.gear or {}) do
+        if (g.slot == "TRINKET1" or g.slot == "TRINKET2")
+           and g.itemID and g.itemID ~= 0 then
+            set[g.itemID] = true
+        end
+    end
+    return set
+end
+
 -- Status eines Stats: "under" | "on" | "over" | "unknown".
 -- Vergleicht Ratings (eigenes vs. Meta-Ziel). "unknown", wenn der eigene Wert
 -- nil oder ein secret value ist (Kampf/Instanz). tol = Rating-Toleranzband.

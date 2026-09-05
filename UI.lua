@@ -1122,6 +1122,16 @@ local function getTkRow(parent, i)
     local b = CreateFrame("Button", nil, parent)
     b:SetSize(CHILD_W - 12, 26)
     b:RegisterForClicks("AnyUp")
+    -- Markierung "steckt im Referenzprofil": bewusst dieselben zwei Texturen wie die
+    -- Gear-Ampel (Schimmer + Akzentstreifen links), damit die Zeile im Schmuck-Tab
+    -- nicht wie ein drittes, neues Gestaltungsmittel wirkt.
+    b.hl = b:CreateTexture(nil, "BACKGROUND")
+    b.hl:SetPoint("TOPLEFT", 0, 0); b.hl:SetPoint("BOTTOMRIGHT", 0, 0)
+    b.hl:Hide()
+    b.hlEdge = b:CreateTexture(nil, "BORDER")
+    b.hlEdge:SetPoint("TOPLEFT", 0, 0); b.hlEdge:SetPoint("BOTTOMLEFT", 0, 0)
+    b.hlEdge:SetWidth(2)
+    b.hlEdge:Hide()
     b.tier = fs(b, "GameFontNormalLarge", C.TXT)
     b.tier:SetPoint("LEFT", 2, 0); b.tier:SetWidth(22); b.tier:SetJustifyH("CENTER")
     b.icon = b:CreateTexture(nil, "ARTWORK"); b.icon:SetSize(22, 22)
@@ -1146,7 +1156,9 @@ local function getTkRow(parent, i)
     b:SetScript("OnEnter", function(self)
         if not self.link then return end
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:SetHyperlink(self.link); GameTooltip:Show()
+        GameTooltip:SetHyperlink(self.link)
+        if self.refNote then GameTooltip:AddLine(self.refNote, 1.0, 0.82, 0.0) end
+        GameTooltip:Show()
     end)
     b:SetScript("OnLeave", function() GameTooltip:Hide() end)
     b:SetScript("OnClick", function(self, button)
@@ -1159,6 +1171,20 @@ local function getTkRow(parent, i)
     return b
 end
 
+-- Zeilen werden zwischen Specs wiederverwendet -> beide Zustaende explizit setzen.
+local function markReferenceTrinket(b, isRef)
+    if isRef then
+        local c = C.GOLD
+        b.hl:SetColorTexture(c[1], c[2], c[3], 0.14)
+        b.hlEdge:SetColorTexture(c[1], c[2], c[3], 0.85)
+        b.hl:Show(); b.hlEdge:Show()
+        b.refNote = string.format(L.trinket_ref_tip, L.tab_gear)
+    else
+        b.hl:Hide(); b.hlEdge:Hide()
+        b.refNote = nil
+    end
+end
+
 -- Metrik-/Credit-Zeile + Scrollbereich, einmalig erzeugt. KEIN eigener M+/Raid-Umschalter
 -- mehr: der Schmuck-Tab folgt dem globalen Kontext-Schalter (M+/Raid) oben im Panel, sonst
 -- gaebe es zwei konkurrierende Umschalter fuer denselben Zweck (verwirrend).
@@ -1168,7 +1194,7 @@ local function ensureTrinketUI()
     Body.tkNote:SetPoint("TOPLEFT", 0, -4); Body.tkNote:SetJustifyH("LEFT")
     local sf = CreateFrame("ScrollFrame", "MetaMirrorTkScroll", Body,
                            "UIPanelScrollFrameTemplate")
-    sf:SetPoint("TOPLEFT", 0, -22); sf:SetPoint("BOTTOMRIGHT", -22, 0)
+    sf:SetPoint("TOPLEFT", 0, -34); sf:SetPoint("BOTTOMRIGHT", -22, 0)
     sf:EnableMouseWheel(true)
     sf:SetScript("OnMouseWheel", function(self, delta)
         local newv = self:GetVerticalScroll() - delta * 24
@@ -1187,7 +1213,7 @@ local function hideTrinkets()
     for j = 1, #tkRows do tkRows[j]:Hide() end
 end
 
-local function renderTrinkets(self, specID)
+local function renderTrinkets(self, classID, specID)
     local child = ensureTrinketUI()
     Body.tkScroll:Show()
 
@@ -1199,7 +1225,7 @@ local function renderTrinkets(self, specID)
         b:ClearAllPoints(); b:SetPoint("TOPLEFT", 8, 0)
         b.tier:SetText(""); b.icon:SetTexture(nil); b.link = nil
         b.src.srcData = nil; b.src.text:SetText(""); b.src:Hide()
-        boundLabel(b, false)
+        boundLabel(b, false); markReferenceTrinket(b, false)
         -- Ganze Spec ohne Bloodmallet-Daten -> ehrlicher Hinweis; die Liste fuellt sich,
         -- sobald Bloodmallet fuer diese Spec Profile liefert (Nachschub).
         b.label:SetText(DIM_HEX .. L.trinket_no_bm .. "|r")
@@ -1209,9 +1235,18 @@ local function renderTrinkets(self, specID)
         return
     end
     -- Hinweiszeile: Rangliste nach simuliertem Schaden (bloodmallet.com, Einzelziel);
-    -- der globale M+/Raid-Schalter aendert an dieser Liste nichts.
-    Body.tkNote:SetText(DIM_HEX .. L.trinket_note .. " " .. L.trinket_single .. "|r")
+    -- der globale M+/Raid-Schalter aendert an dieser Liste nichts. Zweite Zeile erklaert
+    -- die goldene Markierung -- eine Farbe ohne Legende waere nur ein neues Raetsel.
+    -- Farbcode je Zeile neu setzen: ueber einen Zeilenumbruch hinweg gilt er nicht.
+    Body.tkNote:SetText(DIM_HEX .. L.trinket_note .. " " .. L.trinket_single .. "|r\n"
+        .. DIM_HEX .. string.format(L.trinket_ref_note, L.tab_gear) .. "|r")
     Body.tkNote:Show()
+
+    -- Die zwei Schmuckstuecke des Referenzprofils. Bei Trinkets mit Stat-Modi (gleiche
+    -- itemID, mehrere Zeilen) werden alle Varianten markiert: die Daten nennen nur die
+    -- itemID, welcher Modus im Profil steckt, steht nirgends -- lieber alle markieren
+    -- als eine Variante frei auswaehlen.
+    local refSet = self:ReferenceTrinkets(classID, specID, MetaMirrorDB.content)
 
     local list = spec.overall or {}
     local y, i = 0, 0
@@ -1234,6 +1269,7 @@ local function renderTrinkets(self, specID)
         -- ein nicht-craftbares Drop-Trinket (auch aus aelteren Seasons) bleibt sonst leer,
         -- statt faelschlich "Hergestellt" zu behaupten.
         applyRowSource(b, e.itemID)
+        markReferenceTrinket(b, refSet[e.itemID] or false)
         y = y + 26
     end
     -- Leere Liste -> Hinweiszeile.
@@ -1243,7 +1279,7 @@ local function renderTrinkets(self, specID)
         b:ClearAllPoints(); b:SetPoint("TOPLEFT", 8, 0)
         b.tier:SetText(""); b.icon:SetTexture(nil); b.link = nil
         b.src.srcData = nil; b.src.text:SetText(""); b.src:Hide()
-        boundLabel(b, false)
+        boundLabel(b, false); markReferenceTrinket(b, false)
         b.label:SetText(DIM_HEX .. L.trinket_no_data .. "|r")
         b:Show()
         y = 28
@@ -1263,7 +1299,7 @@ function MetaMirror.RenderBody(self, classID, specID)
         for j = 1, #rows do rows[j]:Hide() end
         hideItemRows(); hideImprovements()
         Body.msg:Hide()
-        renderTrinkets(self, specID)
+        renderTrinkets(self, classID, specID)
         return
     end
     hideTrinkets()

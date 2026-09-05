@@ -20,7 +20,7 @@ A full recommended gear set per spec - items, gems and enchants - taken from the
 Each reference item on the Gear tab gets a traffic light: green if you have it equipped, blue if it's sitting in your bags, dimmed red if you don't have it at all. The upgrade track plays no part - everyone knows a higher item level is better, so colouring that in would only add noise. Hovering a row names the reference item level, as information rather than a verdict.
 
 ### 💎 Trinket tier list
-Simulated DPS tiers from bloodmallet.com for your spec, S to D. bloodmallet sims trinkets single-target only, so Mythic+ and Raid share one list - the tab says so instead of pretending otherwise.
+Simulated DPS tiers from bloodmallet.com for your spec, S to D. bloodmallet sims trinkets single-target only, so Mythic+ and Raid share one list - the tab says so instead of pretending otherwise. Gold rows are the two trinkets the reference profile on the Gear tab actually wears: the tier list sims each trinket alone against the same base profile, the reference profile is a finished character, so the two orders rarely match exactly.
 
 ### ⬆️ Upgrades in one place
 Enchants, gems and consumables for your spec on a single page, each with its source.

@@ -16,7 +16,7 @@ auto-detected, there is nothing to configure.
 | --- | --- |
 | **Stats** | Secondary stat targets from bloodmallet.com's sims per spec: one target for Raid (single-target), one for Mythic+ (five targets), compared live against your own gear. The target averages every distribution within 0.5% of the best one, so it is finer than the sim's own 10% grid. |
 | **Gear** | A full recommended gear set per spec - items, gems and enchants - taken from the current season's SimulationCraft reference profile. There is one profile per spec, so the set is the same for Mythic+ and Raid; the tab says so. |
-| **Trinkets** | Simulated DPS tiers from bloodmallet.com (single-target sim, so Mythic+ and Raid share one list), each entry with its source: boss, craft, vendor, delve or PvP. |
+| **Trinkets** | Simulated DPS tiers from bloodmallet.com (single-target sim, so Mythic+ and Raid share one list), each entry with its source: boss, craft, vendor, delve or PvP. Rows in gold are the two trinkets the reference profile actually wears - the tier list sims each trinket on its own, the profile is a finished character, so the two orders differ. |
 | **Upgrades** | Enchants, gems and consumables for your spec on one page, each with its source. |
 
 Every tab's header shows a data stamp - the sim's fight style and the date the data

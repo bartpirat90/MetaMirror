@@ -110,6 +110,50 @@ test("Data_gear_carries_reference_item_level", function()
     assertEqual(withLevel > 0, true, "mindestens ein Eintrag traegt eine Referenzstufe")
 end)
 
+test("ReferenceTrinkets_returns_profile_trinkets", function()
+    -- Der Schmuck-Tab markiert damit die Zeilen, die auch im Referenzprofil stecken.
+    -- Ohne diese Bruecke wirkt die abweichende Reihenfolge der beiden Sichten wie ein
+    -- Widerspruch.
+    local root = _G.MetaMirrorData
+    local specs = root and root.specs
+    local found = false
+    for classID, byspec in pairs(specs or {}) do
+        for specID, contents in pairs(byspec) do
+            for content, data in pairs(contents) do
+                local want = {}
+                for _, g in ipairs(data.gear or {}) do
+                    if g.slot == "TRINKET1" or g.slot == "TRINKET2" then
+                        want[#want+1] = g.itemID
+                    end
+                end
+                if #want > 0 then
+                    found = true
+                    local set = MetaMirror:ReferenceTrinkets(classID, specID, content)
+                    for _, id in ipairs(want) do
+                        assertEqual(set[id], true, "Trinket " .. tostring(id) .. " markiert")
+                    end
+                end
+            end
+        end
+    end
+    assertEqual(found, true, "mindestens ein Profil traegt Schmuck")
+end)
+test("ReferenceTrinkets_empty_set_for_unknown_spec", function()
+    -- Leeres Set statt nil: die UI indiziert direkt, ohne Nil-Pruefung.
+    local set = MetaMirror:ReferenceTrinkets(999, 999, "raid")
+    assertEqual(type(set), "table", "Tabelle auch ohne Daten")
+    assertEqual(next(set), nil, "leer")
+    assertEqual(set[12345], nil, "beliebige itemID nicht markiert")
+end)
+test("ReferenceTrinkets_excludes_other_slots", function()
+    local set = MetaMirror:ReferenceTrinkets(9, 266, "raid")
+    local data = MetaMirror:DataFor(9, 266, "raid")
+    for _, g in ipairs((data and data.gear) or {}) do
+        if g.slot ~= "TRINKET1" and g.slot ~= "TRINKET2" then
+            assertEqual(set[g.itemID], nil, "Nicht-Schmuck " .. g.slot .. " nicht markiert")
+        end
+    end
+end)
 test("GearStatus_equipped_regardless_of_item_level", function()
     -- Angelegt ist angelegt: die Stufe darf den Zustand nicht mehr beeinflussen,
     -- sonst wird eine Selbstverstaendlichkeit ("hoeher ist besser") eingefaerbt.
