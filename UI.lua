@@ -1,5 +1,6 @@
 MetaMirror = MetaMirror or {}
 local C, L = MetaMirror.C, MetaMirror.L
+local S = MetaMirror.Style      -- gemeinsame Tiefen-Bausteine, siehe Style.lua
 
 -- "improve" fasst Verzauberungen + Edelsteine + Verbrauchsmaterial auf einer
 -- Seite mit einklappbaren Abschnitten zusammen (Class-Codex-"Verbesserungen").
@@ -13,11 +14,7 @@ local VALID_TABS = { stats = true, gear = true,
 
 local Panel, Tabs, Body, Header, Stamp, CtxBtns = nil, {}, nil, nil, nil, {}
 
-local function tex(parent, layer, col)
-    local t = parent:CreateTexture(nil, layer)
-    t:SetColorTexture(col[1], col[2], col[3], col[4] or 1)
-    return t
-end
+local function tex(parent, layer, col) return S.Tex(parent, layer, col) end
 local function fs(parent, tmpl, col)
     local f = parent:CreateFontString(nil, "OVERLAY", tmpl or "GameFontNormal")
     if col then f:SetTextColor(unpack(col)) end
@@ -45,19 +42,30 @@ function MetaMirror:BuildPanel()
         MetaMirrorDB.pos = { custom = true, x = x, y = y }
     end)
     local bg = tex(Panel, "BACKGROUND", C.BG_MAIN); bg:SetAllPoints()
+    -- Rahmen neutral, nicht violett: Violett traegt in dieser Optik nur Akzente
+    -- (aktiver Tab, aktiver Schalter). Ein komplett violetter Rahmen zieht den
+    -- Blick auf die Kante statt auf den Inhalt.
     Panel:SetBackdrop({ edgeFile = "Interface\\Buttons\\WHITE8x8", edgeSize = 1 })
-    Panel:SetBackdropBorderColor(unpack(C.VIOLET))
+    Panel:SetBackdropBorderColor(unpack(C.BORDER))
+    S.Shadow(Panel)
 
-    -- Kopfzeile (zweizeilig: Marken-Zeile oben, Spec-Zeile darunter)
-    local head = tex(Panel, "BACKGROUND", C.HEAD)
+    -- Kopfzeile (zweizeilig: Marken-Zeile oben, Spec-Zeile darunter). Senkrechter
+    -- Verlauf statt einfarbiger Flaeche -- zusammen mit der Lichtkante an der
+    -- Fensteroberkante liest sich der Kopf als erhabene Leiste.
+    local head = S.Gradient(Panel, "BACKGROUND", "VERTICAL", C.BG_HDR_BOT, C.BG_HDR_TOP)
     head:SetPoint("TOPLEFT"); head:SetPoint("TOPRIGHT"); head:SetHeight(52)
+    -- 1 px eingerueckt, sonst verschwindet die Kante unter dem Fensterrahmen.
+    local hiTop = S.TopHighlight(Panel, Panel, "ARTWORK")
+    hiTop:ClearAllPoints()
+    hiTop:SetPoint("TOPLEFT",  Panel, "TOPLEFT",   1, -1)
+    hiTop:SetPoint("TOPRIGHT", Panel, "TOPRIGHT", -1, -1)
     -- Marken-Symbol + Schriftzug "MetaMirror" (Meta hell, Mirror violett)
     local brand = Panel:CreateTexture(nil, "ARTWORK")
     brand:SetTexture("Interface\\AddOns\\MetaMirror\\Icon")
     brand:SetSize(22, 22); brand:SetPoint("TOPLEFT", 10, -6)
     local title = fs(Panel, "GameFontNormalLarge")
     title:SetPoint("LEFT", brand, "RIGHT", 6, 0)
-    title:SetText("|cffede9feMeta|r|cffa855f7Mirror|r")
+    title:SetText(MetaMirror.HEX.TITLE .. "Meta|r" .. MetaMirror.HEX.ACCENT .. "Mirror|r")
     -- Spec-Zeile (wird in Refresh mit Spec-Name + "auto-detected" gefuellt)
     Header = fs(Panel, "GameFontNormalSmall", C.DIM)
     Header:SetPoint("TOPLEFT", 12, -33)
@@ -93,9 +101,10 @@ function MetaMirror:BuildPanel()
     local function ctxButton(key, label, xoff)
         local b = CreateFrame("Button", nil, Panel)
         b:SetSize(46, 18); b:SetPoint("TOPRIGHT", xoff, -8)
-        local t = tex(b, "BACKGROUND", C.PANEL2); t:SetAllPoints(); b.bg = t
         local fstr = fs(b, "GameFontHighlightSmall", C.DIM)
-        fstr:SetPoint("CENTER"); fstr:SetText(label); b.fstr = fstr
+        fstr:SetPoint("CENTER"); fstr:SetText(label)
+        b.fstr, b.label = fstr, fstr   -- label: S.Button versetzt sie im Druck
+        S.Button(b)                    -- Verlauf, Rahmen, Lichtkante, Hover/Druck
         b:SetScript("OnClick", function()
             MetaMirrorDB.content = key
             MetaMirror:Refresh()
@@ -106,17 +115,40 @@ function MetaMirror:BuildPanel()
     ctxButton("raid",       L.ctx_raid,  -30)   -- 22px nach links: Platz fuer das Kreuz
     ctxButton("mythicplus", L.ctx_mplus, -80)
 
-    -- Tab-Leiste (4 Tabs -> fuellen die Breite gleichmaessig aus)
+    -- Tab-Leiste. Eigene Flaeche hinter den Reitern plus Trennlinie zum Inhalt:
+    -- vorher unterschied sich der aktive Tab nur durch die Textfarbe und las sich
+    -- als Beschriftung, nicht als Reiter.
+    local tabsBg = tex(Panel, "BACKGROUND", C.BG_STRIP)
+    tabsBg:SetPoint("TOPLEFT", 0, -52); tabsBg:SetPoint("TOPRIGHT", 0, -52)
+    tabsBg:SetHeight(26)
+    local tabsLine = tex(Panel, "ARTWORK", C.BORDER)
+    tabsLine:SetPoint("TOPLEFT", 0, -78); tabsLine:SetPoint("TOPRIGHT", 0, -78)
+    tabsLine:SetHeight(1)
+
     local x = 8
     for _, key in ipairs(TABS) do
         local b = CreateFrame("Button", nil, Panel)
         b:SetSize(84, 22); b:SetPoint("TOPLEFT", x, -56)
-        local t = tex(b, "BACKGROUND", C.HEAD); t:SetAllPoints(); b.bg = t
+        b.bgTex = S.Gradient(b, "BACKGROUND", "VERTICAL", C.BG_TAB_BOT, C.BG_TAB_TOP)
+        b.bgTex:SetAllPoints()
+        b.hiTex = S.TopHighlight(b, b, "BORDER"); b.hiTex:Hide()
+        -- Der Akzentstreifen unten ist die einzige violette Flaeche im Kopf --
+        -- genau deshalb findet das Auge den aktiven Reiter sofort.
+        b.underline = tex(b, "ARTWORK", C.ACCENT)
+        b.underline:SetPoint("BOTTOMLEFT", 6, 0)
+        b.underline:SetPoint("BOTTOMRIGHT", -6, 0)
+        b.underline:SetHeight(2); b.underline:Hide()
         local fstr = fs(b, "GameFontHighlightSmall", C.DIM)
         fstr:SetPoint("CENTER"); fstr:SetText(L[TAB_LABEL[key]]); b.fstr = fstr
         b:SetScript("OnClick", function()
             MetaMirrorDB.tab = key
             MetaMirror:Refresh()
+        end)
+        b:SetScript("OnEnter", function(self)
+            if MetaMirrorDB.tab ~= key then self.fstr:SetTextColor(unpack(C.TXT_PRI)) end
+        end)
+        b:SetScript("OnLeave", function(self)
+            if MetaMirrorDB.tab ~= key then self.fstr:SetTextColor(unpack(C.TXT_SEC)) end
         end)
         Tabs[key] = b
         x = x + 86
@@ -135,9 +167,12 @@ function MetaMirror:BuildPanel()
 
     -- Quellen-Attribution. Eigener Fusszeilen-Streifen
     -- mit deckendem Hintergrund unten -> Body endet darueber, nichts clippt hinein.
-    local footBar = tex(Panel, "BACKGROUND", C.BG_MAIN)
+    local footBar = tex(Panel, "BACKGROUND", C.BG_HDR)
     footBar:SetPoint("BOTTOMLEFT", 1, 1); footBar:SetPoint("BOTTOMRIGHT", -1, 1)
     footBar:SetHeight(18)
+    local footLine = tex(Panel, "ARTWORK", C.BORDER)
+    footLine:SetPoint("BOTTOMLEFT", 1, 19); footLine:SetPoint("BOTTOMRIGHT", -1, 19)
+    footLine:SetHeight(1)
     local attrText = (MetaMirrorData and MetaMirrorData.attribution)
         or (MetaMirrorTrinkets and MetaMirrorTrinkets.source)
         or "Data from bloodmallet.com"
@@ -181,22 +216,24 @@ local function ensureReopenTab()
     b:SetPoint("TOPLEFT", CharacterFrame, "TOPRIGHT", 2, -8)
     b:SetFrameStrata("HIGH")
 
-    local bg = tex(b, "BACKGROUND", C.BG_MAIN); bg:SetAllPoints()
+    local bg = S.Gradient(b, "BACKGROUND", "VERTICAL", C.BG_BTN_BOT, C.BG_BTN_TOP)
+    bg:SetAllPoints()
+    S.TopHighlight(b, b, "BORDER")
     local icon = b:CreateTexture(nil, "ARTWORK")
     icon:SetPoint("TOPLEFT", 3, -3); icon:SetPoint("BOTTOMRIGHT", -3, 3)
     icon:SetTexture("Interface\\AddOns\\MetaMirror\\Icon")
     b:SetBackdrop({ edgeFile = "Interface\\Buttons\\WHITE8x8", edgeSize = 1 })
-    b:SetBackdropBorderColor(unpack(C.VIOLET))
+    b:SetBackdropBorderColor(unpack(C.BORDER_LIGHT))
 
     b:SetScript("OnEnter", function(self)
-        self:SetBackdropBorderColor(unpack(C.VIOLET_S))
+        self:SetBackdropBorderColor(unpack(C.ACCENT))
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         GameTooltip:SetText(L.reopen_tip or "Open MetaMirror", unpack(C.TXT))
         GameTooltip:AddLine(L.reopen_note or "", C.DIM[1], C.DIM[2], C.DIM[3], true)
         GameTooltip:Show()
     end)
     b:SetScript("OnLeave", function(self)
-        self:SetBackdropBorderColor(unpack(C.VIOLET))
+        self:SetBackdropBorderColor(unpack(C.BORDER_LIGHT))
         GameTooltip:Hide()
     end)
     b:SetScript("OnClick", function()
@@ -283,19 +320,23 @@ function MetaMirror:Refresh()
     -- Kontext-Buttons
     for key, b in pairs(CtxBtns) do
         local on = (MetaMirrorDB.content == key)
-        b.bg:SetColorTexture(unpack(on and C.VIOLET or C.PANEL2))
-        b.fstr:SetTextColor(unpack(on and {1,1,1,1} or C.DIM))
+        if on then b.StyleSetColors(C.BG_ACC_TOP, C.BG_ACC_BOT)
+        else b.StyleSetColors(C.BG_BTN_TOP, C.BG_BTN_BOT) end
+        b.fstr:SetTextColor(unpack(on and C.TXT_TITLE or C.TXT_SEC))
     end
     -- Tab-Buttons
     for key, b in pairs(Tabs) do
         local on = (MetaMirrorDB.tab == key)
-        b.bg:SetColorTexture(unpack(on and C.BG_MAIN or C.HEAD))
-        b.fstr:SetTextColor(unpack(on and C.VIOLET_S or C.DIM))
+        S.SetGradient(b.bgTex, "VERTICAL",
+            on and C.BG_TABON_BOT or C.BG_TAB_BOT,
+            on and C.BG_TABON_TOP or C.BG_TAB_TOP)
+        b.hiTex:SetShown(on); b.underline:SetShown(on)
+        b.fstr:SetTextColor(unpack(on and C.TXT_PRI or C.TXT_SEC))
     end
     -- Kopf: Spec-Name
     local classID, specID = self:CurrentSpecKey()
     local specName = specID and select(2, GetSpecializationInfoByID(specID)) or "?"
-    Header:SetText(specName .. "  |cff9a92c0" .. L.autodetect .. "|r")
+    Header:SetText(specName .. "  " .. MetaMirror.HEX.SEC .. L.autodetect .. "|r")
     local stamp = self:DataStamp(MetaMirrorDB.tab, MetaMirrorDB.content)
     Stamp:SetText(stamp or "")
     -- Inhalt
@@ -341,7 +382,7 @@ local ARROW_TEX = {
 }
 
 -- Farbcode fuer den gedaempften "/ Ziel"-Teil der Zahlenzeile (entspricht C.DIM).
-local DIM_CODE = "|cff9a92c0"
+local DIM_CODE = MetaMirror.HEX.SEC
 
 local function renderStats(self, data)
     local i = 0
@@ -484,7 +525,8 @@ local function setItemRow(b, label, itemID, fallback, enchantID, bonusIDs, suffi
     local prefix = (label and label ~= "") and (label .. ": ") or ""
     -- Suffix (z.B. Trinket-Stat-Modus "(Tempo)"): unterscheidet Varianten mit gleicher
     -- itemID, die WoW sonst identisch benennt (Rubinwelpenschale in 4 Modi).
-    local suff = (suffix and suffix ~= "") and ("  |cff8b7bb8(" .. suffix .. ")|r") or ""
+    local suff = (suffix and suffix ~= "")
+        and ("  " .. MetaMirror.HEX.SEC .. "(" .. suffix .. ")|r") or ""
     if itemID and itemID ~= 0 then
         b.link = nil
         b.icon:SetTexture(134400)   -- Fragezeichen-Platzhalter bis geladen
@@ -931,7 +973,7 @@ end
 
 local MINUS_TEX = "Interface\\Buttons\\UI-MinusButton-Up"
 local PLUS_TEX  = "Interface\\Buttons\\UI-PlusButton-Up"
-local DIM_HEX   = "|cff9a92c0"
+local DIM_HEX   = MetaMirror.HEX.SEC
 
 -- Signalbegriffe fuer die Primaer/Sekundaer-Einstufung eines Steins.
 -- Beobachtung (Midnight, via /mm dumpgems): Primaersteine ("Immersangdiamanten")

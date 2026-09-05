@@ -1,24 +1,9 @@
 MetaMirror = MetaMirror or {}
 local ADDON = "MetaMirror"
 
--- Crystal-Violet-Palette (wie KeyRoulette/AutoRole)
-MetaMirror.C = {
-    BG_MAIN   = {0.086, 0.078, 0.122, 0.97},
-    HEAD      = {0.082, 0.075, 0.153, 1.0},
-    PANEL2    = {0.137, 0.125, 0.259, 1.0},
-    BORDER    = {0.227, 0.184, 0.420, 1.0},
-    VIOLET    = {0.659, 0.333, 0.969, 1.0},
-    VIOLET_S  = {0.769, 0.710, 0.992, 1.0},
-    SEC       = {0.655, 0.545, 0.980, 1.0},
-    TXT       = {0.929, 0.914, 0.996, 1.0},
-    DIM       = {0.604, 0.573, 0.753, 1.0},
-    GOLD      = {1.0,   0.820, 0.0,   1.0},
-    GREEN     = {0.290, 0.871, 0.502, 1.0},
-    AMBER     = {0.984, 0.749, 0.141, 1.0},
-    CORAL     = {0.874, 0.353, 0.247, 1.0},   -- "unter Ziel" (Class-Codex-Rot)
-    BLUE      = {0.376, 0.647, 0.980, 1.0},
-    ITEM      = {0.639, 0.816, 1.0,   1.0},
-}
+-- Palette und Tiefen-Bausteine stehen in Style.lua -- derselben Datei in jedem
+-- Addon dieser Reihe. Sie setzt MetaMirror.C und MetaMirror.Style und laedt
+-- laut .toc direkt nach dieser Datei, also vor jedem Nutzer.
 
 function MetaMirror.InitDB()
     MetaMirrorDB = MetaMirrorDB or {}
