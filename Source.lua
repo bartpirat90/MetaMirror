@@ -279,20 +279,3 @@ function MetaMirror:OpenSource(src)
     end
 end
 
--- Set der Basis-itemIDs, die der Spieler besitzt (getragen + Taschen), upgrade-
--- unabhaengig (nur itemID, ohne bonusIDs) -> Abgleich egal auf welchem Upgrade-Pfad.
-function MetaMirror:BuildOwnedSet()
-    local owned = {}
-    for slot = 1, 19 do
-        local id = GetInventoryItemID("player", slot)
-        if id then owned[id] = true end
-    end
-    for bag = 0, (NUM_TOTAL_EQUIPPED_BAG_SLOTS or 5) do
-        local n = (C_Container and C_Container.GetContainerNumSlots(bag)) or 0
-        for s = 1, n do
-            local id = C_Container.GetContainerItemID(bag, s)
-            if id then owned[id] = true end
-        end
-    end
-    return owned
-end

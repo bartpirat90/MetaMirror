@@ -1,5 +1,6 @@
 MetaMirror = MetaMirror or {}
 local C, L = MetaMirror.C, MetaMirror.L
+local S = MetaMirror.Style      -- gemeinsame Tiefen-Bausteine, siehe Style.lua
 
 -- "improve" fasst Verzauberungen + Edelsteine + Verbrauchsmaterial auf einer
 -- Seite mit einklappbaren Abschnitten zusammen (Class-Codex-"Verbesserungen").
@@ -11,13 +12,9 @@ local TAB_LABEL = {
 local VALID_TABS = { stats = true, gear = true,
                      schmuck = true, improve = true }
 
-local Panel, Tabs, Body, Header, CtxBtns = nil, {}, nil, nil, {}
+local Panel, Tabs, Body, Header, Stamp, CtxBtns = nil, {}, nil, nil, nil, {}
 
-local function tex(parent, layer, col)
-    local t = parent:CreateTexture(nil, layer)
-    t:SetColorTexture(col[1], col[2], col[3], col[4] or 1)
-    return t
-end
+local function tex(parent, layer, col) return S.Tex(parent, layer, col) end
 local function fs(parent, tmpl, col)
     local f = parent:CreateFontString(nil, "OVERLAY", tmpl or "GameFontNormal")
     if col then f:SetTextColor(unpack(col)) end
@@ -27,7 +24,7 @@ end
 function MetaMirror:BuildPanel()
     if Panel then return end
     Panel = CreateFrame("Frame", "MetaMirrorPanel", UIParent, "BackdropTemplate")
-    Panel:SetSize(440, 500)
+    Panel:SetSize(440, 544)   -- 544: Gear-Hinweiszeile (20 px) + 16 Gear-Zeilen (416 px) passen in den Body
     Panel:SetFrameStrata("HIGH")
     Panel:EnableMouse(true)
     Panel:SetMovable(true)
@@ -45,22 +42,38 @@ function MetaMirror:BuildPanel()
         MetaMirrorDB.pos = { custom = true, x = x, y = y }
     end)
     local bg = tex(Panel, "BACKGROUND", C.BG_MAIN); bg:SetAllPoints()
+    -- Rahmen neutral, nicht violett: Violett traegt in dieser Optik nur Akzente
+    -- (aktiver Tab, aktiver Schalter). Ein komplett violetter Rahmen zieht den
+    -- Blick auf die Kante statt auf den Inhalt.
     Panel:SetBackdrop({ edgeFile = "Interface\\Buttons\\WHITE8x8", edgeSize = 1 })
-    Panel:SetBackdropBorderColor(unpack(C.VIOLET))
+    Panel:SetBackdropBorderColor(unpack(C.BORDER))
+    S.Shadow(Panel)
 
-    -- Kopfzeile (zweizeilig: Marken-Zeile oben, Spec-Zeile darunter)
-    local head = tex(Panel, "BACKGROUND", C.HEAD)
+    -- Kopfzeile (zweizeilig: Marken-Zeile oben, Spec-Zeile darunter). Senkrechter
+    -- Verlauf statt einfarbiger Flaeche -- zusammen mit der Lichtkante an der
+    -- Fensteroberkante liest sich der Kopf als erhabene Leiste.
+    local head = S.Gradient(Panel, "BACKGROUND", "VERTICAL", C.BG_HDR_BOT, C.BG_HDR_TOP)
     head:SetPoint("TOPLEFT"); head:SetPoint("TOPRIGHT"); head:SetHeight(52)
+    -- 1 px eingerueckt, sonst verschwindet die Kante unter dem Fensterrahmen.
+    local hiTop = S.TopHighlight(Panel, Panel, "ARTWORK")
+    hiTop:ClearAllPoints()
+    hiTop:SetPoint("TOPLEFT",  Panel, "TOPLEFT",   1, -1)
+    hiTop:SetPoint("TOPRIGHT", Panel, "TOPRIGHT", -1, -1)
     -- Marken-Symbol + Schriftzug "MetaMirror" (Meta hell, Mirror violett)
     local brand = Panel:CreateTexture(nil, "ARTWORK")
     brand:SetTexture("Interface\\AddOns\\MetaMirror\\Icon")
     brand:SetSize(22, 22); brand:SetPoint("TOPLEFT", 10, -6)
     local title = fs(Panel, "GameFontNormalLarge")
     title:SetPoint("LEFT", brand, "RIGHT", 6, 0)
-    title:SetText("|cffede9feMeta|r|cffa855f7Mirror|r")
+    title:SetText(MetaMirror.HEX.TITLE .. "Meta|r" .. MetaMirror.HEX.ACCENT .. "Mirror|r")
     -- Spec-Zeile (wird in Refresh mit Spec-Name + "auto-detected" gefuellt)
     Header = fs(Panel, "GameFontNormalSmall", C.DIM)
     Header:SetPoint("TOPLEFT", 12, -33)
+
+    -- Datenstand rechts in der Spec-Zeile, unter dem M+/Raid-Schalter (der den
+    -- Fight-Style bestimmt). In jedem Tab sichtbar; Text kommt aus DataStamp in Refresh.
+    Stamp = fs(Panel, "GameFontDisableSmall", C.DIM)
+    Stamp:SetPoint("TOPRIGHT", -12, -34); Stamp:SetJustifyH("RIGHT")
 
     -- Schliessen-Kreuz oben rechts. Eigener schlichter Button statt UIPanelCloseButton:
     -- dessen 32px-Grafik sprengt die 52px-Kopfzeile und stoesst an die Kontext-Schalter.
@@ -88,9 +101,10 @@ function MetaMirror:BuildPanel()
     local function ctxButton(key, label, xoff)
         local b = CreateFrame("Button", nil, Panel)
         b:SetSize(46, 18); b:SetPoint("TOPRIGHT", xoff, -8)
-        local t = tex(b, "BACKGROUND", C.PANEL2); t:SetAllPoints(); b.bg = t
         local fstr = fs(b, "GameFontHighlightSmall", C.DIM)
-        fstr:SetPoint("CENTER"); fstr:SetText(label); b.fstr = fstr
+        fstr:SetPoint("CENTER"); fstr:SetText(label)
+        b.fstr, b.label = fstr, fstr   -- label: S.Button versetzt sie im Druck
+        S.Button(b)                    -- Verlauf, Rahmen, Lichtkante, Hover/Druck
         b:SetScript("OnClick", function()
             MetaMirrorDB.content = key
             MetaMirror:Refresh()
@@ -101,17 +115,40 @@ function MetaMirror:BuildPanel()
     ctxButton("raid",       L.ctx_raid,  -30)   -- 22px nach links: Platz fuer das Kreuz
     ctxButton("mythicplus", L.ctx_mplus, -80)
 
-    -- Tab-Leiste (4 Tabs -> fuellen die Breite gleichmaessig aus)
+    -- Tab-Leiste. Eigene Flaeche hinter den Reitern plus Trennlinie zum Inhalt:
+    -- vorher unterschied sich der aktive Tab nur durch die Textfarbe und las sich
+    -- als Beschriftung, nicht als Reiter.
+    local tabsBg = tex(Panel, "BACKGROUND", C.BG_STRIP)
+    tabsBg:SetPoint("TOPLEFT", 0, -52); tabsBg:SetPoint("TOPRIGHT", 0, -52)
+    tabsBg:SetHeight(26)
+    local tabsLine = tex(Panel, "ARTWORK", C.BORDER)
+    tabsLine:SetPoint("TOPLEFT", 0, -78); tabsLine:SetPoint("TOPRIGHT", 0, -78)
+    tabsLine:SetHeight(1)
+
     local x = 8
     for _, key in ipairs(TABS) do
         local b = CreateFrame("Button", nil, Panel)
         b:SetSize(84, 22); b:SetPoint("TOPLEFT", x, -56)
-        local t = tex(b, "BACKGROUND", C.HEAD); t:SetAllPoints(); b.bg = t
+        b.bgTex = S.Gradient(b, "BACKGROUND", "VERTICAL", C.BG_TAB_BOT, C.BG_TAB_TOP)
+        b.bgTex:SetAllPoints()
+        b.hiTex = S.TopHighlight(b, b, "BORDER"); b.hiTex:Hide()
+        -- Der Akzentstreifen unten ist die einzige violette Flaeche im Kopf --
+        -- genau deshalb findet das Auge den aktiven Reiter sofort.
+        b.underline = tex(b, "ARTWORK", C.ACCENT)
+        b.underline:SetPoint("BOTTOMLEFT", 6, 0)
+        b.underline:SetPoint("BOTTOMRIGHT", -6, 0)
+        b.underline:SetHeight(2); b.underline:Hide()
         local fstr = fs(b, "GameFontHighlightSmall", C.DIM)
         fstr:SetPoint("CENTER"); fstr:SetText(L[TAB_LABEL[key]]); b.fstr = fstr
         b:SetScript("OnClick", function()
             MetaMirrorDB.tab = key
             MetaMirror:Refresh()
+        end)
+        b:SetScript("OnEnter", function(self)
+            if MetaMirrorDB.tab ~= key then self.fstr:SetTextColor(unpack(C.TXT_PRI)) end
+        end)
+        b:SetScript("OnLeave", function(self)
+            if MetaMirrorDB.tab ~= key then self.fstr:SetTextColor(unpack(C.TXT_SEC)) end
         end)
         Tabs[key] = b
         x = x + 86
@@ -130,9 +167,12 @@ function MetaMirror:BuildPanel()
 
     -- Quellen-Attribution. Eigener Fusszeilen-Streifen
     -- mit deckendem Hintergrund unten -> Body endet darueber, nichts clippt hinein.
-    local footBar = tex(Panel, "BACKGROUND", C.BG_MAIN)
+    local footBar = tex(Panel, "BACKGROUND", C.BG_HDR)
     footBar:SetPoint("BOTTOMLEFT", 1, 1); footBar:SetPoint("BOTTOMRIGHT", -1, 1)
     footBar:SetHeight(18)
+    local footLine = tex(Panel, "ARTWORK", C.BORDER)
+    footLine:SetPoint("BOTTOMLEFT", 1, 19); footLine:SetPoint("BOTTOMRIGHT", -1, 19)
+    footLine:SetHeight(1)
     local attrText = (MetaMirrorData and MetaMirrorData.attribution)
         or (MetaMirrorTrinkets and MetaMirrorTrinkets.source)
         or "Data from bloodmallet.com"
@@ -146,6 +186,69 @@ function MetaMirror:BuildPanel()
 
     Panel:Hide()
     MetaMirror:Refresh()
+end
+
+local function safeRefresh()
+    local ok, err = pcall(function() MetaMirror:Refresh() end)
+    if not ok then print("|cffff5555[MM] Refresh-Fehler:|r " .. tostring(err)) end
+end
+
+-- ===== Wiederoeffnen-Reiter am Charakterfenster =====
+-- Wer das Panel mit dem X schliesst, setzt MetaMirrorDB.hidden -- danach war das Fenster
+-- nur ueber /mm zurueckzuholen. Dieser kleine Reiter an der Aussenkante des
+-- Charakterfensters macht dasselbe mit einem Klick. Bewusst ein schlichter Button und
+-- KEIN Secure-Template: ein sichtbarer SecureActionButton als Kind des Charakterfensters
+-- wuerde dessen Schliessen im Kampf blockieren.
+local ReopenTab
+
+local function updateReopenTab()
+    if not ReopenTab then return end
+    -- Nur zeigen, wenn das Panel gerade nicht offen ist -- sonst laege der Reiter unter
+    -- dem angedockten Panel.
+    ReopenTab:SetShown(not (Panel and Panel:IsShown()))
+end
+
+local function ensureReopenTab()
+    if ReopenTab or not CharacterFrame or not Panel then return end
+    -- BackdropTemplate: ohne das Template gibt es SetBackdrop auf dem Button nicht.
+    local b = CreateFrame("Button", "MetaMirrorReopenTab", CharacterFrame, "BackdropTemplate")
+    b:SetSize(30, 30)
+    b:SetPoint("TOPLEFT", CharacterFrame, "TOPRIGHT", 2, -8)
+    b:SetFrameStrata("HIGH")
+
+    local bg = S.Gradient(b, "BACKGROUND", "VERTICAL", C.BG_BTN_BOT, C.BG_BTN_TOP)
+    bg:SetAllPoints()
+    S.TopHighlight(b, b, "BORDER")
+    local icon = b:CreateTexture(nil, "ARTWORK")
+    icon:SetPoint("TOPLEFT", 3, -3); icon:SetPoint("BOTTOMRIGHT", -3, 3)
+    icon:SetTexture("Interface\\AddOns\\MetaMirror\\Icon")
+    b:SetBackdrop({ edgeFile = "Interface\\Buttons\\WHITE8x8", edgeSize = 1 })
+    b:SetBackdropBorderColor(unpack(C.BORDER_LIGHT))
+
+    b:SetScript("OnEnter", function(self)
+        self:SetBackdropBorderColor(unpack(C.ACCENT))
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText(L.reopen_tip or "Open MetaMirror", unpack(C.TXT))
+        GameTooltip:AddLine(L.reopen_note or "", C.DIM[1], C.DIM[2], C.DIM[3], true)
+        GameTooltip:Show()
+    end)
+    b:SetScript("OnLeave", function(self)
+        self:SetBackdropBorderColor(unpack(C.BORDER_LIGHT))
+        GameTooltip:Hide()
+    end)
+    b:SetScript("OnClick", function()
+        MetaMirrorDB.hidden = false   -- bewusst zurueckgeholt, wie bei /mm
+        MetaMirror:AnchorToCharacter()
+        Panel:Show()
+        safeRefresh()
+        updateReopenTab()
+    end)
+
+    ReopenTab = b
+    -- Sichtbarkeit an das Panel koppeln, statt sie an jeder Aufrufstelle nachzuziehen.
+    Panel:HookScript("OnShow", updateReopenTab)
+    Panel:HookScript("OnHide", updateReopenTab)
+    updateReopenTab()
 end
 
 function MetaMirror:AnchorToCharacter()
@@ -163,13 +266,12 @@ function MetaMirror:AnchorToCharacter()
     end
 end
 
-local function safeRefresh()
-    local ok, err = pcall(function() MetaMirror:Refresh() end)
-    if not ok then print("|cffff5555[MM] Refresh-Fehler:|r " .. tostring(err)) end
-end
-
 function MetaMirror:OnCharShow()
-    if MetaMirrorDB and MetaMirrorDB.hidden then return end   -- per X weggeklickt
+    ensureReopenTab()
+    if MetaMirrorDB and MetaMirrorDB.hidden then
+        updateReopenTab()   -- Panel bleibt zu -> Reiter muss sichtbar sein
+        return              -- per X weggeklickt
+    end
     self:AnchorToCharacter()
     Panel:Show()          -- zuerst zeigen: ein Render-Fehler darf das Fenster nicht verschlucken
     safeRefresh()
@@ -218,19 +320,25 @@ function MetaMirror:Refresh()
     -- Kontext-Buttons
     for key, b in pairs(CtxBtns) do
         local on = (MetaMirrorDB.content == key)
-        b.bg:SetColorTexture(unpack(on and C.VIOLET or C.PANEL2))
-        b.fstr:SetTextColor(unpack(on and {1,1,1,1} or C.DIM))
+        if on then b.StyleSetColors(C.BG_ACC_TOP, C.BG_ACC_BOT)
+        else b.StyleSetColors(C.BG_BTN_TOP, C.BG_BTN_BOT) end
+        b.fstr:SetTextColor(unpack(on and C.TXT_TITLE or C.TXT_SEC))
     end
     -- Tab-Buttons
     for key, b in pairs(Tabs) do
         local on = (MetaMirrorDB.tab == key)
-        b.bg:SetColorTexture(unpack(on and C.BG_MAIN or C.HEAD))
-        b.fstr:SetTextColor(unpack(on and C.VIOLET_S or C.DIM))
+        S.SetGradient(b.bgTex, "VERTICAL",
+            on and C.BG_TABON_BOT or C.BG_TAB_BOT,
+            on and C.BG_TABON_TOP or C.BG_TAB_TOP)
+        b.hiTex:SetShown(on); b.underline:SetShown(on)
+        b.fstr:SetTextColor(unpack(on and C.TXT_PRI or C.TXT_SEC))
     end
     -- Kopf: Spec-Name
     local classID, specID = self:CurrentSpecKey()
     local specName = specID and select(2, GetSpecializationInfoByID(specID)) or "?"
-    Header:SetText(specName .. "  |cff9a92c0" .. L.autodetect .. "|r")
+    Header:SetText(specName .. "  " .. MetaMirror.HEX.SEC .. L.autodetect .. "|r")
+    local stamp = self:DataStamp(MetaMirrorDB.tab, MetaMirrorDB.content)
+    Stamp:SetText(stamp or "")
     -- Inhalt
     self:RenderBody(classID, specID)
 end
@@ -274,7 +382,7 @@ local ARROW_TEX = {
 }
 
 -- Farbcode fuer den gedaempften "/ Ziel"-Teil der Zahlenzeile (entspricht C.DIM).
-local DIM_CODE = "|cff9a92c0"
+local DIM_CODE = MetaMirror.HEX.SEC
 
 local function renderStats(self, data)
     local i = 0
@@ -330,33 +438,7 @@ local function renderStats(self, data)
         r:Show()
     end
     for j = i + 1, #rows do rows[j]:Hide() end
-
-    -- Gedaempfter Sim-Referenz-Hinweis unten im Tab: Fight-Style + Erzeugungsdatum der
-    -- Sim-Daten, analog zum trinket_note-Mechanismus im Schmuck-Tab. Nur sichtbar, wenn
-    -- MetaMirrorData tatsaechlich ein Erzeugungsdatum mitbringt (neuer Vertrag).
-    if not Body.statsNote then
-        Body.statsNote = fs(Body, "GameFontDisableSmall", C.DIM)
-        Body.statsNote:SetPoint("BOTTOMLEFT", 0, 0); Body.statsNote:SetJustifyH("LEFT")
-    end
-    local root = _G.MetaMirrorData
-    if root and root.generated then
-        local style = root.fightStyles and root.fightStyles[MetaMirrorDB.content]
-        local styleLabel = (style == "castingpatchwerk" and L.fight_raid)
-            or (style == "castingpatchwerk3" and L.fight_mplus)
-            or style or ""
-        Body.statsNote:SetText(string.format(L.sim_note, styleLabel, root.generated))
-        Body.statsNote:Show()
-    else
-        Body.statsNote:Hide()
-    end
 end
-
--- Blendet den Stats-Tab-Hinweis (siehe renderStats) ueberall dort aus, wo auch die
--- Stats-Zeilen (rows) verschwinden -- sonst bliebe er beim Tab-Wechsel sichtbar stehen.
-local function hideStatsNote()
-    if Body.statsNote then Body.statsNote:Hide() end
-end
-
 
 -- Generische klickbare Item-Zeile (Shift-Klick -> Chat / AH-Suche).
 -- Wiederverwendet fuer Verbrauchsgueter, Gear, Steine und Verzauberungen.
@@ -366,7 +448,7 @@ local function getItemRow(i)
     local b = CreateFrame("Button", nil, Body)
     b:SetSize(404, 26)
     b:RegisterForClicks("AnyUp")
-    -- Besitz-Highlight: gruener Schimmer/Fuellung ueber die ganze Zeile (Class-Codex-Optik).
+    -- Status-Highlight (Ampel, siehe applyGearStatus): Schimmer + Akzentstreifen links.
     b.hl = b:CreateTexture(nil, "BACKGROUND")
     b.hl:SetPoint("TOPLEFT", 0, 0); b.hl:SetPoint("BOTTOMRIGHT", 0, 0)
     b.hl:SetColorTexture(0.20, 0.85, 0.35, 0.16)
@@ -399,11 +481,17 @@ local function getItemRow(i)
     end)
     b.src:SetScript("OnLeave", function() GameTooltip:Hide() end)
     b.label = fs(b, "GameFontHighlight", C.TXT); b.label:SetPoint("LEFT", b.icon, "RIGHT", 8, 0)
+    b.label:SetPoint("RIGHT", b.src, "LEFT", -6, 0)
     b.label:SetWordWrap(false); b.label:SetJustifyH("LEFT")
     b:SetScript("OnEnter", function(self)
         if not self.link then return end
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         GameTooltip:SetHyperlink(self.link)
+        -- Ampel-Klartext (nur Gear-Tab, siehe applyGearStatus) als letzte Zeile.
+        if self.statusText then
+            local c = self.statusColor or C.DIM
+            GameTooltip:AddLine(self.statusText, c[1], c[2], c[3])
+        end
         GameTooltip:Show()
     end)
     b:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -431,12 +519,14 @@ end
 -- fallback: Text, wenn kein Item aufloesbar ist; enchantID: optional in den
 -- Item-Link injiziert; bonusIDs: Upgrade-/Sockel-Bonusliste -> voller Link mit
 -- korrekter Maximalstufe und Sockelplaetzen (sonst rendert der Client die Grundform).
-local function setItemRow(b, label, itemID, fallback, enchantID, bonusIDs, suffix)
+-- onLoad(link): optionaler Callback nach dem Laden (z.B. Ampel im Gear-Tab).
+local function setItemRow(b, label, itemID, fallback, enchantID, bonusIDs, suffix, onLoad)
     -- Leeres/fehlendes Label -> nur der Item-Name (z.B. Edelsteine ohne Slot-Bezug).
     local prefix = (label and label ~= "") and (label .. ": ") or ""
     -- Suffix (z.B. Trinket-Stat-Modus "(Tempo)"): unterscheidet Varianten mit gleicher
     -- itemID, die WoW sonst identisch benennt (Rubinwelpenschale in 4 Modi).
-    local suff = (suffix and suffix ~= "") and ("  |cff8b7bb8(" .. suffix .. ")|r") or ""
+    local suff = (suffix and suffix ~= "")
+        and ("  " .. MetaMirror.HEX.SEC .. "(" .. suffix .. ")|r") or ""
     if itemID and itemID ~= 0 then
         b.link = nil
         b.icon:SetTexture(134400)   -- Fragezeichen-Platzhalter bis geladen
@@ -465,6 +555,7 @@ local function setItemRow(b, label, itemID, fallback, enchantID, bonusIDs, suffi
                 b.link = link
                 b.icon:SetTexture(item:GetItemIcon())
                 b.label:SetText(prefix .. stripQualityIcon(link) .. suff)
+                if onLoad then onLoad(b.link) end
             end)
         else
             local item = Item:CreateFromItemID(itemID)
@@ -479,6 +570,7 @@ local function setItemRow(b, label, itemID, fallback, enchantID, bonusIDs, suffi
                 b.icon:SetTexture(item:GetItemIcon())
                 -- Vollen Link als Text -> WoW rendert ihn farbig in eckigen Klammern.
                 b.label:SetText(prefix .. (stripQualityIcon(link) or ("[" .. name .. "]")) .. suff)
+                if onLoad then onLoad(b.link) end
             end)
         end
     else
@@ -490,7 +582,8 @@ local function setItemRow(b, label, itemID, fallback, enchantID, bonusIDs, suffi
 end
 
 local function hideItemRows()
-    for j = 1, #itemRows do itemRows[j]:Hide() end
+    for j = 1, #itemRows do itemRows[j].statusText = nil; itemRows[j]:Hide() end
+    if Body and Body.gearNote then Body.gearNote:Hide() end
 end
 
 -- Upgrade-Stufen-Bonus-IDs (Midnight S2, via /mm dumpq abgeleitet):
@@ -585,24 +678,137 @@ local function applyRowSource(b, itemID, fallbackText)
     end)
 end
 
+-- Ampel-Farben je Status (GearStatus.lua). "missing" nur als gedaempfter Streifen, ohne
+-- Schimmer -- sonst leuchtet bei den meisten Spielern fast jede Zeile rot.
+local GEAR_STATUS = {
+    equipped = { col = "GREEN", text = "gs_equipped", fill = true  },
+    bag      = { col = "BLUE",  text = "gs_bag",      fill = true  },
+    missing  = { col = "CORAL", text = "gs_missing",  fill = false },
+}
+
+-- Referenz-Gegenstandsstufe aus dem geladenen Link (Mythos 6/6 via normalizeToMyth).
+local function referenceIlvl(link)
+    if not (link and C_Item and C_Item.GetDetailedItemLevelInfo) then return nil end
+    local ok, v = pcall(C_Item.GetDetailedItemLevelInfo, link)
+    return (ok and type(v) == "number") and v or nil
+end
+
+-- Faerbt eine Gear-Zeile nach Status und setzt den Tooltip-Klartext.
+-- dataIlvl: Referenzstufe aus dem Sim-Profil (Feld itemLevel). Sie hat Vorrang vor der
+-- aus dem Link berechneten Stufe, denn genau bei diesen Slots kodieren die Bonus-IDs die
+-- Stufe NICHT -- der Link zeigt dort die Basisstufe des Items.
+local function applyGearStatus(b, itemID, ctx, link, dataIlvl)
+    -- ref dient nur noch der Anzeige in der Stufenspalte, nicht mehr der Bewertung.
+    local ref = (dataIlvl and dataIlvl > 0) and dataIlvl or referenceIlvl(link)
+    local status = MetaMirror:GearStatus(itemID, ctx)
+    local def = GEAR_STATUS[status]
+    local c = C[def.col]
+    b.hl:SetColorTexture(c[1], c[2], c[3], 0.16)
+    b.hlEdge:SetColorTexture(c[1], c[2], c[3], def.fill and 0.85 or 0.45)
+    b.hl:SetShown(def.fill); b.hlEdge:Show()
+    b.statusColor = c
+    b.statusText = L[def.text]
+    if ref and ref > 0 and L.ilvl_ref then
+        b.statusText = b.statusText .. "\n" .. string.format(L.ilvl_ref, ref)
+    end
+end
+
 -- entries: Liste aus { label, itemID, fallback, enchantID, bonusIDs }.
--- Nur der Gear-Tab nutzt diese Liste -> hier auch Quelle + Besitz-Haken setzen.
+-- Nur der Gear-Tab nutzt diese Liste -> hier auch Quelle + Ampel setzen.
+-- ===== Referenzstufe in den Item-Link bringen =====
+-- Bei einem Teil der Slots steht die Stufe nur im Sim-Feld itemLevel und nicht in den
+-- Bonus-IDs; der Link zeigt dann die unaufgewertete Basisstufe (gemessen mit /mm ilvl:
+-- Schulter 219 statt 334, Ruecken 219 statt 344). Dagegen hilft eine zusaetzliche
+-- Aufwertungs-Bonus-ID -- aber nur die richtige:
+--   * Schulter + 12854 (Mythos 6/6) -> 334 = Referenz, passt.
+--   * Ruecken  + 12854              -> 334, Referenz ist aber 344, passt NICHT.
+--   * Nebenhand (Handwerk) + 12854  -> 347 statt korrekter 331, waere frei erfunden.
+-- Deshalb wird jeder Kandidat gemessen und nur uebernommen, wenn die resultierende
+-- Stufe die Referenz EXAKT trifft. Trifft keiner, bleibt der Link unveraendert und die
+-- Stufenspalte nennt die Referenz -- lieber eine sichtbare Abweichung als eine
+-- erfundene Zahl.
+-- 12854 ist per /mm dumpq belegt; 13848 stammt aus den Messwerten (jedes Item, das
+-- 344 erreicht, traegt sie). Beide sind Kandidaten, keine Annahmen: ohne exakten
+-- Treffer wird nichts angewendet.
+local ILVL_BONUS_CANDIDATES = { MYTH_6_6_BONUS, 13848 }
+
+local function bonusCore(itemID, ids)
+    return string.format("item:%d:0:0:0:0:0:0:0:0:0:0:0:%d:%s",
+        itemID, #ids, table.concat(ids, ":"))
+end
+
+local function linkIlvl(link)
+    if not (C_Item and C_Item.GetDetailedItemLevelInfo) then return nil end
+    local ok, v = pcall(C_Item.GetDetailedItemLevelInfo, link)
+    return (ok and type(v) == "number") and v or nil
+end
+
+-- Ruft cb(bonusIDs) mit dem Satz auf, der die Referenzstufe trifft (oder dem Original).
+local function resolveToReferenceIlvl(itemID, ids, target, cb)
+    ids = ids or {}
+    if not (itemID and target and target > 0) then cb(ids) return end
+    local base = bonusCore(itemID, ids)
+    Item:CreateFromItemLink(base):ContinueOnItemLoad(function()
+        if linkIlvl(base) == target then cb(ids) return end   -- Link stimmt schon
+        local seen = {}
+        for _, id in ipairs(ids) do seen[id] = true end
+        local i = 0
+        local function tryNext()
+            i = i + 1
+            local cand = ILVL_BONUS_CANDIDATES[i]
+            if not cand then cb(ids) return end               -- keiner passt -> Original
+            if seen[cand] then tryNext() return end
+            local test = {}
+            for _, id in ipairs(ids) do test[#test + 1] = id end
+            test[#test + 1] = cand
+            local link = bonusCore(itemID, test)
+            Item:CreateFromItemLink(link):ContinueOnItemLoad(function()
+                if linkIlvl(link) == target then cb(test) else tryNext() end
+            end)
+        end
+        tryNext()
+    end)
+end
+
+-- Hinweiszeile ueber der Gear-Liste: das Set stammt aus EINEM SimulationCraft-
+-- Referenzprofil je Spec, das bloodmallet fuer beide Fight-Styles gleich benutzt. Ohne
+-- diesen Hinweis wirkt der M+/Raid-Schalter im Ausruestungs-Tab defekt, weil sich beim
+-- Umschalten nichts aendert.
+local function ensureGearNote()
+    if Body.gearNote then return Body.gearNote end
+    Body.gearNote = fs(Body, "GameFontDisableSmall", C.DIM)
+    Body.gearNote:SetPoint("TOPLEFT", 0, -4); Body.gearNote:SetJustifyH("LEFT")
+    return Body.gearNote
+end
+
+local GEAR_NOTE_OFFSET = 20   -- Platz fuer die Hinweiszeile ueber der ersten Gear-Zeile
+
+local renderGen = 0
+
 local function renderItemList(entries)
+    renderGen = renderGen + 1
+    local gen = renderGen
     for j = 1, #rows do rows[j]:Hide() end
-    hideStatsNote()
     if Body.msg then Body.msg:Hide() end
-    local owned = MetaMirror:BuildOwnedSet()
+    local note = ensureGearNote()
+    note:SetText(L.gear_note)   -- Farbe kommt aus fs(..., C.DIM); kein Hex-Praefix noetig
+    note:Show()
+    local ctx = MetaMirror:BuildGearContext()
     local i = 0
     for _, e in ipairs(entries) do
         i = i + 1
         local b = getItemRow(i)
-        b:ClearAllPoints(); b:SetPoint("TOPLEFT", 0, -(i - 1) * 26)
-        -- Slotname in die eigene Spalte; der Itemname kommt ohne Praefix (label=nil).
-        setItemRow(b, nil, e.itemID, e.fallback, e.enchantID, e.bonusIDs)
+        b:ClearAllPoints(); b:SetPoint("TOPLEFT", 0, -GEAR_NOTE_OFFSET - (i - 1) * 26)
+        -- Ampel sofort mit unbekannter Referenzstufe setzen (angelegt/Beutel/fehlt), nach
+        -- dem Laden des Links mit der echten Referenzstufe verfeinern (-> "schwaecher").
+        local ilvl = (e.itemLevel and e.itemLevel > 0) and e.itemLevel or nil
+        applyGearStatus(b, e.itemID, ctx, nil, ilvl)
+        resolveToReferenceIlvl(e.itemID, e.bonusIDs, ilvl, function(ids)
+            if gen ~= renderGen then return end   -- Zeile ist inzwischen neu belegt
+            setItemRow(b, nil, e.itemID, e.fallback, e.enchantID, ids, nil,
+                       function(link) applyGearStatus(b, e.itemID, ctx, link, ilvl) end)
+        end)
         b.slot:SetText(e.label or "")
-        -- Besitz-Schimmer (Abgleich nur ueber Basis-itemID -> upgrade-unabhaengig).
-        local own = (e.itemID and owned[e.itemID]) or false
-        b.hl:SetShown(own); b.hlEdge:SetShown(own)
         applyRowSource(b, e.itemID)
     end
     for j = i + 1, #itemRows do itemRows[j]:Hide() end
@@ -767,7 +973,7 @@ end
 
 local MINUS_TEX = "Interface\\Buttons\\UI-MinusButton-Up"
 local PLUS_TEX  = "Interface\\Buttons\\UI-PlusButton-Up"
-local DIM_HEX   = "|cff9a92c0"
+local DIM_HEX   = MetaMirror.HEX.SEC
 
 -- Signalbegriffe fuer die Primaer/Sekundaer-Einstufung eines Steins.
 -- Beobachtung (Midnight, via /mm dumpgems): Primaersteine ("Immersangdiamanten")
@@ -849,7 +1055,6 @@ end
 
 local function renderImprovements(self, data)
     for j = 1, #rows do rows[j]:Hide() end
-    hideStatsNote()
     hideItemRows()
     if Body.msg then Body.msg:Hide() end
     MetaMirrorDB.collapsed = MetaMirrorDB.collapsed or {}
@@ -918,9 +1123,8 @@ local function renderImprovements(self, data)
     for j = ri + 1, #impRows do impRows[j]:Hide() end
 end
 
--- ===== "Schmuck": Trinket-Tierliste aus Bloodmallet (Sim-BiS) =====
--- Eigene Datenquelle (Data/MetaMirrorTrinkets.lua), unabhaengig von den WCL-Daten:
--- pro Spec drei Sichten (Gesamt/Raid/Dungeon) als S/A/B/C/D-Rangliste. Umschalter oben.
+-- ===== "Schmuck": Trinket-Tierliste aus Bloodmallet (Sim-Rangliste) =====
+-- Quelle: Data/MetaMirrorTrinkets.lua, je Spec eine S/A/B/C/D-Rangliste nach Sim-DPS.
 local TIER_COLOR = {
     S = { 1.00, 0.55, 0.10 },   -- orange-gold
     A = { 0.66, 0.35, 0.95 },   -- violett
@@ -946,74 +1150,10 @@ local function trinketModeLabel(mode)
 end
 
 local function trinketData(specID)
-    -- Quelle: Bloodmallet-Sim-BiS (Data/MetaMirrorTrinkets.lua), unabhaengig von WCL.
+    -- Quelle: Bloodmallet-Sim-Rangliste (Data/MetaMirrorTrinkets.lua).
     local root = _G.MetaMirrorTrinkets
     if not (root and root.specs and specID) then return nil end
     return root.specs[specID]
-end
-
--- WCL-Nutzungsdaten (Top-Spieler, getrennt nach Content) fuer den Hybrid-Split.
-local function wclTrinkets(specID)
-    local root = _G.MetaMirrorData
-    if not (root and root.trinkets and specID) then return nil end
-    return root.trinkets[specID]
-end
-
--- Tier aus der Rang-Position in der Nutzungsliste (glatte, lueckenlose Verteilung statt
--- harter Nutzungs-Anteil-Cuts: so springt es nie S->B, sondern S->A->B..., auch bei kleinen
--- Stichproben). Die Reihenfolge (=echte Nutzung) bleibt das Signal, der Tier ist nur die
--- visuelle Empfehlungsstaerke.
-local function rankTier(pos)
-    if pos <= 1 then return "S"
-    elseif pos <= 3 then return "A"
-    elseif pos <= 6 then return "B"
-    elseif pos <= 10 then return "C"
-    else return "D" end
-end
-
--- Hybrid-Sicht: vollstaendige Bloodmallet-Sim-Liste (mit Stat-Modi). "overall" bleibt pur
--- (Sim-DPS). "raid"/"dungeon" werden nach der WCL-Nutzung des jeweiligen Contents umsortiert;
--- der Tier kommt rang-basiert aus dieser Nutzung (rankTier) -> echter M+/Raid-Unterschied
--- trotz Einzelziel-Sim. Trinkets ohne WCL-Content-Nutzung stehen (in Sim-Reihenfolge) hinten
--- mit Tier "D". Stat-Modi desselben Trinkets teilen sich Rang/Tier, bleiben untereinander.
-local function hybridList(specID, view)
-    local bm = trinketData(specID)
-    if not bm then return nil end
-    local simList = bm.overall or {}
-    if view == "overall" then return simList end
-    local wcl = wclTrinkets(specID)
-    local wview = wcl and wcl[view]
-    if not wview or #wview == 0 then return simList end   -- keine WCL-Daten -> Sim-Fallback
-    local rank = {}
-    for i, e in ipairs(wview) do
-        if e.itemID and not rank[e.itemID] then rank[e.itemID] = i end
-    end
-    local out, seen = {}, {}
-    -- 1) Bloodmallet-Liste (mit Stat-Modi), annotiert mit WCL-Rang + rang-basiertem Tier.
-    for i, e in ipairs(simList) do
-        local pos = rank[e.itemID]
-        out[#out + 1] = {
-            itemID = e.itemID, mode = e.mode,
-            tier = pos and rankTier(pos) or "D",
-            _rank = pos or (1000 + i),               -- ungenutzt -> ans Ende, Sim-Reihenfolge
-            _sim = i,
-        }
-        if e.itemID then seen[e.itemID] = true end
-    end
-    -- 2) Im Content genutzte Trinkets, die Bloodmallet NICHT simuliert (~10%): trotzdem
-    --    aufnehmen (rang-basierter Tier, ohne Stat-Modus), damit keine Empfehlung fehlt.
-    for _, e in ipairs(wview) do
-        if e.itemID and not seen[e.itemID] then
-            seen[e.itemID] = true
-            out[#out + 1] = { itemID = e.itemID, tier = rankTier(rank[e.itemID]),
-                              _rank = rank[e.itemID], _sim = 0 }
-        end
-    end
-    table.sort(out, function(a, b)
-        if a._rank ~= b._rank then return a._rank < b._rank end
-        return a._sim < b._sim                       -- gleiche itemID (Modi) -> Sim-Ordnung
-    end)
-    return out
 end
 
 -- Trinket-Zeile: [Tier] [Icon] [Name] .......... [Quelle]. Feldnamen (icon/src/label)
@@ -1024,6 +1164,16 @@ local function getTkRow(parent, i)
     local b = CreateFrame("Button", nil, parent)
     b:SetSize(CHILD_W - 12, 26)
     b:RegisterForClicks("AnyUp")
+    -- Markierung "steckt im Referenzprofil": bewusst dieselben zwei Texturen wie die
+    -- Gear-Ampel (Schimmer + Akzentstreifen links), damit die Zeile im Schmuck-Tab
+    -- nicht wie ein drittes, neues Gestaltungsmittel wirkt.
+    b.hl = b:CreateTexture(nil, "BACKGROUND")
+    b.hl:SetPoint("TOPLEFT", 0, 0); b.hl:SetPoint("BOTTOMRIGHT", 0, 0)
+    b.hl:Hide()
+    b.hlEdge = b:CreateTexture(nil, "BORDER")
+    b.hlEdge:SetPoint("TOPLEFT", 0, 0); b.hlEdge:SetPoint("BOTTOMLEFT", 0, 0)
+    b.hlEdge:SetWidth(2)
+    b.hlEdge:Hide()
     b.tier = fs(b, "GameFontNormalLarge", C.TXT)
     b.tier:SetPoint("LEFT", 2, 0); b.tier:SetWidth(22); b.tier:SetJustifyH("CENTER")
     b.icon = b:CreateTexture(nil, "ARTWORK"); b.icon:SetSize(22, 22)
@@ -1048,7 +1198,9 @@ local function getTkRow(parent, i)
     b:SetScript("OnEnter", function(self)
         if not self.link then return end
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:SetHyperlink(self.link); GameTooltip:Show()
+        GameTooltip:SetHyperlink(self.link)
+        if self.refNote then GameTooltip:AddLine(self.refNote, 1.0, 0.82, 0.0) end
+        GameTooltip:Show()
     end)
     b:SetScript("OnLeave", function() GameTooltip:Hide() end)
     b:SetScript("OnClick", function(self, button)
@@ -1061,6 +1213,20 @@ local function getTkRow(parent, i)
     return b
 end
 
+-- Zeilen werden zwischen Specs wiederverwendet -> beide Zustaende explizit setzen.
+local function markReferenceTrinket(b, isRef)
+    if isRef then
+        local c = C.GOLD
+        b.hl:SetColorTexture(c[1], c[2], c[3], 0.14)
+        b.hlEdge:SetColorTexture(c[1], c[2], c[3], 0.85)
+        b.hl:Show(); b.hlEdge:Show()
+        b.refNote = string.format(L.trinket_ref_tip, L.tab_gear)
+    else
+        b.hl:Hide(); b.hlEdge:Hide()
+        b.refNote = nil
+    end
+end
+
 -- Metrik-/Credit-Zeile + Scrollbereich, einmalig erzeugt. KEIN eigener M+/Raid-Umschalter
 -- mehr: der Schmuck-Tab folgt dem globalen Kontext-Schalter (M+/Raid) oben im Panel, sonst
 -- gaebe es zwei konkurrierende Umschalter fuer denselben Zweck (verwirrend).
@@ -1070,7 +1236,7 @@ local function ensureTrinketUI()
     Body.tkNote:SetPoint("TOPLEFT", 0, -4); Body.tkNote:SetJustifyH("LEFT")
     local sf = CreateFrame("ScrollFrame", "MetaMirrorTkScroll", Body,
                            "UIPanelScrollFrameTemplate")
-    sf:SetPoint("TOPLEFT", 0, -22); sf:SetPoint("BOTTOMRIGHT", -22, 0)
+    sf:SetPoint("TOPLEFT", 0, -34); sf:SetPoint("BOTTOMRIGHT", -22, 0)
     sf:EnableMouseWheel(true)
     sf:SetScript("OnMouseWheel", function(self, delta)
         local newv = self:GetVerticalScroll() - delta * 24
@@ -1089,7 +1255,7 @@ local function hideTrinkets()
     for j = 1, #tkRows do tkRows[j]:Hide() end
 end
 
-local function renderTrinkets(self, specID)
+local function renderTrinkets(self, classID, specID)
     local child = ensureTrinketUI()
     Body.tkScroll:Show()
 
@@ -1101,7 +1267,7 @@ local function renderTrinkets(self, specID)
         b:ClearAllPoints(); b:SetPoint("TOPLEFT", 8, 0)
         b.tier:SetText(""); b.icon:SetTexture(nil); b.link = nil
         b.src.srcData = nil; b.src.text:SetText(""); b.src:Hide()
-        boundLabel(b, false)
+        boundLabel(b, false); markReferenceTrinket(b, false)
         -- Ganze Spec ohne Bloodmallet-Daten -> ehrlicher Hinweis; die Liste fuellt sich,
         -- sobald Bloodmallet fuer diese Spec Profile liefert (Nachschub).
         b.label:SetText(DIM_HEX .. L.trinket_no_bm .. "|r")
@@ -1110,25 +1276,21 @@ local function renderTrinkets(self, specID)
         child:SetHeight(48)
         return
     end
-    -- Sicht folgt dem globalen Kontext-Schalter oben (M+/Raid): Raid -> Raid-Nutzung,
-    -- M+ -> Dungeon-Nutzung. Fehlt fuer den gewaehlten Inhalt eine WCL-Stichprobe, faellt
-    -- die Sicht auf die reine Sim-Rangliste ("overall") zurueck.
-    local wcl = wclTrinkets(specID)
-    local want = (MetaMirrorDB.content == "raid") and "raid" or "dungeon"
-    local hasWant = (wcl and wcl[want] and #wcl[want] > 0) or false
-    local view = hasWant and want or "overall"
-    -- Metrik-Hinweis: Reihenfolge nach simuliertem Schaden. Die frueher hier genutzte
-    -- Umsortierung nach echter Nutzung entfaellt seit dem Wegfall der WCL-Daten;
-    -- Sim-Fallback = Sim-DPS-Rangliste (bloodmallet.com), M+/Raid dann identisch.
-    local note
-    if view == "overall" then
-        note = L.trinket_note .. " " .. L.trinket_single
-    else
-        note = L.trinket_note_use
-    end
-    Body.tkNote:SetText(DIM_HEX .. note .. "|r"); Body.tkNote:Show()
+    -- Hinweiszeile: Rangliste nach simuliertem Schaden (bloodmallet.com, Einzelziel);
+    -- der globale M+/Raid-Schalter aendert an dieser Liste nichts. Zweite Zeile erklaert
+    -- die goldene Markierung -- eine Farbe ohne Legende waere nur ein neues Raetsel.
+    -- Farbcode je Zeile neu setzen: ueber einen Zeilenumbruch hinweg gilt er nicht.
+    Body.tkNote:SetText(DIM_HEX .. L.trinket_note .. " " .. L.trinket_single .. "|r\n"
+        .. DIM_HEX .. string.format(L.trinket_ref_note, L.tab_gear) .. "|r")
+    Body.tkNote:Show()
 
-    local list = hybridList(specID, view) or {}
+    -- Die zwei Schmuckstuecke des Referenzprofils. Bei Trinkets mit Stat-Modi (gleiche
+    -- itemID, mehrere Zeilen) werden alle Varianten markiert: die Daten nennen nur die
+    -- itemID, welcher Modus im Profil steckt, steht nirgends -- lieber alle markieren
+    -- als eine Variante frei auswaehlen.
+    local refSet = self:ReferenceTrinkets(classID, specID, MetaMirrorDB.content)
+
+    local list = spec.overall or {}
     local y, i = 0, 0
     for _, e in ipairs(list) do
         i = i + 1
@@ -1149,16 +1311,17 @@ local function renderTrinkets(self, specID)
         -- ein nicht-craftbares Drop-Trinket (auch aus aelteren Seasons) bleibt sonst leer,
         -- statt faelschlich "Hergestellt" zu behaupten.
         applyRowSource(b, e.itemID)
+        markReferenceTrinket(b, refSet[e.itemID] or false)
         y = y + 26
     end
-    -- Leere Sicht (z.B. Spec ohne Raid- oder M+-Stichprobe) -> Hinweiszeile.
+    -- Leere Liste -> Hinweiszeile.
     if i == 0 then
         i = 1
         local b = getTkRow(child, 1)
         b:ClearAllPoints(); b:SetPoint("TOPLEFT", 8, 0)
         b.tier:SetText(""); b.icon:SetTexture(nil); b.link = nil
         b.src.srcData = nil; b.src.text:SetText(""); b.src:Hide()
-        boundLabel(b, false)
+        boundLabel(b, false); markReferenceTrinket(b, false)
         b.label:SetText(DIM_HEX .. L.trinket_no_data .. "|r")
         b:Show()
         y = 28
@@ -1172,22 +1335,19 @@ function MetaMirror.RenderBody(self, classID, specID)
         Body.msg = fs(Body, "GameFontHighlight", C.DIM)
         Body.msg:SetPoint("TOPLEFT")
     end
-    -- Schmuck-Tab hat eine eigene Datenquelle (Bloodmallet) und ist unabhaengig von
-    -- den WCL-Daten -> vor dem DataFor-Check behandeln, damit er auch ohne WCL-Datensatz
-    -- fuer die Spec rendert.
+    -- Schmuck-Tab hat eine eigene Datenquelle (Bloodmallet) -> vor dem DataFor-Check
+    -- behandeln, damit er auch fuer Specs ohne Sim-Datensatz rendert.
     if MetaMirrorDB.tab == "schmuck" then
         for j = 1, #rows do rows[j]:Hide() end
-        hideStatsNote()
         hideItemRows(); hideImprovements()
         Body.msg:Hide()
-        renderTrinkets(self, specID)
+        renderTrinkets(self, classID, specID)
         return
     end
     hideTrinkets()
     local data = self:DataFor(classID, specID, MetaMirrorDB.content)
     if not data then
         for j = 1, #rows do rows[j]:Hide() end
-        hideStatsNote()
         hideItemRows()
         hideImprovements()
         Body.msg:Show(); Body.msg:SetText(L.no_data)
@@ -1230,6 +1390,7 @@ function MetaMirror.RenderBody(self, classID, specID)
             if not dup and not (dropOffhand and g.slot == "OFFHAND") then
                 if g.itemID then seen[g.itemID] = true end
                 entries[#entries+1] = { label = slotLabel(g.slot), itemID = g.itemID,
+                                        itemLevel = g.itemLevel,
                                         bonusIDs = normalizeToMyth(g.bonusIDs) }
             end
         end

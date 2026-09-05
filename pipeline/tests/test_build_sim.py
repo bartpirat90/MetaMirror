@@ -140,7 +140,7 @@ def test_build_full_contract_with_four_fixture_specs():
     mage_mplus = plain[MAGE_FROST.class_id][MAGE_FROST.spec_id]["mythicplus"]
     assert mage_raid.sample_size == 1 and mage_mplus.sample_size == 1
 
-    assert meta["fightStyles"] == {"raid": "castingpatchwerk", "mythicplus": "castingpatchwerk3"}
+    assert meta["fightStyles"] == {"raid": "castingpatchwerk", "mythicplus": "castingpatchwerk5"}
     assert meta["simcHash"] == "f869791"
     assert meta["bloodmalletTimestamp"] == "2026-09-02"
     assert meta["specsWithData"] == 4
@@ -204,7 +204,7 @@ def test_write_produces_lua_with_attribution_fightstyles_generated(tmp_path):
     text = out.read_text(encoding="utf-8")
     assert 'attribution = "Data from bloodmallet.com (SimulationCraft)"' in text
     assert "Warcraft Logs" not in text
-    assert 'fightStyles = { mythicplus = "castingpatchwerk3", raid = "castingpatchwerk" }' in text
+    assert 'fightStyles = { mythicplus = "castingpatchwerk5", raid = "castingpatchwerk" }' in text
     assert f'generated = "{meta["generated"]}"' in text
     assert 'simcHash = "f869791"' in text
     assert "\r\n" not in text   # newline="\n"

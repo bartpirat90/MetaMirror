@@ -10,12 +10,15 @@
 
 Localization.lua
 MetaMirror.lua
+Style.lua
 Data\MetaMirrorData.lua
 Data\MetaMirrorTrinkets.lua
 Data\MetaMirrorSources.lua
 Logic.lua
 Player.lua
 Source.lua
+GearStatus.lua
 LootAlert.lua
+Tooltip.lua
 SelfTest.lua
 UI.lua

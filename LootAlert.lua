@@ -1,4 +1,4 @@
--- BiS-/S-Tier-Drop-Alarm: horcht auf ENCOUNTER_LOOT_RECEIVED (Boss-Loot in Gruppe),
+-- Referenz-/S-Tier-Drop-Alarm: horcht auf ENCOUNTER_LOOT_RECEIVED (Boss-Loot in Gruppe),
 -- gleicht die itemID gegen die Meta-Empfehlung der EIGENEN Spec ab und meldet Treffer:
 --   * bekommt man es selbst -> Glueckwunsch-Banner
 --   * bekommt es ein anderer (nur in Gruppe) -> Popup mit Knopf, der den Gewinner
@@ -7,7 +7,7 @@
 --   ENCOUNTER_LOOT_RECEIVED: encounterID, itemID, itemLink, quantity, playerName, classFileName
 MetaMirror = MetaMirror or {}
 
--- ===== Meta-Ziel-Set der aktuellen Spec (itemID -> "BiS" | "S") =====
+-- ===== Meta-Ziel-Set der aktuellen Spec (itemID -> "ref" | "S") =====
 -- Gear-Content + Trinket-Sicht aus dem Instanztyp: Raid -> raid, sonst Dungeon/M+.
 local function targetSet()
     local classID, specID = MetaMirror:CurrentSpecKey()
@@ -15,12 +15,12 @@ local function targetSet()
     local _, itype = IsInInstance()
     local set = {}
 
-    -- BiS-Gear (genau die empfohlene Top-Item je Slot) fuer den passenden Inhalt.
+    -- Referenz-Gear (das empfohlene Item je Slot) fuer den passenden Inhalt.
     local gearContent = (itype == "raid") and "raid" or "mythicplus"
     local data = MetaMirror:DataFor(classID, specID, gearContent)
     if data and data.gear then
         for _, g in ipairs(data.gear) do
-            if g.itemID then set[g.itemID] = "BiS" end
+            if g.itemID then set[g.itemID] = "ref" end
         end
     end
 
@@ -188,8 +188,8 @@ local function showBanner(itemLink, tier)
     local f = ensureFrame()
     f.edge:SetColorTexture(unpack(C.GREEN))
     f.title:SetTextColor(unpack(C.GREEN))
-    f.title:SetText(L.loot_grats or "Congratulations! BiS item dropped!")
-    f.item:SetText((itemLink or "") .. "  |cff9a8fbf(" .. (tier or "BiS") .. ")|r")
+    f.title:SetText(L.loot_grats or "Congratulations! A reference item dropped!")
+    f.item:SetText((itemLink or "") .. "  " .. MetaMirror.HEX.SEC .. "(" .. (tier or L.tier_ref or "reference") .. ")|r")
     f.ask:Hide()
     f:SetHeight(72)
     f:Show()
@@ -204,7 +204,8 @@ local function showRequest(itemLink, playerName, tier)
     local who = (strsplit("-", playerName)) or playerName
     f.edge:SetColorTexture(unpack(C.VIOLET))
     f.title:SetTextColor(unpack(C.VIOLET_S))
-    f.title:SetText(string.format(L.loot_drop_title or "%s dropped for %s", tier or "BiS", who))
+    f.title:SetText(string.format(L.loot_drop_title or "%s dropped for %s",
+                                  tier or L.tier_ref or "reference", who))
     f.item:SetText(itemLink or "")
     f.ask.target = playerName
     f.ask.link = itemLink
@@ -223,7 +224,8 @@ function MetaMirror:HandleLoot(itemID, itemLink, playerName)
     local set = targetSet()
     local tier = set and set[itemID]
     if not tier then return end
-    local tierLabel = (tier == "S") and "S-Tier" or "BiS"
+    local L = MetaMirror.L
+    local tierLabel = (tier == "S") and "S-Tier" or (L.tier_ref or "reference")
     if isSelf(playerName) then
         showBanner(itemLink, tierLabel)
     elseif IsInGroup() then
@@ -237,7 +239,7 @@ listener:SetScript("OnEvent", function(_, _, _, itemID, itemLink, _, playerName)
     MetaMirror:HandleLoot(itemID, itemLink, playerName)
 end)
 
--- /mm testloot : simuliert einen Drop mit dem ersten BiS-Item der eigenen Spec, damit
+-- /mm testloot : simuliert einen Drop mit dem ersten Referenz-Item der eigenen Spec, damit
 -- die UI ohne echten Boss-Kill pruefbar ist (Banner = selbst, Popup = fremd).
 function MetaMirror:TestLootAlert()
     local classID, specID = self:CurrentSpecKey()
@@ -248,7 +250,10 @@ function MetaMirror:TestLootAlert()
         return
     end
     local link = select(2, C_Item.GetItemInfo(first.itemID)) or ("item:" .. first.itemID)
+    local L = MetaMirror.L
     print("|cffa855f7[MM]|r LootAlert-Test: erst Glückwunsch-Banner, dann Bitte-Popup.")
-    showBanner(link, "BiS")
-    C_Timer.After(3, function() showRequest(link, "Testspieler-Testrealm", "BiS") end)
+    showBanner(link, L.tier_ref or "reference")
+    C_Timer.After(3, function()
+        showRequest(link, "Testspieler-Testrealm", L.tier_ref or "reference")
+    end)
 end

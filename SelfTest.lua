@@ -56,6 +56,188 @@ test("DataFor_missing", function()
     assertEqual(MetaMirror:DataFor(99, 99, "raid"), nil, "unknown spec")
 end)
 
+test("DataStamp_mplus_label_and_date", function()
+    local root = { generated = "2026-09-05",
+                   fightStyles = { mythicplus = "castingpatchwerk5", raid = "castingpatchwerk" } }
+    local s = MetaMirror:DataStamp("stats", "mythicplus", root, nil)
+    assertEqual(s ~= nil and s:find("2026-09-05", 1, true) ~= nil, true, "Datum enthalten")
+    assertEqual(s:find(MetaMirror.L.fight_mplus, 1, true) ~= nil, true, "M+-Label enthalten")
+    local r = MetaMirror:DataStamp("gear", "raid", root, nil)
+    assertEqual(r:find(MetaMirror.L.fight_raid, 1, true) ~= nil, true, "Raid-Label enthalten")
+end)
+test("DataStamp_maps_legacy_three_target_style", function()
+    -- Datendateien von vor dem Wechsel auf fuenf Ziele tragen castingpatchwerk3; die
+    -- sollen weiterhin das M+-Label bekommen statt des rohen Stil-Namens.
+    local root = { generated = "2026-09-04",
+                   fightStyles = { mythicplus = "castingpatchwerk3", raid = "castingpatchwerk" } }
+    local s = MetaMirror:DataStamp("stats", "mythicplus", root, nil)
+    assertEqual(s:find(MetaMirror.L.fight_mplus, 1, true) ~= nil, true, "Alt-Stil -> M+-Label")
+    assertEqual(s:find("castingpatchwerk", 1, true), nil, "roher Stil-Name taucht nicht auf")
+end)
+test("DataStamp_unknown_style_falls_back_to_raw_name", function()
+    local root = { generated = "2026-09-05", fightStyles = { mythicplus = "beastlord" } }
+    local s = MetaMirror:DataStamp("stats", "mythicplus", root, nil)
+    assertEqual(s:find("beastlord", 1, true) ~= nil, true, "unbekannter Stil bleibt lesbar")
+end)
+test("DataStamp_schmuck_from_trinket_version", function()
+    local troot = { version = "bm-2026-09-01" }
+    local s = MetaMirror:DataStamp("schmuck", "mythicplus", { generated = "2026-09-04" }, troot)
+    assertEqual(s:find("2026-09-01", 1, true) ~= nil, true, "Trinket-Datum")
+    assertEqual(s:find(MetaMirror.L.fight_raid, 1, true) ~= nil, true, "Einzelziel-Label")
+end)
+test("DataStamp_nil_without_date", function()
+    assertEqual(MetaMirror:DataStamp("stats", "raid", {}, nil), nil, "kein generated -> nil")
+    assertEqual(MetaMirror:DataStamp("schmuck", "raid", {}, {}), nil, "kein version -> nil")
+end)
+
+test("Data_gear_carries_reference_item_level", function()
+    -- Regression: die Pipeline hat das ilevel-Feld von bloodmallet verworfen, dadurch
+    -- fehlte bei rund der Haelfte der Slots die Referenzstufe und die Ampel verglich
+    -- gegen die Basisstufe des Items.
+    local root = _G.MetaMirrorData
+    local withLevel, total = 0, 0
+    for _, specs in pairs((root and root.specs) or {}) do
+        for _, contents in pairs(specs) do
+            for _, data in pairs(contents) do
+                for _, g in ipairs(data.gear or {}) do
+                    total = total + 1
+                    if (g.itemLevel or 0) > 0 then withLevel = withLevel + 1 end
+                end
+            end
+        end
+    end
+    assertEqual(total > 0, true, "Gear-Eintraege vorhanden")
+    assertEqual(withLevel > 0, true, "mindestens ein Eintrag traegt eine Referenzstufe")
+end)
+
+test("ReferenceTrinkets_returns_profile_trinkets", function()
+    -- Der Schmuck-Tab markiert damit die Zeilen, die auch im Referenzprofil stecken.
+    -- Ohne diese Bruecke wirkt die abweichende Reihenfolge der beiden Sichten wie ein
+    -- Widerspruch.
+    local root = _G.MetaMirrorData
+    local specs = root and root.specs
+    local found = false
+    for classID, byspec in pairs(specs or {}) do
+        for specID, contents in pairs(byspec) do
+            for content, data in pairs(contents) do
+                local want = {}
+                for _, g in ipairs(data.gear or {}) do
+                    if g.slot == "TRINKET1" or g.slot == "TRINKET2" then
+                        want[#want+1] = g.itemID
+                    end
+                end
+                if #want > 0 then
+                    found = true
+                    local set = MetaMirror:ReferenceTrinkets(classID, specID, content)
+                    for _, id in ipairs(want) do
+                        assertEqual(set[id], true, "Trinket " .. tostring(id) .. " markiert")
+                    end
+                end
+            end
+        end
+    end
+    assertEqual(found, true, "mindestens ein Profil traegt Schmuck")
+end)
+test("ReferenceTrinkets_empty_set_for_unknown_spec", function()
+    -- Leeres Set statt nil: die UI indiziert direkt, ohne Nil-Pruefung.
+    local set = MetaMirror:ReferenceTrinkets(999, 999, "raid")
+    assertEqual(type(set), "table", "Tabelle auch ohne Daten")
+    assertEqual(next(set), nil, "leer")
+    assertEqual(set[12345], nil, "beliebige itemID nicht markiert")
+end)
+test("ReferenceTrinkets_excludes_other_slots", function()
+    local set = MetaMirror:ReferenceTrinkets(9, 266, "raid")
+    local data = MetaMirror:DataFor(9, 266, "raid")
+    for _, g in ipairs((data and data.gear) or {}) do
+        if g.slot ~= "TRINKET1" and g.slot ~= "TRINKET2" then
+            assertEqual(set[g.itemID], nil, "Nicht-Schmuck " .. g.slot .. " nicht markiert")
+        end
+    end
+end)
+test("GearStatus_equipped_regardless_of_item_level", function()
+    -- Angelegt ist angelegt: die Stufe darf den Zustand nicht mehr beeinflussen,
+    -- sonst wird eine Selbstverstaendlichkeit ("hoeher ist besser") eingefaerbt.
+    assertEqual(MetaMirror:GearStatus(100, { equipped = { [100] = 350 }, bags = {} }), "equipped", "auf Referenzstufe")
+    assertEqual(MetaMirror:GearStatus(100, { equipped = { [100] = 330 }, bags = {} }), "equipped", "niedrigere Stufe")
+    assertEqual(MetaMirror:GearStatus(100, { equipped = { [100] = 0 }, bags = {} }), "equipped", "Stufe unbekannt")
+end)
+test("GearStatus_ignores_extra_arguments", function()
+    -- Alte Aufrufer uebergaben eine Referenzstufe als drittes Argument; die darf
+    -- nichts mehr bewirken.
+    assertEqual(MetaMirror:GearStatus(100, { equipped = { [100] = 330 }, bags = {} }, 350), "equipped", "Reststufe ohne Wirkung")
+end)
+test("GearStatus_bag", function()
+    assertEqual(MetaMirror:GearStatus(100, { equipped = {}, bags = { [100] = true } }), "bag", "im Beutel")
+end)
+test("GearStatus_missing", function()
+    assertEqual(MetaMirror:GearStatus(100, { equipped = {}, bags = {} }), "missing", "fehlt")
+    assertEqual(MetaMirror:GearStatus(nil, { equipped = {}, bags = {} }), "missing", "keine itemID")
+end)
+test("GearStatus_equipped_beats_bag", function()
+    local ctx = { equipped = { [100] = 350 }, bags = { [100] = true } }
+    assertEqual(MetaMirror:GearStatus(100, ctx), "equipped", "angelegt hat Vorrang")
+end)
+
+-- Fake-Daten fuer den Tooltip-Index: Klasse 8 (Magier) mit zwei Specs.
+local function ttFixture()
+    local root = { specs = { [8] = {
+        [64] = { mythicplus = { gear = { { slot = "HEAD", itemID = 500 }, { slot = "BACK", itemID = 501 } } },
+                 raid       = { gear = { { slot = "HEAD", itemID = 500 } } } },
+        [63] = { mythicplus = { gear = { { slot = "HEAD", itemID = 502 } } },
+                 raid       = { gear = { { slot = "HEAD", itemID = 502 } } } },
+    } } }
+    local troot = { specs = {
+        [64] = { singleSource = true, overall = { { itemID = 600, tier = "S" }, { itemID = 601, tier = "A" } } },
+        [63] = { raid = { { itemID = 600, tier = "S" } }, dungeon = { { itemID = 601, tier = "S" } } },
+    } }
+    local specs = { { specID = 64, name = "Frost" }, { specID = 63, name = "Fire" } }
+    return root, troot, specs
+end
+test("TooltipIndex_bis_both_contents", function()
+    local root, troot, specs = ttFixture()
+    local idx = MetaMirror:BuildTooltipIndex(8, specs, root, troot)
+    local e = idx[500][1]
+    assertEqual(e.name, "Frost", "Spec-Name")
+    assertEqual(e.kind, "bis", "Art")
+    assertEqual(e.mplus and e.raid, true, "M+ und Raid")
+    assertEqual(idx[501][1].raid, false, "Back nur M+")
+    assertEqual(idx[999], nil, "unbekanntes Item")
+end)
+test("TooltipIndex_strinket_views", function()
+    local root, troot, specs = ttFixture()
+    local idx = MetaMirror:BuildTooltipIndex(8, specs, root, troot)
+    -- 600: Frost singleSource (overall gilt fuer beide) + Fire nur Raid
+    local frost, fire
+    for _, e in ipairs(idx[600]) do
+        if e.name == "Frost" then frost = e elseif e.name == "Fire" then fire = e end
+    end
+    assertEqual(frost.kind, "strinket", "Frost S-Trinket")
+    assertEqual(frost.mplus and frost.raid, true, "Frost beide Sichten")
+    assertEqual(fire.mplus, false, "Fire nur Raid")
+    assertEqual(fire.raid, true, "Fire Raid")
+    -- 601: Frost Tier A -> kein Eintrag; Fire nur Dungeon
+    assertEqual(#idx[601], 1, "nur Fire")
+    assertEqual(idx[601][1].mplus, true, "Fire M+")
+end)
+test("TooltipLines_format", function()
+    local root, troot, specs = ttFixture()
+    local idx = MetaMirror:BuildTooltipIndex(8, specs, root, troot)
+    local lines = MetaMirror:TooltipLinesForIndex(idx, 500)
+    assertEqual(#lines, 1, "eine Zeile")
+    assertEqual(lines[1]:find("Frost", 1, true) ~= nil, true, "Spec im Text")
+    assertEqual(lines[1]:find(MetaMirror.L.ctx_mplus, 1, true) ~= nil, true, "M+ im Text")
+    assertEqual(lines[1]:find(MetaMirror.L.ctx_raid, 1, true) ~= nil, true, "Raid im Text")
+    assertEqual(#MetaMirror:TooltipLinesForIndex(idx, 999), 0, "unbekannt -> leer")
+end)
+test("TooltipLines_current_spec_first", function()
+    local root, troot, _ = ttFixture()
+    -- Reihenfolge der specs-Liste = Reihenfolge der Zeilen (Aufrufer sortiert aktuelle Spec nach vorn).
+    local idx = MetaMirror:BuildTooltipIndex(8, { { specID = 63, name = "Fire" }, { specID = 64, name = "Frost" } }, root, troot)
+    local lines = MetaMirror:TooltipLinesForIndex(idx, 600)
+    assertEqual(#lines, 2, "zwei Zeilen")
+    assertEqual(lines[1]:find("Fire", 1, true) ~= nil, true, "Fire zuerst")
+end)
+
 -- ---------------------------------------------------------------------------
 -- /mm dumpench : liest die Enchant-Namen zu unseren permanentEnchant-IDs aus.
 -- Einmaliger Season-Schritt, um die feste enchantID->itemID-Tabelle zu bauen.
@@ -389,4 +571,61 @@ function MetaMirror:DumpSource()
         end)
     end
     finishMaybe()
+end
+
+-- /mm ilvl : misst, welche Gegenstandsstufe ein Referenz-Item im Spiel tatsaechlich
+-- bekommt. Vier Spalten je Slot: Stufe aus den Sim-Daten, Stufe des Links so wie das
+-- Addon ihn baut, und Stufe desselben Links mit angehaengtem Mythos-6/6-Bonus (12854,
+-- per /mm dumpq verifiziert). Damit laesst sich mit Messwerten statt Vermutungen
+-- entscheiden, ob sich die Referenzstufe ueberhaupt in einen Item-Link kodieren laesst.
+function MetaMirror:DumpItemLevels()
+    local classID, specID = self:CurrentSpecKey()
+    local d = classID and specID and self:DataFor(classID, specID, MetaMirrorDB.content)
+    if not d then print("|cffa855f7[MM]|r Keine Daten für aktuelle Spec.") return end
+    local MYTH = 12854
+    local lines = { "Slot | itemID | Daten | Link | Link+Mythos6/6 | bonusIDs" }
+    local gear = {}
+    for _, g in ipairs(d.gear or {}) do gear[#gear + 1] = g end
+    table.sort(gear, function(a, b) return (a.slot or "") < (b.slot or "") end)
+
+    local pending = #gear
+    local function finishMaybe()
+        if pending > 0 then return end
+        table.sort(lines, function(a, b) return a < b end)
+        showCopy(table.concat(lines, "\n"))
+        print("|cffa855f7[MM]|r Ilvl-Dump fertig \226\128\148 Fenster offen (Strg+C).")
+    end
+    if pending == 0 then finishMaybe() return end
+
+    local function ilvlOf(link)
+        if not (C_Item and C_Item.GetDetailedItemLevelInfo) then return 0 end
+        local ok, v = pcall(C_Item.GetDetailedItemLevelInfo, link)
+        return (ok and type(v) == "number") and v or 0
+    end
+
+    for _, g in ipairs(gear) do
+        local ids = g.bonusIDs or {}
+        local hasMyth = false
+        for _, id in ipairs(ids) do if id == MYTH then hasMyth = true end end
+        local function core(extra)
+            local list = {}
+            for _, id in ipairs(ids) do list[#list + 1] = id end
+            if extra and not hasMyth then list[#list + 1] = extra end
+            return string.format("item:%d:0:0:0:0:0:0:0:0:0:0:0:%d:%s",
+                g.itemID, #list, table.concat(list, ":"))
+        end
+        local plain, boosted = core(nil), core(MYTH)
+        local item = Item:CreateFromItemLink(plain)
+        item:ContinueOnItemLoad(function()
+            local a = ilvlOf(plain)
+            local it2 = Item:CreateFromItemLink(boosted)
+            it2:ContinueOnItemLoad(function()
+                lines[#lines + 1] = string.format("%s | %d | %d | %d | %d | %s",
+                    g.slot or "?", g.itemID or 0, g.itemLevel or 0, a, ilvlOf(boosted),
+                    table.concat(ids, "/"))
+                pending = pending - 1
+                finishMaybe()
+            end)
+        end)
+    end
 end

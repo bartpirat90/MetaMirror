@@ -10,20 +10,26 @@ Die Daten stammen aus **bloodmallet.com** (Sekundärwert-Verteilungen und Schmuc
 
 ## Funktionen
 
-### 📊 Stat-Ziele aus bloodmallets bester Verteilung
-Sekundärwert-Ziele pro Spec, aus bloodmallet.coms bester Sekundärwert-Verteilung: ein Ziel für Raid (Einzelziel-Sim), drei für Mythisch+ (Mehrziel-Sim). Deine eigenen Live-Werte werden direkt dagegen verglichen.
+### 📊 Stat-Ziele aus bloodmallets Sims
+Sekundärwert-Ziele pro Spec von bloodmallet.com: ein Ziel für Raid (Einzelziel-Sim), eines für Mythisch+ (Fünf-Ziel-Sim). Statt einfach die beste Verteilung aus dem groben 10-%-Raster zu nehmen, mittelt MetaMirror alle Verteilungen, die höchstens 0,5 % darunter liegen — die Abstände an der Spitze liegen im Sim-Rauschen, und der Mittelwert ergibt ein feineres, ruhigeres Ziel. Deine eigenen Live-Werte werden direkt dagegen verglichen. In der Kopfzeile jedes Tabs steht ein Datenstand, z. B. „Sim-Referenz · 5 Ziele · 2026-09-05", damit du immer siehst, wie aktuell die Zahlen sind.
 
 ### 🛡️ Ausrüstungsset aus dem SimulationCraft-Referenzprofil der Season
-Ein vollständiges Ausrüstungsset pro Spec — Items, Steine und Verzauberungen — aus dem SimulationCraft-Referenzprofil der aktuellen Season.
+Ein vollständiges Ausrüstungsset pro Spec — Items, Steine und Verzauberungen — aus dem SimulationCraft-Referenzprofil der aktuellen Season. Pro Spec gibt es genau ein Profil, deshalb gilt dasselbe Set für Mythisch+ und Raid — der Tab sagt das auch, statt so zu tun, als würde der Schalter etwas ändern.
 
-### 💎 Schmuck-Tierliste — getrennt nach Inhalt
-Sim-DPS-Tiers von bloodmallet.com für deine Spec. Mythisch+ und Raid werden getrennt gewertet, sodass sich die Liste tatsächlich unterscheidet, statt zweimal dieselbe Reihenfolge zu zeigen.
+### 🚦 Gear-Ampel
+Jede Referenz-Zeile im Ausrüstungs-Tab bekommt eine Ampel: grün, wenn du das Teil angelegt hast, blau, wenn es im Beutel liegt, rot (gedämpft), wenn du es nicht besitzt. Der Aufwertungspfad spielt bewusst keine Rolle — dass eine höhere Gegenstandsstufe besser ist, weiß jeder, das einzufärben wäre nur Lärm. Die Referenzstufe nennt der Tooltip der Zeile, als Information statt als Wertung.
+
+### 💎 Schmuck-Tierliste
+Sim-DPS-Tiers von bloodmallet.com für deine Spec, S bis D. bloodmallet simuliert Schmuck nur im Einzelziel, deshalb teilen sich Mythisch+ und Raid eine Liste — der Tab sagt das auch, statt etwas anderes vorzutäuschen. Goldene Zeilen sind die zwei Schmuckstücke, die das Referenzprofil im Gear-Tab tatsächlich trägt: die Tierliste simuliert jedes Trinket einzeln gegen dasselbe Basisprofil, das Referenzprofil ist ein fertig gebauter Charakter — deshalb stimmen die beiden Reihenfolgen selten exakt überein.
 
 ### ⬆️ Verbesserungen auf einen Blick
 Verzauberungen, Steine und Verbrauchsmaterial für deine Spec auf einer Seite, jeweils mit Quelle.
 
-### 🔔 BiS-Drop-Alarm
+### 🔔 Referenz-Drop-Alarm
 Droppt ein Boss in deiner Gruppe ein Item, das der Ausrüstungs- oder Schmuck-Empfehlung deiner Spec entspricht, meldet MetaMirror es — egal ob du oder ein Gruppenmitglied das Los gewinnt.
+
+### 🏷️ Tooltip-Hinweise
+Fährst du über ein Item — Beutefenster, Beutel, Chat-Link, Händler —, hängt MetaMirror Zeilen an den Tooltip an, z. B. „MetaMirror: Referenz für Frost (M+ · Raid)" oder „MetaMirror: S-Tier-Schmuck für Feuer (Raid)". Für alle Specs deiner Klasse, deine aktuelle Spec zuerst, sodass Offspec-Loot sofort auffällt. Ein-/ausschaltbar mit `/mm tooltip`.
 
 ### 🔎 Woher kommt das Teil?
 Zu jedem Item steht die Quelle: Boss und Instanz direkt aus dem Abenteuerführer, dazu hergestellte Teile, Händler, Tiefen und PvP aus Wowhead.

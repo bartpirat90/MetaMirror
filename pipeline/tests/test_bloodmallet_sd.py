@@ -10,7 +10,7 @@ import httpx
 import pytest
 
 from pipeline.bloodmallet_sd import (
-    FIGHT_STYLE_BY_CONTENT, endpoint, is_error, parse_distribution,
+    BLEND_TOLERANCE, FIGHT_STYLE_BY_CONTENT, endpoint, is_error, parse_distribution,
     stats_from_distribution, gear_from_profile, fetch,
 )
 
@@ -23,7 +23,8 @@ def _load(name):
 
 
 def test_fight_style_by_content():
-    assert FIGHT_STYLE_BY_CONTENT == {"raid": "castingpatchwerk", "mythicplus": "castingpatchwerk3"}
+    # mythicplus = Fuenf-Ziel (castingpatchwerk5): naeher an einem M+-Pull als drei Ziele.
+    assert FIGHT_STYLE_BY_CONTENT == {"raid": "castingpatchwerk", "mythicplus": "castingpatchwerk5"}
 
 
 def test_endpoint_shape():
@@ -52,7 +53,12 @@ def test_parse_distribution_mage_frost():
     parsed = parse_distribution(_load("sd_mage_frost.json"))
     assert parsed["tier"] == "MID2"
     assert parsed["top_key"] == "40_10_40_10"
-    assert parsed["pct"] == {"crit": 40, "haste": 10, "mastery": 40, "vers": 10}
+    # pct ist der DPS-gewichtete Mittelwert der Spitzengruppe (hier 3 Verteilungen
+    # innerhalb 0,5 % der Top-DPS), nicht mehr die Top-Verteilung allein.
+    assert parsed["blended"] == 3
+    assert parsed["pct"] == pytest.approx(
+        {"crit": 43.331165, "haste": 13.326123, "mastery": 33.342713, "vers": 10.0}, abs=1e-4
+    )
     assert parsed["secondary_sum"] == 3040
     assert parsed["dps"] == 205517
     # timestamp = metadata.timestamp[:10] (echtes metadata.timestamp:
@@ -85,16 +91,53 @@ def test_parse_distribution_raises_on_missing_fields():
 
 
 def test_stats_from_distribution_mage_frost_rating():
-    # Plan-Stichprobe: 3040 x 0.40 = 1216 Crit (Task 4: Crit 1216 / Mastery 1216 /
-    # Haste 304 / Vers 304, in dieser Reihenfolge nach Rating absteigend sortiert).
+    # 3040 x 43.33 % = 1317 Crit. Die gemittelte Spitzengruppe loest das grobe
+    # 10-%-Raster der einzelnen Verteilung auf (vorher glatt 1216/1216/304/304).
     parsed = parse_distribution(_load("sd_mage_frost.json"))
     stats = stats_from_distribution(parsed)
     assert stats == [
-        {"key": "crit", "rating": 1216},
-        {"key": "mastery", "rating": 1216},
-        {"key": "haste", "rating": 304},
+        {"key": "crit", "rating": 1317},
+        {"key": "mastery", "rating": 1014},
+        {"key": "haste", "rating": 405},
         {"key": "vers", "rating": 304},
     ]
+
+
+def test_stats_from_distribution_sum_matches_secondary_budget():
+    # Die vier Ratings duerfen das simulierte Sekundaerwert-Budget nicht sprengen
+    # (Rundung je Stat -> hoechstens 2 Punkte Abweichung nach oben).
+    parsed = parse_distribution(_load("sd_hunter_bm.json"))
+    total = sum(s["rating"] for s in stats_from_distribution(parsed))
+    assert abs(total - parsed["secondary_sum"]) <= 2
+
+
+def test_parse_distribution_blend_pct_sums_to_100():
+    for name in ("sd_mage_frost.json", "sd_hunter_bm.json", "sd_warrior_arms.json"):
+        parsed = parse_distribution(_load(name))
+        assert sum(parsed["pct"].values()) == pytest.approx(100.0, abs=1e-6)
+
+
+def test_parse_distribution_tolerance_zero_keeps_top_only():
+    # tolerance=0 -> nur die Top-Verteilung; pct dann wieder das glatte Raster.
+    parsed = parse_distribution(_load("sd_mage_frost.json"), tolerance=0.0)
+    assert parsed["blended"] == 1
+    assert parsed["pct"] == pytest.approx({"crit": 40.0, "haste": 10.0, "mastery": 40.0, "vers": 10.0})
+
+
+def test_parse_distribution_blend_ignores_other_tiers():
+    # Nur Verteilungen des gewaehlten Tiers duerfen einfliessen: ein zweiter Tier mit
+    # hohen DPS-Werten, aber niedrigerer Spitze, darf das Ergebnis nicht veraendern.
+    payload = _load("sd_mage_frost.json")
+    top_tier_data = payload["data"]["MID2"]
+    payload["data"]["MID1"] = {k: v - 1 for k, v in top_tier_data.items()}
+    payload["sorted_data_keys"]["MID1"] = list(payload["sorted_data_keys"]["MID2"])
+    parsed = parse_distribution(payload)
+    assert parsed["tier"] == "MID2"
+    assert parsed["blended"] == 3
+
+
+def test_blend_tolerance_default():
+    assert BLEND_TOLERANCE == 0.005
 
 
 def test_stats_from_distribution_all_four_keys_present():
@@ -103,6 +146,33 @@ def test_stats_from_distribution_all_four_keys_present():
     assert {s["key"] for s in stats} == {"haste", "crit", "mastery", "vers"}
     ratings = [s["rating"] for s in stats]
     assert ratings == sorted(ratings, reverse=True)
+
+
+def test_gear_from_profile_takes_explicit_ilevel():
+    # bloodmallet setzt bei einem Teil der Slots ein explizites 'ilevel' statt einer
+    # Upgrade-Bonus-ID. Wird es verworfen, fehlt die Referenzstufe komplett und das
+    # Addon zeigt die Basisstufe des Items -- teils drastisch daneben.
+    payload = {"profile": {"items": {
+        "back":    {"id": "268253", "ilevel": "344"},
+        "wrists":  {"id": "239648", "ilevel": "331", "bonus_id": "8790/8960"},
+        "chest":   {"id": "271549", "bonus_id": "12854/13690"},
+    }}}
+    gear, _, _ = gear_from_profile(payload)
+    by_slot = {g["slot"]: g for g in gear}
+    assert by_slot["BACK"]["itemLevel"] == 344
+    assert by_slot["WRIST"]["itemLevel"] == 331
+    # Ohne 'ilevel' bleibt 0: die Stufe steckt dann in den Bonus-IDs, der Client
+    # rechnet sie selbst aus.
+    assert by_slot["CHEST"]["itemLevel"] == 0
+
+
+def test_gear_from_profile_ignores_unusable_ilevel():
+    payload = {"profile": {"items": {
+        "back": {"id": "268253", "ilevel": "keine-zahl"},
+        "neck": {"id": "268265", "ilevel": "0"},
+    }}}
+    gear, _, _ = gear_from_profile(payload)
+    assert all(g["itemLevel"] == 0 for g in gear)
 
 
 def test_gear_from_profile_slot_mapping_and_missing_offhand():
