@@ -3,7 +3,7 @@
 ## Notes: Ranks trinkets and secondary stat targets per spec from public sim reference data (bloodmallet.com, SimulationCraft) and compares your live stats against them.
 ## Notes-deDE: Bewertet Schmuck und Sekundärwert-Ziele pro Spec anhand öffentlicher Sim-Referenzdaten (bloodmallet.com, SimulationCraft) und vergleicht deine Werte live dagegen.
 ## Author: Franz Petschull
-## Version: 0.9.0
+## Version: 1.0.0
 ## IconTexture: Interface\AddOns\MetaMirror\Icon
 ## SavedVariablesPerCharacter: MetaMirrorDB
 ## SavedVariables: MetaMirrorSrcCache
