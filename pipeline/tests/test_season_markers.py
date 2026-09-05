@@ -1,15 +1,6 @@
-from pipeline.models import ParseRecord
 from pipeline.season_markers import (
-    entries_from_records, bonus_levels, single_level_bonuses, check_markers,
+    bonus_levels, single_level_bonuses, check_markers,
 )
-
-
-def _rec(*items):
-    gear = [{"slot": "TRINKET1" if i % 2 == 0 else "TRINKET2", "item_id": 1000 + i,
-             "item_level": il, "enchant_id": 0, "gems": [], "bonus_ids": bs}
-            for i, (il, bs) in enumerate(items)]
-    return ParseRecord(class_id=9, spec_id=266, content="raid", stats={}, gear=gear,
-                       consumables={})
 
 
 # Abbild der Live-Verteilung: S2-Track-Stufen + Vorsaison-Rest bei 298 mit Marker 13654.
@@ -20,14 +11,6 @@ S2 = ([(321, [6652, 12846])] * 20 + [(334, [6652, 12854])] * 8 + [(311, [12843])
 S1 = [(298, [6652, 13654])] * 6
 TRACK = {12843, 12844, 12845, 12846, 12849, 12850, 12851, 12852, 12853, 12854}
 PREV = {13654}
-
-
-def test_entries_from_records_all_slots_with_ilvl():
-    r = _rec((321, [1]), (334, [2]))
-    r.gear.append({"slot": "HEAD", "item_id": 5, "item_level": 340, "bonus_ids": [9]})
-    r.gear.append({"slot": "NECK", "item_id": 6, "item_level": 0, "bonus_ids": [7]})   # ohne Ilvl
-    assert sorted(entries_from_records([r])) == [(321, [1]), (334, [2]), (340, [9])]
-    assert sorted(entries_from_records([r], slots=("HEAD",))) == [(340, [9])]
 
 
 def test_bonus_levels_respects_min_n():

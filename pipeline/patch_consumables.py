@@ -1,5 +1,5 @@
 """Offline-Patch: ueberlagert die kuratierten Verbrauchsgueter (Food/Trank/Oel)
-in einer bereits generierten Data/MetaMirrorData.lua, OHNE einen WCL-Abruf.
+in einer bereits generierten Data/MetaMirrorData.lua, OHNE einen neuen Sim-Abruf.
 
 Die Pipeline (run.py -> aggregate.py) wendet apply_curated_consumables kuenftig
 bei jeder Neugenerierung an; dieses Skript bringt denselben Stand in die aktuell

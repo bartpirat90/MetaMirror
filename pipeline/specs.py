@@ -9,16 +9,13 @@ CONTENTS = ["mythicplus", "raid"]
 HEALER_SPECS = {256, 257, 65, 264, 270, 105, 1468}
 
 
-def ranking_metric(spec_id):
-    return "hps" if spec_id in HEALER_SPECS else "dps"
-
 
 @dataclass(frozen=True)
 class Spec:
     class_id: int
     spec_id: int
-    class_name: str   # WCL className (Verwendung als GraphQL-Argument; Schreibweise live pruefen)
-    spec_name: str    # WCL specName
+    class_name: str   # CamelCase, wird fuer bloodmallet/SimulationCraft zu snake_case
+    spec_name: str    # CamelCase, dito
 
 
 SPECS = [

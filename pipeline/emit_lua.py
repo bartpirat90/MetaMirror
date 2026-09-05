@@ -80,7 +80,8 @@ def _trinket_block(trinkets, indent):
 def emit_lua(data, version, season, trinkets=None,
              attribution="Data from bloodmallet.com (SimulationCraft)", extra=None):
     """data: {classID: {specID: {content: AggregatedSpec}}} -> Lua-Quelltext.
-    trinkets: optionale {specID: {overall,raid,dungeon}}-Tierliste (WCL-Nutzung).
+    trinkets: optionale {specID: {overall,raid,dungeon}}-Tierliste (aktuell ungenutzt --
+             die Schmuckliste steht in Data/MetaMirrorTrinkets.lua).
     extra: zusaetzliche Top-Level-Felder nach 'season' (z.B. fightStyles, generated,
     simcHash, sources) -- Werte sind String/Zahl/verschachteltes Dict, deterministisch
     (Keys sortiert) ausgegeben."""

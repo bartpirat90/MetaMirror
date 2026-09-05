@@ -16,9 +16,9 @@ def _agg():
 
 def test_emit_structure_and_values():
     data = {1: {71: {"mythicplus": _agg(), "raid": _agg()}}}
-    out = emit_lua(data, version="wcl-2026-08-31", season="TWW-S1")
+    out = emit_lua(data, version="sim-2026-08-31", season="TWW-S1")
     assert "MetaMirrorData = {" in out
-    assert 'version = "wcl-2026-08-31"' in out
+    assert 'version = "sim-2026-08-31"' in out
     assert 'attribution = "Data from bloodmallet.com (SimulationCraft)"' in out
     assert "[1] = {" in out and "[71] = {" in out
     assert "mythicplus = {" in out and "raid = {" in out

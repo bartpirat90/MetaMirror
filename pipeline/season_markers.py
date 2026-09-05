@@ -2,8 +2,9 @@
 
 Grundlage: Upgrade-Track-Bonus-IDs sind pro Season neu und jede Stufe ist an genau EIN
 Item-Level gebunden (Midnight-S2: 12843..12846 Hero, 12849..12854 Myth). Aus den
-Gear-Eintraegen echter Top-Parses laesst sich damit pruefen, ob die handgepflegten
-Konstanten noch zur Live-Season passen -- OHNE Clustering ueber Item-Level.
+Gear-Eintraegen der emittierten Datendatei laesst sich damit pruefen, ob die
+handgepflegten Konstanten noch zur Live-Season passen -- OHNE Clustering ueber
+Item-Level.
 
 GESCHEITERTER ANSATZ (2026-09-02, bewusst entfernt): ein "selbstjustierender" Floor als
 Minimum des dominanten Ilvl-Clusters. Bei 15 Top-Parses sah das sauber aus (305-334, S1
@@ -12,7 +13,7 @@ untere Track-Stufe lueckenlos -> das Cluster rutschte auf 253 und alte BfA-Trink
 kamen zurueck. Item-Level allein trennt Seasons nicht; der Floor bleibt darum die
 Konstante TRINKET_MIN_ILVL, die Bonus-IDs liefern Positiv-/Negativbeweise.
 
-CLI:  python -m pipeline.season_markers [Data/MetaMirrorData.lua | pipeline/cache/records.json]
+CLI:  python -m pipeline.season_markers [Data/MetaMirrorData.lua | <rohdaten>.json]
       -> Ilvl-Verteilung, Bonus-IDs mit genau einem Ilvl (Track-Stufen-Kandidaten),
          Vorsaison-Kandidaten, Konsistenzpruefung der season.py-Konstanten."""
 import json
@@ -27,18 +28,6 @@ DEFAULT_MIN_N = 5
 DEFAULT_STEP = 6
 
 
-def entries_from_records(records, slots=None):
-    """ParseRecords -> [(ilvl, [bonus...])] aller Gear-Eintraege mit Ilvl (slots=None: alle)."""
-    out = []
-    for r in records:
-        for g in r.gear:
-            if slots is not None and g.get("slot") not in slots:
-                continue
-            if g.get("item_id") and (g.get("item_level") or 0) > 0:
-                out.append((int(g["item_level"]), list(g.get("bonus_ids") or [])))
-    return out
-
-
 def entries_from_lua(path):
     """Gear-Picks aus einer emittierten MetaMirrorData.lua (nur beste Variante je Slot)."""
     txt = open(path, encoding="utf-8").read()
@@ -48,7 +37,7 @@ def entries_from_lua(path):
 
 
 def entries_from_json(path):
-    """Rohdaten-Dump der Pipeline (run.py --dump-records) -> Eintraege aller Slots."""
+    """Rohdaten-Dump [{gear: [{item_id, item_level, bonus_ids}]}] -> Eintraege aller Slots."""
     with open(path, encoding="utf-8") as f:
         data = json.load(f)
     out = []

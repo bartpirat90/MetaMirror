@@ -1,7 +1,7 @@
 """Trinket-Ranking aus bloodmallet.com (Sim-Rangliste) -> Data/MetaMirrorTrinkets.lua.
 
-Getrennte Quelle vom WCL-Datensatz: Bloodmallet ist oeffentlich (kein Login) und liefert
-die VOLLSTAENDIGE, simulierte Trinket-Rangliste pro Spec -- inkl. Stat-Modi desselben
+Getrennte Quelle vom Referenzprofil in MetaMirrorData.lua: hier liefert bloodmallet die
+VOLLSTAENDIGE, simulierte Trinket-Rangliste pro Spec -- inkl. Stat-Modi desselben
 Trinkets (z.B. Rubinwelpenschale [Haste]/[Crit]/[St]/[Aoe], alle gleiche itemID). Genau
 diese Vollstaendigkeit will der Nutzer; deshalb hier KEIN Cap und KEINE itemID-Dedup, und
 der Modus (Klammer-Suffix) wird als eigenes Feld mitgefuehrt, damit die UI ihn als

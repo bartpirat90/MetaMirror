@@ -28,10 +28,11 @@ Trage Token + Project-ID in `pipeline/local_secrets.json` ein (ist gitignored):
   "CURSEFORGE_PROJECT_ID": "123456"
 }
 ```
+Das **Token** haengt am Account und gilt fuer alle deine Projekte -- eines reicht.
+Die **Project-ID** gehoert zum einzelnen Projekt; jedes Addon hat seine eigene.
 
 ### 3b. Automatische Uploads (GitHub Actions)
 Im GitHub-Repo unter **Settings → Secrets and variables → Actions**:
-- **Secret** `WCL_CLIENT_ID` und **Secret** `WCL_CLIENT_SECRET` = Warcraft-Logs-API-Client
 - **Secret** `CURSEFORGE_TOKEN` = dein Token
 - **Variable** `CURSEFORGE_PROJECT_ID` = deine Project-ID
 - **Variable** `CF_PUBLISH` = `true`  ← der Schalter, der den Upload scharf stellt
@@ -42,10 +43,8 @@ selbst arbeitet unabhängig davon weiter.
 ### 3c. Vor dem allerersten Push prüfen
 - Die Git-Historie darf **keinen** Zugangsdaten-Screenshot mehr enthalten
   (`git rev-list --all --objects | grep -i "secret key"` muss leer sein).
-- Der Warcraft-Logs-Schlüssel ist **rotiert**, falls er je in der Historie lag.
-- Das Repo ist **öffentlich**: Actions-Minuten sind dann kostenlos. Ein Lauf dauert
-  gut zwei Stunden, davon rund eine Stunde reines Warten auf das WCL-Kontingent.
-  Der ausgelieferte Lua-Code ist ohnehin einsehbar, es gibt nichts zu verbergen.
+- Das Repo ist **öffentlich**: Actions-Minuten sind dann kostenlos. Der
+  ausgelieferte Lua-Code ist ohnehin einsehbar, es gibt nichts zu verbergen.
 
 ### Versionsschema
 `MAJOR.MINOR.PATCH` in `MetaMirror.toc`:

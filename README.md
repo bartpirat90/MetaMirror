@@ -77,11 +77,12 @@ pipeline.
 
 ### About Warcraft Logs
 
-Earlier versions of this addon shipped an aggregate built from the Warcraft Logs
+During development this repository built an aggregate from the Warcraft Logs
 API. On 2026-09-04 RPGLogs confirmed in writing that their Terms of Service do
 not permit that data to be redistributed through other channels, addons
-specifically included, so it was removed from the addon and this repository's
-history. Please do not send pull requests that reintroduce it.
+specifically included, so it was removed from the code and from this
+repository's history before the first public release. Please do not send pull
+requests that reintroduce it.
 
 ## Development
 

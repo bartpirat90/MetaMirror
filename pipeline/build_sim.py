@@ -1,6 +1,7 @@
 """Orchestrator: bloodmallet secondary_distributions + SimC-Profile -> Data/MetaMirrorData.lua.
 
-Ersatz fuer den WCL-Pfad (run.py): Statt Top-Parses aus Warcraft Logs zu aggregieren, wird
+Einziger Datenpfad des Addons (der fruehere Warcraft-Logs-Pfad ist entfernt): statt
+Top-Parses zu aggregieren, wird
 je Spec x Content GENAU EIN Sim-Profil verwendet (sample_size=1). Stats + Gear kommen aus
 bloodmallet_sd.py (ein Payload pro Fight-Style deckt Stats UND Gear ab), Verbrauchsgueter
 zusaetzlich aus simc_profile.py (SimC-Profile fuehren Flask/Trank/Rune/Oel, bloodmallet nicht).

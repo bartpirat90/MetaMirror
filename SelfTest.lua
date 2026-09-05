@@ -511,7 +511,7 @@ function MetaMirror:ScanSourceDiag()
     local ms = debugprofilestop and (debugprofilestop() - t0) or 0
     local lines = { string.format("Quellen-Rescan: %d Items indiziert in %.0f ms", n, ms) }
     for _, l in ipairs(report) do lines[#lines + 1] = l end
-    -- Trinkets ohne jede Quelle (aktuelle Spec, Bloodmallet + WCL)
+    -- Trinkets ohne jede Quelle (aktuelle Spec)
     local classID, specID = self:CurrentSpecKey()
     local ids, seen = {}, {}
     local function add(list)
@@ -521,8 +521,6 @@ function MetaMirror:ScanSourceDiag()
     end
     local bm = _G.MetaMirrorTrinkets and _G.MetaMirrorTrinkets.specs and _G.MetaMirrorTrinkets.specs[specID]
     if bm then add(bm.overall); add(bm.raid); add(bm.dungeon) end
-    local wcl = _G.MetaMirrorData and _G.MetaMirrorData.trinkets and _G.MetaMirrorData.trinkets[specID]
-    if wcl then add(wcl.overall); add(wcl.raid); add(wcl.dungeon) end
     local ps = _G.MetaMirrorItemSources and _G.MetaMirrorItemSources.items or {}
     lines[#lines + 1] = "Trinkets ohne Quelle (Spec " .. tostring(specID) .. "):"
     local missing = 0

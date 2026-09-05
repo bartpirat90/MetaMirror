@@ -1,23 +1,6 @@
 # Season-abhaengige, von Hand gepflegte Daten. Zu jedem Patch/Season pruefen.
-# Stand: Midnight (Expansion 7), via WCL-API verifiziert 2026-08-31.
+# Stand: Midnight (Expansion 7).
 SEASON_NAME = "Midnight-S2"
-
-# --- Rating -> Prozent (KALIBRIERUNG NOETIG) --------------------------------
-# Midnight hat die Sekundaerwerte gesquisht -> diese Konstanten sind PLATZHALTER
-# und liefern noch KEINE korrekten Prozente. Kalibrieren mit einem bekannten
-# Datenpunkt (eigener Char: GetCombatRating(stat) vs. GetCritChance() usw.):
-# rating_per_pct = rating / prozent. Mastery zusaetzlich * MASTERY_COEFF[specID].
-RATING_PER_PCT = {"haste": 35.0, "crit": 35.0, "vers": 40.0, "mastery": 35.0}
-MASTERY_COEFF = {}   # {specID: faktor}; fehlt -> 1.0
-
-# --- WCL-Content-IDs (verifiziert) ------------------------------------------
-RAID_ZONE_ID = 53                # "The Venomous Abyss"
-RAID_DIFFICULTY = 5              # 5 = Mythic
-RAID_ENCOUNTER_IDS = [3470, 3445, 3455, 3497, 3420, 3421, 3429, 3492, 3379]
-
-MPLUS_ZONE_ID = 55               # "Mythic+ Season 2"
-MPLUS_DIFFICULTY = 10            # 10 = Dungeon
-MPLUS_ENCOUNTER_IDS = [12993, 12825, 61762, 12813, 112521, 61877, 12859, 12923]
 
 # --- Trinket-Season-Filter (Bloodmallet listet ALLE Seasons) ----------------
 # Bloodmallet simuliert jedes Trinket bei seinem hoechsten Item-Level; dieses Cap
@@ -30,12 +13,10 @@ MPLUS_ENCOUNTER_IDS = [12993, 12825, 61762, 12813, 112521, 61877, 12859, 12923]
 # welpenschale), liegen damit ueber dem Floor und bleiben -> genau "auf S2 gehoben".
 # ZU JEDER SEASON PRUEFEN: knapp unter das neue Season-Cap setzen (hier zwischen 315
 # und 331), damit Vorsaison + PvP herausfallen, aber alle S2-Difficulties bleiben.
-# Fuer den WCL-Pfad ist dieser Wert nur der FALLBACK: run.py leitet den Floor pro Lauf
-# selbst aus dem Ilvl-Cluster der Top-Parses ab (pipeline/season_markers.py).
 TRINKET_MIN_ILVL = 320
 
 # --- Trinket-Season-Erkennung ueber Bonus-IDs (praeziser als Ilvl) ---------------
-# Aus 1226 Gear-Eintraegen echter Top-Parses (2026-09-02) abgeleitet: jede dieser
+# Aus 1226 Gear-Eintraegen (2026-09-02) abgeleitet: jede dieser
 # Bonus-IDs kommt AUSSCHLIESSLICH mit genau einem Item-Level vor -> Upgrade-Track-Stufe.
 #   Hero-Track : 12843=311 (3/6)  12844=315 (4/6)  12845=318 (5/6)  12846=321 (6/6)
 #   Myth-Track : 12849=318 (1/6)  12850=321  12851=324  12852=328  12853=331  12854=334
@@ -50,44 +31,14 @@ TRINKET_CURRENT_TRACK_BONUS = frozenset({
 # Vorsaison-Marker: 13654 haengt an 25/26 der 298er-Items (S1-Voidforged-Cap) und an
 # keinem einzigen S2-Item. Ein Eintrag mit diesem Bonus zaehlt NIE als hebbar.
 TRINKET_PREV_SEASON_BONUS = frozenset({13654})
-# Ausreisser-Schutz fuer den Ilvl-Pfad: ohne Track-Bonus muessen mindestens so viele
-# Parses das Trinket >= TRINKET_MIN_ILVL tragen, sonst gilt es als nicht hebbar
-# (ein einzelner Parse mit hohem Ilvl haelt sonst ein altes Item in der Liste).
-TRINKET_MIN_LIFTABLE_PARSES = 2
 # ZU JEDER SEASON PRUEFEN: Track-Bonus-Familie und Vorsaison-Marker neu ableiten
 # (Bonus-IDs, die an genau EIN Ilvl im dominanten Cluster gebunden sind, bzw. die
 # exklusiv am isolierten Vorsaison-Cluster haengen).
 
-# --- Consumable-Buff (aura.ability = Spell-ID) -> Kategorie + Item-ID --------
-# Quelle: CombatantInfo-Auren realer Top-Parses (2026-08-31 verifiziert). Nur Buffs,
-# die zum Pull als *dauerhafte* Aura anliegen, sind hier ableitbar -> zuverlaessig
-# befuellbar: flask, rune (und das generische Food-Aura). NICHT ableitbar:
-#   - potion: Kampftrank wird erst im Kampf gezuendet, steht nicht im Pull-Snapshot
-#   - phial:  in Midnight durch Flasks abgeloest (keine Phiolen in den Logs)
-#   - oil:    keine Waffenoel-Aura in den Stichproben
-#   - food:   das Aura ("Hearty Well Fed") ist generisch; Festmahl vs. Einzelportion
-#             ist daraus nicht unterscheidbar
-# potion/oil/food werden darum unten kuratiert (apply_curated_consumables) und
-# ueberlagern das aus den Logs Abgeleitete. flask/rune bleiben log-abgeleitet.
-# Format: {spellID: {"cat": "flask"|"phial"|"potion"|"food"|"oil"|"rune", "item": itemID}}
-# Buff-IDs sind die in den Logs beobachteten (teils PTR-Varianten); sie zeigen aber
-# eindeutig auf das jeweilige Live-Item. Item-IDs via Wowhead nachgeschlagen.
-CONSUMABLE_SPELL_TO_ITEM = {
-    # Flasks (jeder Buff = genau ein Flask-Item)
-    1235108: {"cat": "flask", "item": 241322},   # Flask of the Magisters
-    1235110: {"cat": "flask", "item": 241325},   # Flask of the Blood Knights (Tempo)
-    1235111: {"cat": "flask", "item": 241326},   # Flask of the Shattered Sun
-    # Augment Runes (Void-Touched ist die aktuelle, +25 Primaerwert; Ethereal aelter)
-    1264426: {"cat": "rune", "item": 259085},    # Void-Touched Augment Rune
-    1234969: {"cat": "rune", "item": 243191},    # Ethereal Augment Rune
-    # Food: "Hearty Well Fed" ist ein generischer Buff vieler Speisen; die genaue
-    # Speise ist aus dem Buff nicht ableitbar -> wird unten kuratiert ueberlagert.
-    1285644: {"cat": "food", "item": 222781},    # Hearty Feast of the Midnight Masquerade
-}
-
-# ---- Kuratierte, NICHT aus den Logs ableitbare Verbrauchsgueter -------------
-# Kampftrank + Waffenoel stehen nicht im Pull-Snapshot, das Food-Aura ist generisch.
-# Darum einmal pro Season kuratiert (IDs via Wowhead, im Spiel per Shift-Klick
+# ---- Kuratierte Verbrauchsgueter -------------------------------------------
+# Das Sim-Profil nennt Flask und Augment-Rune; Kampftrank, Speise und Waffenoel
+# stehen dort nicht oder nicht in der Form, die ein Spieler kaufen kann. Darum
+# einmal pro Season kuratiert (IDs via Wowhead, im Spiel per Shift-Klick
 # gegengeprueft). Food + Trank geben PRIMAERWERT -> fuer jede DPS-Spec brauchbar
 # (universell). Das Oel (+Krit/Tempo) ist stat-/klassenabhaengig -> nur fuer
 # Int-Caster hinterlegt; Melee (Agi/Str) nutzen eher Schleif-/Wetzsteine.
@@ -189,8 +140,3 @@ SIMC_CONSUMABLE_ITEMS = {
     "thalassian_phoenix_oil": ("oil", 243733),
 }
 
-# Parses pro Spec x Content. Kosten ~2.6 WCL-Punkte/Parse; Limit 3600 Punkte/Stunde.
-# 50 -> ganzer Lauf (39 Specs x 2 Modi) ~10.000 Punkte, ca. 3 Stunden: der WclClient
-# fragt das Kontingent ab und pausiert bis zum Stunden-Reset (wcl.py, rateLimitData).
-# Fuer schnelle Test-Laeufe auf 15 senken (bleibt unter einer Stunde).
-SAMPLE_TARGET = 50
