@@ -90,6 +90,26 @@ test("DataStamp_nil_without_date", function()
     assertEqual(MetaMirror:DataStamp("schmuck", "raid", {}, {}), nil, "kein version -> nil")
 end)
 
+test("Data_gear_carries_reference_item_level", function()
+    -- Regression: die Pipeline hat das ilevel-Feld von bloodmallet verworfen, dadurch
+    -- fehlte bei rund der Haelfte der Slots die Referenzstufe und die Ampel verglich
+    -- gegen die Basisstufe des Items.
+    local root = _G.MetaMirrorData
+    local withLevel, total = 0, 0
+    for _, specs in pairs((root and root.specs) or {}) do
+        for _, contents in pairs(specs) do
+            for _, data in pairs(contents) do
+                for _, g in ipairs(data.gear or {}) do
+                    total = total + 1
+                    if (g.itemLevel or 0) > 0 then withLevel = withLevel + 1 end
+                end
+            end
+        end
+    end
+    assertEqual(total > 0, true, "Gear-Eintraege vorhanden")
+    assertEqual(withLevel > 0, true, "mindestens ein Eintrag traegt eine Referenzstufe")
+end)
+
 test("GearStatus_equipped_on_reference", function()
     local ctx = { equipped = { [100] = 350 }, bags = {} }
     assertEqual(MetaMirror:GearStatus(100, ctx, 350), "equipped", "gleiche Stufe")

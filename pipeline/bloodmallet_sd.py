@@ -181,9 +181,13 @@ def stats_from_distribution(parsed):
 def gear_from_profile(payload):
     """profile.items -> (gear, gems, enchants) im AggregatedSpec-Format. Da bloodmallet
     genau EIN Profil pro Spec liefert (kein Sample), ist das 1:1 die Ausgabe -- kein
-    Median/most_common wie bei aggregate.py noetig. itemLevel bleibt 0: bloodmallet gibt
-    kein rohes Ilvl, nur bonus_id-kodierte Upgrade-/Sockel-Stufen (wie bei WCL-Gear auch
-    schon ueblich, dort zumindest itemLevel vorhanden -- hier fehlt es in der Quelle)."""
+    Median/most_common wie bei aggregate.py noetig.
+
+    itemLevel kommt aus dem 'ilevel'-Feld des Slots, wenn es da ist (bei rund 195 von 423
+    Eintraegen, Werte 331..344). Genau bei diesen Slots steckt die Stufe NICHT in den
+    Bonus-IDs -- wird das Feld verworfen, zeigt das Addon die Basisstufe des Items, was
+    teils drastisch danebenliegt. Fehlt 'ilevel', bleibt itemLevel 0: dann kodieren die
+    Bonus-IDs die Stufe und der Client rechnet sie selbst aus."""
     items = ((payload.get("profile") or {}).get("items")) or {}
     ench_item_map = season.ENCHANT_ITEM_BY_ID
 
@@ -195,8 +199,12 @@ def gear_from_profile(payload):
         item_id = int(entry.get("id") or 0)
         if not item_id:
             continue
+        try:
+            item_level = int(entry.get("ilevel") or 0)
+        except (TypeError, ValueError):
+            item_level = 0
         gear.append({
-            "slot": slot, "itemID": item_id, "itemLevel": 0,
+            "slot": slot, "itemID": item_id, "itemLevel": item_level,
             "bonusIDs": _split_ids(entry.get("bonus_id")),
             "name": f"item:{item_id}",
         })

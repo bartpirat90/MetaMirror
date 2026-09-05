@@ -148,6 +148,33 @@ def test_stats_from_distribution_all_four_keys_present():
     assert ratings == sorted(ratings, reverse=True)
 
 
+def test_gear_from_profile_takes_explicit_ilevel():
+    # bloodmallet setzt bei einem Teil der Slots ein explizites 'ilevel' statt einer
+    # Upgrade-Bonus-ID. Wird es verworfen, fehlt die Referenzstufe komplett und das
+    # Addon zeigt die Basisstufe des Items -- teils drastisch daneben.
+    payload = {"profile": {"items": {
+        "back":    {"id": "268253", "ilevel": "344"},
+        "wrists":  {"id": "239648", "ilevel": "331", "bonus_id": "8790/8960"},
+        "chest":   {"id": "271549", "bonus_id": "12854/13690"},
+    }}}
+    gear, _, _ = gear_from_profile(payload)
+    by_slot = {g["slot"]: g for g in gear}
+    assert by_slot["BACK"]["itemLevel"] == 344
+    assert by_slot["WRIST"]["itemLevel"] == 331
+    # Ohne 'ilevel' bleibt 0: die Stufe steckt dann in den Bonus-IDs, der Client
+    # rechnet sie selbst aus.
+    assert by_slot["CHEST"]["itemLevel"] == 0
+
+
+def test_gear_from_profile_ignores_unusable_ilevel():
+    payload = {"profile": {"items": {
+        "back": {"id": "268253", "ilevel": "keine-zahl"},
+        "neck": {"id": "268265", "ilevel": "0"},
+    }}}
+    gear, _, _ = gear_from_profile(payload)
+    assert all(g["itemLevel"] == 0 for g in gear)
+
+
 def test_gear_from_profile_slot_mapping_and_missing_offhand():
     # Warrior Arms (Zweihand): 15 Gear-Slots, kein off_hand-Eintrag im Profil.
     gear, gems, enchants = gear_from_profile(_load("sd_warrior_arms.json"))

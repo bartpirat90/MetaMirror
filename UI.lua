@@ -153,6 +153,67 @@ function MetaMirror:BuildPanel()
     MetaMirror:Refresh()
 end
 
+local function safeRefresh()
+    local ok, err = pcall(function() MetaMirror:Refresh() end)
+    if not ok then print("|cffff5555[MM] Refresh-Fehler:|r " .. tostring(err)) end
+end
+
+-- ===== Wiederoeffnen-Reiter am Charakterfenster =====
+-- Wer das Panel mit dem X schliesst, setzt MetaMirrorDB.hidden -- danach war das Fenster
+-- nur ueber /mm zurueckzuholen. Dieser kleine Reiter an der Aussenkante des
+-- Charakterfensters macht dasselbe mit einem Klick. Bewusst ein schlichter Button und
+-- KEIN Secure-Template: ein sichtbarer SecureActionButton als Kind des Charakterfensters
+-- wuerde dessen Schliessen im Kampf blockieren.
+local ReopenTab
+
+local function updateReopenTab()
+    if not ReopenTab then return end
+    -- Nur zeigen, wenn das Panel gerade nicht offen ist -- sonst laege der Reiter unter
+    -- dem angedockten Panel.
+    ReopenTab:SetShown(not (Panel and Panel:IsShown()))
+end
+
+local function ensureReopenTab()
+    if ReopenTab or not CharacterFrame or not Panel then return end
+    -- BackdropTemplate: ohne das Template gibt es SetBackdrop auf dem Button nicht.
+    local b = CreateFrame("Button", "MetaMirrorReopenTab", CharacterFrame, "BackdropTemplate")
+    b:SetSize(30, 30)
+    b:SetPoint("TOPLEFT", CharacterFrame, "TOPRIGHT", 2, -8)
+    b:SetFrameStrata("HIGH")
+
+    local bg = tex(b, "BACKGROUND", C.BG_MAIN); bg:SetAllPoints()
+    local icon = b:CreateTexture(nil, "ARTWORK")
+    icon:SetPoint("TOPLEFT", 3, -3); icon:SetPoint("BOTTOMRIGHT", -3, 3)
+    icon:SetTexture("Interface\\AddOns\\MetaMirror\\Icon")
+    b:SetBackdrop({ edgeFile = "Interface\\Buttons\\WHITE8x8", edgeSize = 1 })
+    b:SetBackdropBorderColor(unpack(C.VIOLET))
+
+    b:SetScript("OnEnter", function(self)
+        self:SetBackdropBorderColor(unpack(C.VIOLET_S))
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText(L.reopen_tip or "Open MetaMirror", unpack(C.TXT))
+        GameTooltip:AddLine(L.reopen_note or "", C.DIM[1], C.DIM[2], C.DIM[3], true)
+        GameTooltip:Show()
+    end)
+    b:SetScript("OnLeave", function(self)
+        self:SetBackdropBorderColor(unpack(C.VIOLET))
+        GameTooltip:Hide()
+    end)
+    b:SetScript("OnClick", function()
+        MetaMirrorDB.hidden = false   -- bewusst zurueckgeholt, wie bei /mm
+        MetaMirror:AnchorToCharacter()
+        Panel:Show()
+        safeRefresh()
+        updateReopenTab()
+    end)
+
+    ReopenTab = b
+    -- Sichtbarkeit an das Panel koppeln, statt sie an jeder Aufrufstelle nachzuziehen.
+    Panel:HookScript("OnShow", updateReopenTab)
+    Panel:HookScript("OnHide", updateReopenTab)
+    updateReopenTab()
+end
+
 function MetaMirror:AnchorToCharacter()
     local p = MetaMirrorDB.pos
     Panel:ClearAllPoints()
@@ -168,13 +229,12 @@ function MetaMirror:AnchorToCharacter()
     end
 end
 
-local function safeRefresh()
-    local ok, err = pcall(function() MetaMirror:Refresh() end)
-    if not ok then print("|cffff5555[MM] Refresh-Fehler:|r " .. tostring(err)) end
-end
-
 function MetaMirror:OnCharShow()
-    if MetaMirrorDB and MetaMirrorDB.hidden then return end   -- per X weggeklickt
+    ensureReopenTab()
+    if MetaMirrorDB and MetaMirrorDB.hidden then
+        updateReopenTab()   -- Panel bleibt zu -> Reiter muss sichtbar sein
+        return              -- per X weggeklickt
+    end
     self:AnchorToCharacter()
     Panel:Show()          -- zuerst zeigen: ein Render-Fehler darf das Fenster nicht verschlucken
     safeRefresh()
@@ -592,8 +652,11 @@ local function referenceIlvl(link)
 end
 
 -- Faerbt eine Gear-Zeile nach Status und setzt den Tooltip-Klartext.
-local function applyGearStatus(b, itemID, ctx, link)
-    local ref = referenceIlvl(link)
+-- dataIlvl: Referenzstufe aus dem Sim-Profil (Feld itemLevel). Sie hat Vorrang vor der
+-- aus dem Link berechneten Stufe, denn genau bei diesen Slots kodieren die Bonus-IDs die
+-- Stufe NICHT -- der Link zeigt dort die Basisstufe des Items.
+local function applyGearStatus(b, itemID, ctx, link, dataIlvl)
+    local ref = (dataIlvl and dataIlvl > 0) and dataIlvl or referenceIlvl(link)
     local status = MetaMirror:GearStatus(itemID, ctx, ref)
     local def = GEAR_STATUS[status]
     local c = C[def.col]
@@ -605,6 +668,11 @@ local function applyGearStatus(b, itemID, ctx, link)
         b.statusText = string.format(L.gs_weaker, ctx.equipped[itemID] or 0, ref or 0)
     else
         b.statusText = L[def.text]
+    end
+    -- Stufe aus dem Profil zusaetzlich nennen: der Item-Tooltip selbst kann sie nicht
+    -- zeigen, weil sie sich nicht in einen Item-Link kodieren laesst.
+    if dataIlvl and dataIlvl > 0 and L.ilvl_ref then
+        b.statusText = b.statusText .. "\n" .. string.format(L.ilvl_ref, dataIlvl)
     end
 end
 
@@ -637,9 +705,11 @@ local function renderItemList(entries)
         b:ClearAllPoints(); b:SetPoint("TOPLEFT", 0, -GEAR_NOTE_OFFSET - (i - 1) * 26)
         -- Ampel sofort mit unbekannter Referenzstufe setzen (angelegt/Beutel/fehlt), nach
         -- dem Laden des Links mit der echten Referenzstufe verfeinern (-> "schwaecher").
-        applyGearStatus(b, e.itemID, ctx, nil)
-        setItemRow(b, nil, e.itemID, e.fallback, e.enchantID, e.bonusIDs, nil,
-                   function(link) applyGearStatus(b, e.itemID, ctx, link) end)
+        local ilvl = (e.itemLevel and e.itemLevel > 0) and e.itemLevel or nil
+        applyGearStatus(b, e.itemID, ctx, nil, ilvl)
+        setItemRow(b, nil, e.itemID, e.fallback, e.enchantID, e.bonusIDs,
+                   ilvl and tostring(ilvl) or nil,
+                   function(link) applyGearStatus(b, e.itemID, ctx, link, ilvl) end)
         b.slot:SetText(e.label or "")
         applyRowSource(b, e.itemID)
     end
@@ -1186,6 +1256,7 @@ function MetaMirror.RenderBody(self, classID, specID)
             if not dup and not (dropOffhand and g.slot == "OFFHAND") then
                 if g.itemID then seen[g.itemID] = true end
                 entries[#entries+1] = { label = slotLabel(g.slot), itemID = g.itemID,
+                                        itemLevel = g.itemLevel,
                                         bonusIDs = normalizeToMyth(g.bonusIDs) }
             end
         end
