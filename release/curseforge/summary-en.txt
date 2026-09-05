@@ -1,0 +1,1 @@
+Stat targets, gear and trinket tiers for your spec from bloodmallet.com and SimulationCraft sim data, split by Mythic+ and Raid, each item with its real source. Docks to your character sheet - just type /mm.

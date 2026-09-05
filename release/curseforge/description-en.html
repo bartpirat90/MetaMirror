@@ -1,0 +1,47 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>MetaMirror - CurseForge description (EN)</title>
+<style>
+ body{max-width:52em;margin:2rem auto;padding:0 1.5rem;
+      font:16px/1.6 "Segoe UI",system-ui,sans-serif;color:#1a1a1a;background:#fff}
+ h2{margin:2.2rem 0 .6rem;font-size:1.5rem;border-bottom:1px solid #ddd;padding-bottom:.3rem}
+ h3{margin:1.6rem 0 .4rem;font-size:1.15rem}
+ p,li{margin:.6rem 0} hr{border:0;border-top:1px solid #ddd;margin:2rem 0}
+ code{background:#f0f0f3;padding:.1em .35em;border-radius:3px;font-size:.92em}
+</style>
+<p><strong>Stat targets, gear and trinket tiers, right beside your character sheet.</strong></p>
+<p>MetaMirror builds stat, gear and trinket recommendations for <em>your</em> spec from public simulation data and tells you where each item actually comes from. No browser tabs, no spreadsheets: open your character sheet and the list is right there next to it.</p>
+<p>Data is built from <strong>bloodmallet.com</strong> (secondary stat distributions and trinket sim DPS) and <strong>SimulationCraft</strong> reference profiles (gear, gems, enchants), with item sources from <strong>Wowhead</strong>. Your spec is auto-detected - nothing to configure.</p>
+<hr>
+<h2>Features</h2>
+<h3>📊 Stat targets from bloodmallet's sims</h3>
+<p>Secondary stat targets per spec from bloodmallet.com: one target for Raid (single-target sim), one for Mythic+ (five-target sim). Rather than picking the single best distribution off the sim's coarse 10% grid, MetaMirror averages every distribution within 0.5% of the best - the gaps up there are within sim noise, and the average gives you a finer, steadier target. Your own live stats are compared against it. Every tab's header carries a data stamp, e.g. "sim reference · 5 targets · 2026-09-05", so you always see how fresh the numbers are.</p>
+<h3>🛡️ Gear set from the season's SimulationCraft profile</h3>
+<p>A full recommended gear set per spec - items, gems and enchants - taken from the current season's SimulationCraft reference profile. There is one profile per spec, so the same set applies to Mythic+ and Raid - the tab says so instead of pretending the toggle changes something.</p>
+<h3>🚦 Gear traffic light</h3>
+<p>Each reference item on the Gear tab gets a traffic light: green if you have it equipped, blue if it's sitting in your bags, dimmed red if you don't have it at all. The upgrade track plays no part - everyone knows a higher item level is better, so colouring that in would only add noise. Hovering a row names the reference item level, as information rather than a verdict.</p>
+<h3>💎 Trinket tier list</h3>
+<p>Simulated DPS tiers from bloodmallet.com for your spec, S to D. bloodmallet sims trinkets single-target only, so Mythic+ and Raid share one list - the tab says so instead of pretending otherwise. Gold rows are the two trinkets the reference profile on the Gear tab actually wears: the tier list sims each trinket alone against the same base profile, the reference profile is a finished character, so the two orders rarely match exactly.</p>
+<h3>⬆️ Upgrades in one place</h3>
+<p>Enchants, gems and consumables for your spec on a single page, each with its source.</p>
+<h3>🔔 Reference-drop alert</h3>
+<p>When a boss in your group drops an item matching your spec's gear or trinket recommendation, MetaMirror flags it - whether you or a group member wins the roll.</p>
+<h3>🏷️ Tooltip hints</h3>
+<p>Hover any item - loot window, bags, chat link, vendor - and MetaMirror adds lines to its tooltip, e.g. "MetaMirror: Reference for Frost (M+ · Raid)" or "MetaMirror: S-tier trinket for Fire (Raid)". Covers every spec of your class, current spec first, so off-spec loot is obvious right away. Toggle it with <code>/mm tooltip</code>.</p>
+<h3>🔎 Where does it come from?</h3>
+<p>Every item carries its source: boss and instance read straight from the in-game Adventure Guide, plus crafted, vendor, delve and PvP items filled in from Wowhead.</p>
+<h3>🪟 Right where you need it</h3>
+<p>The panel docks to your character sheet automatically, or opens anywhere with <code>/mm</code>. Nothing is fetched while you play - the data ships with the addon.</p>
+<hr>
+<h2>Usage</h2>
+<ul>
+  <li>Open your <strong>character sheet</strong> - MetaMirror docks to the right of it automatically.</li>
+  <li>Or type <strong><code>/mm</code></strong> to toggle the window anywhere.</li>
+  <li>Switch between <strong>M+</strong> and <strong>Raid</strong> with the toggle in the header.</li>
+</ul>
+<h2>Notes</h2>
+<ul>
+  <li>Built for <strong>World of Warcraft: Midnight</strong> (Interface 120100).</li>
+  <li>Item sources are read from the Adventure Guide the first time you log in after a game patch, then cached - so there is no repeated loading hitch on later logins.</li>
+  <li>Data from <strong>bloodmallet.com</strong> and <strong>SimulationCraft</strong>, item sources from <strong>Wowhead</strong>.</li>
+</ul>

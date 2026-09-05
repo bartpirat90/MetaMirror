@@ -1,0 +1,47 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>MetaMirror - CurseForge-Beschreibung (DE)</title>
+<style>
+ body{max-width:52em;margin:2rem auto;padding:0 1.5rem;
+      font:16px/1.6 "Segoe UI",system-ui,sans-serif;color:#1a1a1a;background:#fff}
+ h2{margin:2.2rem 0 .6rem;font-size:1.5rem;border-bottom:1px solid #ddd;padding-bottom:.3rem}
+ h3{margin:1.6rem 0 .4rem;font-size:1.15rem}
+ p,li{margin:.6rem 0} hr{border:0;border-top:1px solid #ddd;margin:2rem 0}
+ code{background:#f0f0f3;padding:.1em .35em;border-radius:3px;font-size:.92em}
+</style>
+<p><strong>Stat-Ziele, Ausrüstung und Schmuck-Wertung, direkt neben deinem Charakterfenster.</strong></p>
+<p>MetaMirror baut Stat-, Ausrüstungs- und Schmuck-Empfehlungen für deine Spezialisierung aus öffentlichen Simulationsdaten und sagt dir, woher jedes Teil stammt. Keine Browser-Tabs, keine Tabellen: Öffne dein Charakterfenster, und die Liste steht direkt daneben.</p>
+<p>Die Daten stammen aus <strong>bloodmallet.com</strong> (Sekundärwert-Verteilungen und Schmuck-Sim-DPS) und <strong>SimulationCraft</strong>-Referenzprofilen (Ausrüstung, Steine, Verzauberungen), Item-Quellen aus <strong>Wowhead</strong>. Deine Spec wird automatisch erkannt — nichts einzustellen.</p>
+<hr>
+<h2>Funktionen</h2>
+<h3>📊 Stat-Ziele aus bloodmallets Sims</h3>
+<p>Sekundärwert-Ziele pro Spec von bloodmallet.com: ein Ziel für Raid (Einzelziel-Sim), eines für Mythisch+ (Fünf-Ziel-Sim). Statt einfach die beste Verteilung aus dem groben 10-%-Raster zu nehmen, mittelt MetaMirror alle Verteilungen, die höchstens 0,5 % darunter liegen — die Abstände an der Spitze liegen im Sim-Rauschen, und der Mittelwert ergibt ein feineres, ruhigeres Ziel. Deine eigenen Live-Werte werden direkt dagegen verglichen. In der Kopfzeile jedes Tabs steht ein Datenstand, z. B. „Sim-Referenz · 5 Ziele · 2026-09-05", damit du immer siehst, wie aktuell die Zahlen sind.</p>
+<h3>🛡️ Ausrüstungsset aus dem SimulationCraft-Referenzprofil der Season</h3>
+<p>Ein vollständiges Ausrüstungsset pro Spec — Items, Steine und Verzauberungen — aus dem SimulationCraft-Referenzprofil der aktuellen Season. Pro Spec gibt es genau ein Profil, deshalb gilt dasselbe Set für Mythisch+ und Raid — der Tab sagt das auch, statt so zu tun, als würde der Schalter etwas ändern.</p>
+<h3>🚦 Gear-Ampel</h3>
+<p>Jede Referenz-Zeile im Ausrüstungs-Tab bekommt eine Ampel: grün, wenn du das Teil angelegt hast, blau, wenn es im Beutel liegt, rot (gedämpft), wenn du es nicht besitzt. Der Aufwertungspfad spielt bewusst keine Rolle — dass eine höhere Gegenstandsstufe besser ist, weiß jeder, das einzufärben wäre nur Lärm. Die Referenzstufe nennt der Tooltip der Zeile, als Information statt als Wertung.</p>
+<h3>💎 Schmuck-Tierliste</h3>
+<p>Sim-DPS-Tiers von bloodmallet.com für deine Spec, S bis D. bloodmallet simuliert Schmuck nur im Einzelziel, deshalb teilen sich Mythisch+ und Raid eine Liste — der Tab sagt das auch, statt etwas anderes vorzutäuschen. Goldene Zeilen sind die zwei Schmuckstücke, die das Referenzprofil im Gear-Tab tatsächlich trägt: die Tierliste simuliert jedes Trinket einzeln gegen dasselbe Basisprofil, das Referenzprofil ist ein fertig gebauter Charakter — deshalb stimmen die beiden Reihenfolgen selten exakt überein.</p>
+<h3>⬆️ Verbesserungen auf einen Blick</h3>
+<p>Verzauberungen, Steine und Verbrauchsmaterial für deine Spec auf einer Seite, jeweils mit Quelle.</p>
+<h3>🔔 Referenz-Drop-Alarm</h3>
+<p>Droppt ein Boss in deiner Gruppe ein Item, das der Ausrüstungs- oder Schmuck-Empfehlung deiner Spec entspricht, meldet MetaMirror es — egal ob du oder ein Gruppenmitglied das Los gewinnt.</p>
+<h3>🏷️ Tooltip-Hinweise</h3>
+<p>Fährst du über ein Item — Beutefenster, Beutel, Chat-Link, Händler —, hängt MetaMirror Zeilen an den Tooltip an, z. B. „MetaMirror: Referenz für Frost (M+ · Raid)" oder „MetaMirror: S-Tier-Schmuck für Feuer (Raid)". Für alle Specs deiner Klasse, deine aktuelle Spec zuerst, sodass Offspec-Loot sofort auffällt. Ein-/ausschaltbar mit <code>/mm tooltip</code>.</p>
+<h3>🔎 Woher kommt das Teil?</h3>
+<p>Zu jedem Item steht die Quelle: Boss und Instanz direkt aus dem Abenteuerführer, dazu hergestellte Teile, Händler, Tiefen und PvP aus Wowhead.</p>
+<h3>🪟 Genau dort, wo du es brauchst</h3>
+<p>Das Panel dockt automatisch an dein Charakterfenster an oder öffnet sich überall mit <code>/mm</code>. Während des Spielens wird nichts nachgeladen — die Daten liegen dem Addon bei.</p>
+<hr>
+<h2>Bedienung</h2>
+<ul>
+  <li>Öffne dein <strong>Charakterfenster</strong> — MetaMirror dockt automatisch rechts daneben an.</li>
+  <li>Oder tippe <strong><code>/mm</code></strong>, um das Fenster überall ein-/auszublenden.</li>
+  <li>Wechsle über den Schalter in der Kopfzeile zwischen <strong>M+</strong> und <strong>Raid</strong>.</li>
+</ul>
+<h2>Hinweise</h2>
+<ul>
+  <li>Entwickelt für <strong>World of Warcraft: Midnight</strong> (Interface 120100).</li>
+  <li>Item-Quellen werden beim ersten Login nach einem Spiel-Patch aus dem Abenteuerführer gelesen und danach zwischengespeichert — daher gibt es bei späteren Logins keinen wiederkehrenden Ladehänger.</li>
+  <li>Daten von <strong>bloodmallet.com</strong> und <strong>SimulationCraft</strong>, Item-Quellen von <strong>Wowhead</strong>.</li>
+</ul>
