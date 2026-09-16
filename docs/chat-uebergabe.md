@@ -92,7 +92,7 @@ nicht.
 | | |
 | --- | --- |
 | Version | 1.0.2 (`MetaMirror.toc`) — der Tag `v1.0.0` zeigt weiter auf den alten Stand |
-| Branch | `main`, lokal auf Stand von `origin/main` plus die heutigen Commits |
+| Branch | `main` = `origin/main`, alles gepusht (nach `git fetch` geprüft) |
 | Remote | `github.com/bartpirat90/MetaMirror` — **das Repo ist öffentlich** |
 | Daten | `sim-2026-09-14` (Stats/Gear), `bm-2026-09-05` (Schmuck) |
 | Addon-Tests | `lua tests/run_harness.lua` → ALLE PASS (auf den neuen Daten geprüft) |
@@ -154,18 +154,17 @@ CurseForge-Upload und Einrichtung: [pipeline/CURSEFORGE.md](../pipeline/CURSEFOR
 1. **Ingame-Abnahme** der Fünf-Ziel-Zahlen für Mythisch+ und der Hinweiszeile im
    Ausrüstungs-Tab. Seit dem 2026-09-05 gebaut, nie im Spiel angesehen. 1.0.2
    liegt seit heute im AddOns-Ordner, es fehlt nur noch der Blick ins Spiel.
-2. **Die heutigen Commits sind noch nicht gepusht** — Zustimmung dafür stand aus.
-3. **CurseForge hinkt hinterher.** Dort steht 1.0.0 vom 5.9., im Repo liegt 1.0.2
+2. **CurseForge hinkt hinterher.** Dort steht 1.0.0 vom 5.9., im Repo liegt 1.0.2
    mit Sim-Daten vom 14.9. Am 2026-09-16 bewusst nicht hochgeladen: erst die
    Ingame-Abnahme. Dass das Projekt versteckt sei, stimmt nicht mehr — es ist
    öffentlich und hat 35 Downloads.
-4. **Der Wochenlauf frischt die Schmuckdaten nicht mit auf.** `sim-data.yml` baut
+3. **Der Wochenlauf frischt die Schmuckdaten nicht mit auf.** `sim-data.yml` baut
    nur `Data/MetaMirrorData.lua`; `MetaMirrorTrinkets.lua` steht deshalb
    unverändert auf `bm-2026-09-05`. Ob das so gewollt ist, wurde nie entschieden.
-5. **Versionsschilder und Tags laufen auseinander.** Der Wochenlauf bumpt die
+4. **Versionsschilder und Tags laufen auseinander.** Der Wochenlauf bumpt die
    Patch-Version, setzt aber keinen Tag: `v1.0.0` ist der einzige Tag, die `.toc`
    steht auf 1.0.2. Auch `CHANGELOG.md` kennt 1.0.1 und 1.0.2 nicht.
-6. **Das GitHub-Repo ist öffentlich** — daran denken, bevor etwas hineingeschrieben
+5. **Das GitHub-Repo ist öffentlich** — daran denken, bevor etwas hineingeschrieben
    wird. Jeder Zugangsschlüssel, der hier je auftauchte, ist als verbrannt zu
    behandeln und beim jeweiligen Anbieter zu widerrufen; das ist mit dem Betreiber
    des Projekts besprochen. Zugangsdaten gehören ausschließlich in
