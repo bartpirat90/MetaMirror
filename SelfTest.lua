@@ -90,6 +90,40 @@ test("DataStamp_nil_without_date", function()
     assertEqual(MetaMirror:DataStamp("schmuck", "raid", {}, {}), nil, "kein version -> nil")
 end)
 
+test("ClearCustomPosition_returns_panel_to_dock", function()
+    -- Ein einmal verschobenes Fenster haengt dauerhaft an UIParent und kann dem
+    -- Charakterfenster nicht mehr folgen. Der Andock-Knopf loescht genau diesen Zustand.
+    local db = { pos = { custom = true, x = 560, y = 432 } }
+    MetaMirror:ClearCustomPosition(db)
+    assertEqual(db.pos.custom, nil, "custom-Flagge geloescht")
+end)
+
+test("ClearCustomPosition_without_position_is_harmless", function()
+    local db = {}
+    MetaMirror:ClearCustomPosition(db)
+    assertEqual(db.pos, nil, "ohne pos bleibt es dabei")
+end)
+
+test("StaticSourceText_crafted_from_sim_profile", function()
+    -- Handwerksitems kommen aus dem Sim-Profil ohne Bonus-IDs; damit fehlt im Itemlink
+    -- das Handwerksicon, an dem die UI sie sonst erkennt. Der crafted-Marker aus den
+    -- Daten ist dann die einzige Quelle fuer die Beschriftung.
+    local L = MetaMirror.L
+    local empty = { items = {} }
+    assertEqual(MetaMirror:StaticSourceText(244576, true, empty), L.src_crafted,
+        "crafted-Marker -> Hergestellt")
+    assertEqual(MetaMirror:StaticSourceText(271537, false, empty), nil,
+        "ohne Marker und ohne Quellentabelle -> nichts")
+end)
+
+test("StaticSourceText_curated_source_wins_over_marker", function()
+    -- Die kuratierte Quelle ist genauer als der blosse Handwerksmarker und hat Vorrang.
+    local L = MetaMirror.L
+    local root = { items = { [555] = { kind = "delve" } } }
+    assertEqual(MetaMirror:StaticSourceText(555, true, root), L.src_delve,
+        "kuratierte Quelle schlaegt den Marker")
+end)
+
 test("Data_gear_carries_reference_item_level", function()
     -- Regression: die Pipeline hat das ilevel-Feld von bloodmallet verworfen, dadurch
     -- fehlte bei rund der Haelfte der Slots die Referenzstufe und die Ampel verglich

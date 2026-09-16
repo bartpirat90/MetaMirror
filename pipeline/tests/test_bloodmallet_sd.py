@@ -229,3 +229,17 @@ def test_fetch_builds_request_with_ua_and_returns_json():
     assert payload == {"status": "ok", "data": {}}
     assert seen["url"] == endpoint("Mage", "Frost", "castingpatchwerk")
     assert seen["ua"] == "MetaMirror/0.9"
+
+
+def test_gear_from_profile_marks_crafted_items():
+    # Handwerksitems kommen ohne bonus_id, tragen aber crafted_stats. Ohne diesen
+    # Marker kann das Addon sie nicht als "Hergestellt" beschriften -- das
+    # Handwerksicon im Itemlink fehlt mangels Qualitaets-Bonus-ID ebenfalls.
+    payload = {"profile": {"items": {
+        "wrists": {"id": "244576", "ilevel": "331", "crafted_stats": "36/40"},
+        "head": {"id": "271537", "ilevel": "344", "bonus_id": "13668/13847"},
+    }}}
+    gear, _, _ = gear_from_profile(payload)
+    by_slot = {g["slot"]: g for g in gear}
+    assert by_slot["WRIST"]["crafted"] is True
+    assert by_slot["HEAD"]["crafted"] is False

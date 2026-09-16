@@ -72,3 +72,21 @@ def test_emit_extra_none_omits_no_extra_lines():
     out = emit_lua(data, version="v", season="s", extra=None)
     lines_between = out.split('season = "s",')[1].split("attribution =")[0]
     assert lines_between.strip() == ""
+
+
+def test_emit_marks_crafted_gear_only_when_crafted():
+    # crafted = true steht nur an Handwerksitems. Alle anderen Zeilen bleiben
+    # unveraendert, damit aeltere Datendateien und der Addon-Leser gleich bleiben.
+    agg = _agg()
+    agg.gear = [
+        {"slot": "WRIST", "itemID": 244576, "itemLevel": 331, "bonusIDs": [],
+         "crafted": True, "name": "item:244576"},
+        {"slot": "HEAD", "itemID": 271537, "itemLevel": 344, "bonusIDs": [13668],
+         "crafted": False, "name": "item:271537"},
+    ]
+    out = emit_lua({1: {71: {"raid": agg}}}, version="v", season="s")
+    wrist = [ln for ln in out.splitlines() if "244576" in ln][0]
+    head = [ln for ln in out.splitlines() if "271537" in ln][0]
+    assert "crafted = true" in wrist
+    assert "crafted" not in head
+    assert out.count("{") == out.count("}")

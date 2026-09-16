@@ -65,3 +65,38 @@ function MetaMirror:DataStamp(tab, content, root, troot)
         or style or ""
     return string.format(L.sim_note, label, root.generated)
 end
+
+-- Quellentext einer Gear-/Schmuck-Zeile, soweit er ohne Spiel-APIs feststeht:
+-- zuerst die kuratierte Quelle aus Data/MetaMirrorSources.lua (Handwerk, Haendler,
+-- Tiefen, PvP -- genauer, weil sie den Haendler benennt), danach der Handwerksmarker
+-- aus dem Sim-Profil. Der Marker stammt aus crafted_stats im bloodmallet-Profil:
+-- Handwerksitems kommen dort ohne Bonus-IDs, weshalb im Itemlink das
+-- Handwerksqualitaets-Icon fehlt, an dem die UI sie sonst erkennt.
+-- Der Abenteuerfuehrer hat weiter Vorrang -- der wird in der UI vorher geprueft.
+-- root nur fuer Tests uebergeben (Default: die geladene Quellentabelle).
+function MetaMirror:StaticSourceText(itemID, crafted, root)
+    local L = self.L
+    root = root or _G.MetaMirrorItemSources
+    local ps = root and root.items and root.items[itemID]
+    if ps then
+        if ps.kind == "crafted" then return L.src_crafted end
+        if ps.kind == "delve" then return L.src_delve end
+        if ps.kind == "pvp" then return L.src_pvp end
+        if ps.kind == "vendor" then
+            local n = ps.name or {}
+            return string.format(L.src_vendor, n[GetLocale()] or n.enUS or "?")
+        end
+    end
+    if crafted then return L.src_crafted end
+    return nil
+end
+
+-- Loescht eine frei gewaehlte Fensterposition, damit das Panel wieder am
+-- Charakterfenster andocken kann. Notwendig, weil eine custom-Position an UIParent
+-- haengt: das Panel folgt dem Charakterfenster dann nicht mehr und steht im Weg,
+-- sobald Blizzard es fuer ein anderes Fenster verschiebt.
+-- db nur fuer Tests uebergeben (Default: die gespeicherten Variablen).
+function MetaMirror:ClearCustomPosition(db)
+    db = db or MetaMirrorDB
+    if db and db.pos then db.pos.custom = nil end
+end

@@ -40,6 +40,8 @@ function MetaMirror:BuildPanel()
         self:ClearAllPoints()
         self:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", x, y)
         MetaMirrorDB.pos = { custom = true, x = x, y = y }
+        -- ab jetzt haengt das Fenster an UIParent -> Weg zurueck anbieten
+        if self.dockBtn then self.dockBtn:Show() end
     end)
     local bg = tex(Panel, "BACKGROUND", C.BG_MAIN); bg:SetAllPoints()
     -- Rahmen neutral, nicht violett: Violett traegt in dieser Optik nur Akzente
@@ -114,6 +116,32 @@ function MetaMirror:BuildPanel()
     end
     ctxButton("raid",       L.ctx_raid,  -30)   -- 22px nach links: Platz fuer das Kreuz
     ctxButton("mythicplus", L.ctx_mplus, -80)
+
+    -- Andock-Knopf, links neben den Kontext-Schaltern. Er erscheint NUR, wenn das
+    -- Fenster frei verschoben wurde: eine solche Position haengt an UIParent, das
+    -- Panel folgt dem Charakterfenster dann nicht mehr und steht im Weg, sobald das
+    -- Spiel den Charakterbogen fuer ein anderes Fenster verschiebt.
+    -- OnEnter/OnLeave bewusst VOR S.Button: S.Button haengt sich per HookScript an das
+    -- vorhandene Skript: ein SetScript danach wuerde den Hover-Effekt wieder loeschen.
+    local dock = CreateFrame("Button", nil, Panel)
+    dock:SetSize(62, 18); dock:SetPoint("TOPRIGHT", -134, -8)
+    local dockStr = fs(dock, "GameFontHighlightSmall", C.DIM)
+    dockStr:SetPoint("CENTER"); dockStr:SetText(L.dock_hint or "Dock")
+    dock.fstr, dock.label = dockStr, dockStr
+    dock:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+        GameTooltip:SetText(L.dock_hint or "Dock", unpack(C.TXT))
+        GameTooltip:AddLine(L.dock_note or "", C.DIM[1], C.DIM[2], C.DIM[3], true)
+        GameTooltip:Show()
+    end)
+    dock:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    S.Button(dock)
+    dock:SetScript("OnClick", function()
+        MetaMirror:ClearCustomPosition()
+        MetaMirror:AnchorToCharacter()
+    end)
+    dock:Hide()
+    Panel.dockBtn = dock
 
     -- Tab-Leiste. Eigene Flaeche hinter den Reitern plus Trennlinie zum Inhalt:
     -- vorher unterschied sich der aktive Tab nur durch die Textfarbe und las sich
@@ -264,6 +292,8 @@ function MetaMirror:AnchorToCharacter()
         -- eigenstaendig (z.B. via /mm) -> sicher mittig auf den Schirm
         Panel:SetPoint("CENTER", UIParent, "CENTER", 220, 0)
     end
+    -- Der Andock-Knopf ist nur sinnvoll, solange eine freie Position gespeichert ist.
+    if Panel.dockBtn then Panel.dockBtn:SetShown((p and p.custom) and true or false) end
 end
 
 function MetaMirror:OnCharShow()
@@ -618,31 +648,16 @@ local function boundLabel(b, toSource)
     else b.label:SetPoint("RIGHT", b, "RIGHT", -4, 0) end
 end
 
--- Quelle aus der Pipeline-Tabelle (Data/MetaMirrorSources.lua, aus Wowhead): fuer Items,
--- die NICHT im Abenteuerfuehrer stehen (Handwerk, Haendler, Tiefen, PvP) der einzige Weg
--- zu einem Quellentext. Liefert nil fuer unbekannte IDs/Arten -> Zeile bleibt leer.
-local function pipelineSourceText(itemID)
-    local root = _G.MetaMirrorItemSources
-    local ps = root and root.items and root.items[itemID]
-    if not ps then return nil end
-    if ps.kind == "crafted" then return L.src_crafted end
-    if ps.kind == "delve" then return L.src_delve end
-    if ps.kind == "pvp" then return L.src_pvp end
-    if ps.kind == "vendor" then
-        local n = ps.name or {}
-        local name = n[GetLocale()] or n.enUS or "?"
-        return string.format(L.src_vendor, name)
-    end
-    return nil
-end
-
 -- Quelle einer Gear-/Trinket-Zeile: 1) Boss aus dem Abenteuerfuehrer (klickbar) 2) sonst
 -- Pipeline-Quelle (Handwerk/Haendler/Tiefen/PvP aus Data/MetaMirrorSources.lua, unklickbar)
 -- 3) sonst Klassenset-Label, falls Item-Set-Teil (setID) 4) sonst "Hergestellt", falls das
 -- Item ein Handwerksqualitaets-Icon traegt (|A:Professions- im Link -> zuverlaessig crafted)
 -- 5) sonst fallbackText, falls ausdruecklich uebergeben, oder leer. Achtung: KEIN pauschaler
 -- "Hergestellt"-Fallback -- das wuerde nicht-craftbare Drops faelschlich als Handwerk labeln.
-local function applyRowSource(b, itemID, fallbackText)
+-- crafted: Handwerksmarker aus dem Sim-Profil (Feld crafted). Er ist noetig, weil genau
+-- diese Items ohne Bonus-IDs kommen und ihr Link deshalb kein Handwerksicon traegt --
+-- Schritt 4 kann bei ihnen nie greifen.
+local function applyRowSource(b, itemID, fallbackText, crafted)
     b.src.srcData = nil
     b.src.text:SetText(""); b.src:Hide()
     boundLabel(b, false)
@@ -655,7 +670,7 @@ local function applyRowSource(b, itemID, fallbackText)
         return
     end
     -- Pipeline-Quelle hat Vorrang vor einem generischen fallbackText.
-    fallbackText = pipelineSourceText(itemID) or fallbackText
+    fallbackText = MetaMirror:StaticSourceText(itemID, crafted) or fallbackText
     -- Fallback sofort setzen (unklickbar), damit nie eine Leerzeile steht; die async
     -- Pruefung unten (Set / Handwerk) ueberschreibt ihn, sobald sie etwas Genaueres findet.
     if fallbackText and fallbackText ~= "" then
@@ -809,7 +824,7 @@ local function renderItemList(entries)
                        function(link) applyGearStatus(b, e.itemID, ctx, link, ilvl) end)
         end)
         b.slot:SetText(e.label or "")
-        applyRowSource(b, e.itemID)
+        applyRowSource(b, e.itemID, nil, e.crafted)
     end
     for j = i + 1, #itemRows do itemRows[j]:Hide() end
 end
@@ -1390,7 +1405,7 @@ function MetaMirror.RenderBody(self, classID, specID)
             if not dup and not (dropOffhand and g.slot == "OFFHAND") then
                 if g.itemID then seen[g.itemID] = true end
                 entries[#entries+1] = { label = slotLabel(g.slot), itemID = g.itemID,
-                                        itemLevel = g.itemLevel,
+                                        itemLevel = g.itemLevel, crafted = g.crafted,
                                         bonusIDs = normalizeToMyth(g.bonusIDs) }
             end
         end

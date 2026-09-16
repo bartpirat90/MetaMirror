@@ -206,6 +206,10 @@ def gear_from_profile(payload):
         gear.append({
             "slot": slot, "itemID": item_id, "itemLevel": item_level,
             "bonusIDs": _split_ids(entry.get("bonus_id")),
+            # Handwerksitems tragen crafted_stats und kommen ohne bonus_id. Ohne diesen
+            # Marker hat das Addon keine Quelle fuer "Hergestellt": das Handwerksicon
+            # steckt im Itemlink an der Qualitaets-Bonus-ID, die hier gerade fehlt.
+            "crafted": bool(entry.get("crafted_stats")),
             "name": f"item:{item_id}",
         })
         for gem_id in _split_ids(entry.get("gem_id")):

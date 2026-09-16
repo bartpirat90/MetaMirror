@@ -18,10 +18,13 @@ def _spec_block(agg, indent):
     lines.append(f"{p}gear = {{")
     for g in agg.gear:
         bonus = ", ".join(str(int(b)) for b in g.get("bonusIDs", []))
+        # crafted nur an Handwerksitems ausgeben: haelt die Datei schlank und laesst
+        # Zeilen ohne den Marker exakt so aussehen wie bisher.
+        crafted = "crafted = true, " if g.get("crafted") else ""
         lines.append(
             f'{p2}{{ slot = {_q(g["slot"])}, itemID = {int(g["itemID"])}, '
             f'itemLevel = {int(g.get("itemLevel", 0))}, bonusIDs = {{ {bonus} }}, '
-            f'name = {_q(g["name"])} }},'
+            f'{crafted}name = {_q(g["name"])} }},'
         )
     lines.append(f"{p}}},")
 
