@@ -745,6 +745,12 @@ end
 -- 12854 ist per /mm dumpq belegt; 13848 stammt aus den Messwerten (jedes Item, das
 -- 344 erreicht, traegt sie). Beide sind Kandidaten, keine Annahmen: ohne exakten
 -- Treffer wird nichts angewendet.
+-- Eine einzelne angehaengte ID reicht aber nicht immer. Kommt ein Item ganz ohne
+-- Bonus-IDs (Ruecken 268253 -> 219 statt 344), gibt es nichts, woran sie sich anhaengen
+-- liesse. Dafuer liefert MetaMirror:BorrowableBonusSets vollstaendige Saetze desselben
+-- Items aus anderen Spec-Profilen -- ebenfalls nur als Messkandidaten. Handwerksitems
+-- bleiben dort aussen vor (fremde Sekundaerwerte, Begruendung in Logic.lua); sie zeigen
+-- weiterhin ihre Basisstufe im Blizzard-Tooltip und die Referenz in unserer Zeile.
 local ILVL_BONUS_CANDIDATES = { MYTH_6_6_BONUS, 13848 }
 
 local function bonusCore(itemID, ids)
@@ -758,24 +764,42 @@ local function linkIlvl(link)
     return (ok and type(v) == "number") and v or nil
 end
 
+-- Zu messende Bonus-ID-Saetze, in dieser Reihenfolge:
+--   1. der vorhandene Satz plus je eine bekannte Aufwertungs-Bonus-ID,
+--   2. vollstaendige Saetze desselben Items aus anderen Spec-Profilen
+--      (MetaMirror:AlternateBonusSets -- siehe Logic.lua).
+-- Schritt 2 ist der einzige Weg fuer Items, die ganz ohne Bonus-IDs geliefert werden:
+-- an nichts angehaengt ergibt eine einzelne Aufwertungs-ID keinen brauchbaren Link.
+local function ilvlCandidateSets(itemID, ids, crafted)
+    local sets, seen = {}, {}
+    for _, id in ipairs(ids) do seen[id] = true end
+    for _, cand in ipairs(ILVL_BONUS_CANDIDATES) do
+        if not seen[cand] then
+            local test = {}
+            for _, id in ipairs(ids) do test[#test + 1] = id end
+            test[#test + 1] = cand
+            sets[#sets + 1] = test
+        end
+    end
+    for _, alt in ipairs(MetaMirror:BorrowableBonusSets(itemID, ids, crafted)) do
+        sets[#sets + 1] = alt
+    end
+    return sets
+end
+
 -- Ruft cb(bonusIDs) mit dem Satz auf, der die Referenzstufe trifft (oder dem Original).
-local function resolveToReferenceIlvl(itemID, ids, target, cb)
+local function resolveToReferenceIlvl(itemID, ids, target, crafted, cb)
     ids = ids or {}
     if not (itemID and target and target > 0) then cb(ids) return end
     local base = bonusCore(itemID, ids)
     Item:CreateFromItemLink(base):ContinueOnItemLoad(function()
         if linkIlvl(base) == target then cb(ids) return end   -- Link stimmt schon
-        local seen = {}
-        for _, id in ipairs(ids) do seen[id] = true end
+        local sets = ilvlCandidateSets(itemID, ids, crafted)
         local i = 0
         local function tryNext()
             i = i + 1
-            local cand = ILVL_BONUS_CANDIDATES[i]
-            if not cand then cb(ids) return end               -- keiner passt -> Original
-            if seen[cand] then tryNext() return end
-            local test = {}
-            for _, id in ipairs(ids) do test[#test + 1] = id end
-            test[#test + 1] = cand
+            local test = sets[i]
+            if not test then cb(ids) return end               -- keiner passt -> Original
             local link = bonusCore(itemID, test)
             Item:CreateFromItemLink(link):ContinueOnItemLoad(function()
                 if linkIlvl(link) == target then cb(test) else tryNext() end
@@ -818,7 +842,7 @@ local function renderItemList(entries)
         -- dem Laden des Links mit der echten Referenzstufe verfeinern (-> "schwaecher").
         local ilvl = (e.itemLevel and e.itemLevel > 0) and e.itemLevel or nil
         applyGearStatus(b, e.itemID, ctx, nil, ilvl)
-        resolveToReferenceIlvl(e.itemID, e.bonusIDs, ilvl, function(ids)
+        resolveToReferenceIlvl(e.itemID, e.bonusIDs, ilvl, e.crafted, function(ids)
             if gen ~= renderGen then return end   -- Zeile ist inzwischen neu belegt
             setItemRow(b, nil, e.itemID, e.fallback, e.enchantID, ids, nil,
                        function(link) applyGearStatus(b, e.itemID, ctx, link, ilvl) end)

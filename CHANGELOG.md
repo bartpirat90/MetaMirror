@@ -33,6 +33,19 @@ Nothing yet.
   sheet aside for a merchant or bank window. The button appears only while a free position
   is stored, and dragging the window works exactly as before.
 
+### Fixed
+
+- **Reference items show their reference item level in the game's own tooltip again.**
+  The source states that level sometimes in the item's bonus IDs and sometimes only in a
+  separate field; in the second case the link falls back to the unupgraded base level —
+  measured with `/mm ilvl`, the back slot came out at 219 instead of 344. The addon now
+  also tries the bonus ID sets the same item carries in other specs' reference profiles
+  for the same build. Every candidate is measured in the game and adopted only if the
+  resulting level hits the reference exactly; if none does, the link is left alone and
+  the level column names the reference, as before. Across the current data this gives 306
+  of 402 affected entries a candidate to measure, including 128 that previously carried
+  no bonus IDs at all.
+
 ### Changed
 
 - Data rebuilt: bloodmallet distributions of 2026-09-16, SimulationCraft profiles at
@@ -49,9 +62,14 @@ Nothing yet.
 
 ### Known limitation
 
-- Crafted items still show their **base** item level in the game's own item tooltip, because
-  their link carries no upgrade bonus ID and the addon will not invent one. The reference
-  level from the simulation is shown in MetaMirror's own tooltip line.
+- Crafted items still show their **base** item level in the game's own item tooltip. They
+  are deliberately excluded from the borrowing described above: on a crafted item the bonus
+  IDs also encode the two secondary stats it was made with, and those differ per spec — the
+  off-hand 237840 is `36/40` in the Vengeance profile and `49/36` in the Havoc one. A
+  borrowed set would fix the level and misstate the stats. No rule that would derive the
+  right IDs from the stats exists in the source data either: across all cached profiles,
+  not one bonus ID belongs exclusively to a single stat pair. MetaMirror's own tooltip line
+  names the reference level instead.
 
 ## [1.0.2] - 2026-09-14
 

@@ -124,6 +124,70 @@ test("StaticSourceText_curated_source_wins_over_marker", function()
         "kuratierte Quelle schlaegt den Marker")
 end)
 
+test("BorrowableBonusSets_borrows_from_other_spec_profiles", function()
+    -- Ein Teil der Referenzitems kommt ohne Bonus-IDs aus der Quelle; ihr Link zeigt dann
+    -- die nackte Basisstufe (gemessen: Ruecken 219 statt 344). Dasselbe Item steht in
+    -- anderen Spec-Profilen MIT vollstaendigen Bonus-IDs. Diese Saetze sind echte
+    -- Quellendaten, keine geratenen IDs -- die UI misst jeden davon im Spiel und
+    -- uebernimmt ihn nur bei exaktem Treffer.
+    local root = { specs = {
+        [12] = { [581] = {
+            mythicplus = { gear = { { slot = "BACK", itemID = 900, bonusIDs = {  } } } },
+            raid       = { gear = { { slot = "BACK", itemID = 900, bonusIDs = {  } } } },
+        } },
+        [9] = { [266] = {
+            mythicplus = { gear = { { slot = "BACK", itemID = 900, bonusIDs = { 13335, 13848 } } } },
+            raid       = { gear = { { slot = "BACK", itemID = 900, bonusIDs = { 13662, 13848 } } } },
+        } },
+    } }
+    local sets = MetaMirror:BorrowableBonusSets(900, {  }, nil, root)
+    assertEqual(#sets, 2, "beide fremden Saetze")
+    -- Sortiert, damit die Reihenfolge nicht von pairs abhaengt: sonst haengt es vom Zufall
+    -- ab, welcher gleichwertige Satz zuerst gemessen wird.
+    assertEqual(table.concat(sets[1], ":"), "13335:13848", "kleinster Satz zuerst")
+    assertEqual(table.concat(sets[2], ":"), "13662:13848", "zweiter Satz danach")
+end)
+
+test("BorrowableBonusSets_never_borrows_for_crafted_items", function()
+    -- Bei Handwerksitems kodieren die Bonus-IDs auch die gewaehlten Sekundaerwerte, und
+    -- die weichen je Spec ab (237840: Vengeance 36/40, Havoc 49/36). Ein geliehener Satz
+    -- traefe die Stufe, zeigte aber fremde Werte an.
+    local root = { specs = { [12] = { [577] = { mythicplus = { gear = {
+        { itemID = 900, bonusIDs = { 8791, 12214 } },
+    } } } } } }
+    assertEqual(#MetaMirror:BorrowableBonusSets(900, {  }, true, root), 0,
+        "Handwerk leiht nicht")
+    assertEqual(#MetaMirror:BorrowableBonusSets(900, {  }, false, root), 1,
+        "alles andere schon")
+end)
+
+test("BorrowableBonusSets_dedupes_skips_empty_and_own_set", function()
+    local root = { specs = { [1] = { [71] = {
+        mythicplus = { gear = {
+            { itemID = 900, bonusIDs = { 5, 6 } },
+            { itemID = 901, bonusIDs = {  } },
+        } },
+        raid = { gear = { { itemID = 900, bonusIDs = { 5, 6 } } } },
+    } } } }
+    assertEqual(#MetaMirror:BorrowableBonusSets(900, {  }, nil, root), 1,
+        "gleicher Satz nur einmal")
+    assertEqual(#MetaMirror:BorrowableBonusSets(900, { 5, 6 }, nil, root), 0,
+        "der eigene Satz wurde schon gemessen")
+    assertEqual(#MetaMirror:BorrowableBonusSets(901, {  }, nil, root), 0,
+        "leerer Satz ist kein Kandidat")
+    assertEqual(#MetaMirror:BorrowableBonusSets(902, {  }, nil, root), 0, "unbekanntes Item")
+    assertEqual(#MetaMirror:BorrowableBonusSets(nil, {  }, nil, root), 0, "kein Item")
+end)
+
+test("BorrowableBonusSets_caps_the_number_of_measurements", function()
+    -- Jeder Kandidat kostet im Spiel ein asynchrones Item-Laden. Mehr als eine Handvoll
+    -- lohnt nicht: trifft keiner exakt, nennt die Stufenspalte ohnehin die Referenz.
+    local gear = {}
+    for i = 1, 20 do gear[i] = { itemID = 900, bonusIDs = { i } } end
+    local root = { specs = { [1] = { [71] = { mythicplus = { gear = gear } } } } }
+    assertEqual(#MetaMirror:BorrowableBonusSets(900, {  }, nil, root), 6, "gedeckelt")
+end)
+
 test("Data_gear_carries_reference_item_level", function()
     -- Regression: die Pipeline hat das ilevel-Feld von bloodmallet verworfen, dadurch
     -- fehlte bei rund der Haelfte der Slots die Referenzstufe und die Ampel verglich

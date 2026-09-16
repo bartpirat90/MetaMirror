@@ -100,3 +100,50 @@ function MetaMirror:ClearCustomPosition(db)
     db = db or MetaMirrorDB
     if db and db.pos then db.pos.custom = nil end
 end
+
+-- Bonus-ID-Saetze desselben Items aus ANDEREN Spec-Profilen, als Messkandidaten fuer
+-- die Referenzstufe.
+-- Hintergrund: Die Quelle liefert die Stufe mal in den Bonus-IDs, mal nur im Feld
+-- itemLevel. Im zweiten Fall zeigt der Itemlink die unaufgewertete Basisstufe -- mit
+-- /mm ilvl gemessen: Ruecken 268253 kommt auf 219 statt 344. Dasselbe Item steht in
+-- anderen Spec-Profilen desselben Builds mit vollstaendigen Bonus-IDs; das sind belegte
+-- Quellendaten, keine geratenen IDs. Die UI misst jeden Kandidaten im Spiel und
+-- uebernimmt ihn nur, wenn die Stufe die Referenz EXAKT trifft.
+--
+-- Handwerksitems sind ausgenommen. Bei ihnen kodieren die Bonus-IDs zusaetzlich die
+-- gewaehlten Sekundaerwerte, und die unterscheiden sich je Spec: Nebenhand 237840 hat
+-- im Vengeance-Profil crafted_stats=36/40, im Havoc-Profil 49/36. Ein geliehener Satz
+-- traefe die Stufe, wuerde aber fremde Werte anzeigen -- eine erfundene Angabe an
+-- anderer Stelle statt an dieser.
+--
+-- Sortiert, weil pairs keine feste Reihenfolge hat: sonst entscheidet der Zufall,
+-- welcher von mehreren gleichwertigen Saetzen genommen wird.
+-- root/limit nur fuer Tests uebergeben (Default: die geladenen Daten, hoechstens 6
+-- Kandidaten -- jeder kostet im Spiel ein asynchrones Item-Laden).
+function MetaMirror:BorrowableBonusSets(itemID, ownIDs, crafted, root, limit)
+    root = root or MetaMirrorData
+    local specs = root and root.specs
+    if not (itemID and specs) or crafted then return {} end
+    local own = table.concat(ownIDs or {}, ":")
+    local byKey, keys = {}, {}
+    for _, byClass in pairs(specs) do
+        for _, bySpec in pairs(byClass) do
+            for _, entry in pairs(bySpec) do
+                for _, g in ipairs(entry.gear or {}) do
+                    if g.itemID == itemID and g.bonusIDs and #g.bonusIDs > 0 then
+                        local key = table.concat(g.bonusIDs, ":")
+                        -- Der eigene Satz wurde vom Aufrufer schon gemessen.
+                        if key ~= own and not byKey[key] then
+                            byKey[key] = g.bonusIDs
+                            keys[#keys + 1] = key
+                        end
+                    end
+                end
+            end
+        end
+    end
+    table.sort(keys)
+    local out = {}
+    for i = 1, math.min(#keys, limit or 6) do out[i] = byKey[keys[i]] end
+    return out
+end
