@@ -1,0 +1,4 @@
+# core.autocrlf steht auf diesem Rechner auf true. Ohne die Zeile hier bekaeme
+# scripts/deploy.sh bei einem frischen Clone CRLF-Zeilenenden und wuerde mit
+# "bad interpreter" abbrechen. Shell-Skripte deshalb immer mit LF auschecken.
+*.sh text eol=lf
