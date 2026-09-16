@@ -91,15 +91,19 @@ nicht.
 
 | | |
 | --- | --- |
-| Version | 1.0.2 (`MetaMirror.toc`) — der Tag `v1.0.0` zeigt weiter auf den alten Stand |
-| Branch | `main` = `origin/main`, alles gepusht (nach `git fetch` geprüft) |
+| Version | 1.0.3 (`MetaMirror.toc`) — der Tag `v1.0.0` zeigt weiter auf den alten Stand |
+| Branch | `main` liegt **fünf Commits vor `origin/main`** — bewusst noch nicht gepusht |
 | Remote | `github.com/bartpirat90/MetaMirror` — **das Repo ist öffentlich** |
-| Daten | `sim-2026-09-14` (Stats/Gear), `bm-2026-09-05` (Schmuck) |
-| Addon-Tests | `lua tests/run_harness.lua` → ALLE PASS (auf den neuen Daten geprüft) |
-| Pipeline-Tests | `python -m pytest pipeline/tests -q` → 116 passed |
+| Daten | `sim-2026-09-16` (Stats/Gear), `bm-2026-09-05` (Schmuck) |
+| Addon-Tests | `lua tests/run_harness.lua` → 34 PASS, 0 FAIL (auf den neuen Daten geprüft) |
+| Pipeline-Tests | `python -m pytest pipeline/tests -q` → 118 passed |
 | Workflows | `.github/workflows/sim-data.yml`, `tests.yml` |
-| Im Spiel | 1.0.2 liegt seit heute im AddOns-Ordner, per `scripts/deploy.sh` |
+| Im Spiel | 1.0.3 liegt im AddOns-Ordner, per `scripts/deploy.sh` |
 | CurseForge | Projekt **1678018 ist öffentlich sichtbar**, dort steht 1.0.0 (5.9.), 35 Downloads |
+
+**Im Spiel abgenommen (2026-09-16):** der Andock-Knopf sitzt richtig, und die
+Gegenstandsstufen im Ausrüstungs-Tab stimmen. Beides ließ sich nur im Spiel
+prüfen; die Bestätigung kam vom Betreiber des Projekts.
 
 **Wichtig für den nächsten Chat:** Die Vorgängerfassung dieses Dokuments hielt
 den Datenstand für elf Tage alt und `main` für synchron. Beides stimmte nicht —
@@ -151,20 +155,39 @@ CurseForge-Upload und Einrichtung: [pipeline/CURSEFORGE.md](../pipeline/CURSEFOR
 
 ## 5. Offen
 
-1. **Ingame-Abnahme** der Fünf-Ziel-Zahlen für Mythisch+ und der Hinweiszeile im
-   Ausrüstungs-Tab. Seit dem 2026-09-05 gebaut, nie im Spiel angesehen. 1.0.2
-   liegt seit heute im AddOns-Ordner, es fehlt nur noch der Blick ins Spiel.
-2. **CurseForge hinkt hinterher.** Dort steht 1.0.0 vom 5.9., im Repo liegt 1.0.2
-   mit Sim-Daten vom 14.9. Am 2026-09-16 bewusst nicht hochgeladen: erst die
-   Ingame-Abnahme. Dass das Projekt versteckt sei, stimmt nicht mehr — es ist
-   öffentlich und hat 35 Downloads.
-3. **Der Wochenlauf frischt die Schmuckdaten nicht mit auf.** `sim-data.yml` baut
+1. **Fünf Commits sind nicht gepusht.** `d27ae4b` (CHANGELOG 1.0.1/1.0.2),
+   `3fc9679` (Handwerksbeschriftung + Andock-Knopf), `75441f2` (Spec für den
+   Fallback), `429d6a9` (Daten `sim-2026-09-16`, Version 1.0.3) und `cfd323e`
+   (geliehene Bonus-ID-Sätze für die Referenzstufe). Der Betreiber hat das
+   Committen freigegeben, das Pushen ausdrücklich noch nicht.
+2. **Das Fallback-Design ist beschlossen, aber nicht gebaut.**
+   `docs/superpowers/specs/2026-09-16-sim-fallback-design.md`: alte Sim-Zahlen
+   werden übernommen, wenn die Quelle nichts liefert, mit Altersangabe im Spiel;
+   Grenze vier Wochen, die Kopfzeile trägt das echte Datum.
+3. **Ingame-Abnahme** der Fünf-Ziel-Zahlen für Mythisch+ und der Hinweiszeile im
+   Ausrüstungs-Tab. Seit dem 2026-09-05 gebaut, nie gezielt im Spiel angesehen.
+   Abgenommen sind bisher nur der Andock-Knopf und die Gegenstandsstufen.
+4. **CurseForge hinkt hinterher.** Dort steht 1.0.0 vom 5.9., im Repo liegt 1.0.3
+   mit Sim-Daten vom 16.9. Am 2026-09-16 bewusst nicht hochgeladen: erst die
+   restliche Ingame-Abnahme. Dass das Projekt versteckt sei, stimmt nicht mehr —
+   es ist öffentlich und hat 35 Downloads.
+5. **Der Wochenlauf frischt die Schmuckdaten nicht mit auf.** `sim-data.yml` baut
    nur `Data/MetaMirrorData.lua`; `MetaMirrorTrinkets.lua` steht deshalb
    unverändert auf `bm-2026-09-05`. Ob das so gewollt ist, wurde nie entschieden.
-4. **Versionsschilder und Tags laufen auseinander.** Der Wochenlauf bumpt die
-   Patch-Version, setzt aber keinen Tag: `v1.0.0` ist der einzige Tag, die `.toc`
-   steht auf 1.0.2. Auch `CHANGELOG.md` kennt 1.0.1 und 1.0.2 nicht.
-5. **Das GitHub-Repo ist öffentlich** — daran denken, bevor etwas hineingeschrieben
+6. **Tags fehlen weiter.** Der Wochenlauf bumpt die Patch-Version, setzt aber
+   keinen Tag: `v1.0.0` ist der einzige Tag, die `.toc` steht auf 1.0.3.
+   `CHANGELOG.md` kennt inzwischen 1.0.1 bis 1.0.3; die Verweise dort zeigen
+   mangels Tags auf Commit-SHAs.
+7. **Handwerksitems behalten ihre Basisstufe im Blizzard-Tooltip** — entschieden,
+   kein offener Fehler. Vier Zeilen (Vengeance, Nebenhand 237840 und Handgelenke
+   244576, je M+ und Raid) kommen ohne Bonus-IDs und zeigen deshalb Stufe 44
+   statt 331. Einen Satz aus einem anderen Spec-Profil zu leihen ist hier
+   gesperrt: bei Handwerksitems kodieren die Bonus-IDs auch die gewählten
+   Sekundärwerte, und die weichen je Spec ab (237840: Vengeance `36/40`, Havoc
+   `49/36`). Eine Ableitung aus `crafted_stats` scheidet aus — in allen
+   zwischengespeicherten Profilen gehört keine der 28 Bonus-IDs exklusiv zu einem
+   Statpaar. Die Referenzstufe steht stattdessen in der MetaMirror-Zeile.
+8. **Das GitHub-Repo ist öffentlich** — daran denken, bevor etwas hineingeschrieben
    wird. Jeder Zugangsschlüssel, der hier je auftauchte, ist als verbrannt zu
    behandeln und beim jeweiligen Anbieter zu widerrufen; das ist mit dem Betreiber
    des Projekts besprochen. Zugangsdaten gehören ausschließlich in
