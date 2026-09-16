@@ -105,6 +105,93 @@ NS.HEX = {
 local S = {}
 NS.Style = S
 
+-- ------------------------------------------------------------
+-- Schrift
+-- ------------------------------------------------------------
+-- STANDARD_TEXT_FONT ist im westlichen Client "Fonts\FRIZQT__.TTF", und diese
+-- Datei kennt keine kyrillischen Zeichen: russische Spielernamen erscheinen
+-- als leere Kaestchen (gemeldet am 2026-09-07). Darum wird die Schrift nicht
+-- mehr fest verdrahtet, sondern beim ersten Bedarf gewaehlt -- der erste
+-- Kandidat, den der Client wirklich kennt, gewinnt.
+--
+-- warcraft.wiki.gg fuehrt nur die vier Grundschriften, die kyrillischen
+-- Varianten stehen dort nicht. Am 2026-09-07 im deutschen Client gemessen
+-- (Schriftpruefung im laufenden Spiel): FRIZQT___CYR.TTF und
+-- MORPHEUS_CYR.TTF sind vorhanden, ARIALN_CYR.TTF nicht. Der westliche
+-- Client bringt die kyrillischen Schriften also mit, sie sind nur nicht
+-- voreingestellt.
+--
+-- Achtung: FRIZQT___CYR hat DREI Unterstriche, FRIZQT__ nur zwei.
+--
+-- Geprueft wird trotzdem jeder Eintrag: die Liste gilt fuer alle Sprachen und
+-- Clients, und was es nicht gibt, faellt durch. Ein Addon, das eine eigene
+-- Schrift mitliefert, setzt sie mit table.insert(S.FONT_CANDIDATES, 1, pfad)
+-- davor -- diese Datei bleibt dadurch in jedem Addon dieselbe.
+S.FONT_CANDIDATES = {
+    "Fonts\\FRIZQT___CYR.TTF",
+    "Fonts\\ARIALN_CYR.TTF",
+    -- Zierschrift, in 9 pt schlecht lesbar. Steht nur hier, weil eine haessliche
+    -- lesbare Schrift immer noch besser ist als eine Reihe leerer Kaestchen.
+    "Fonts\\MORPHEUS_CYR.TTF",
+}
+
+local nameFontPath
+
+-- Prueft, ob der Client eine Schriftdatei kennt.
+--
+-- Das Pruefobjekt ist eine EditBox und kein FontString: der Rueckgabewert von
+-- SetFont ist laut Doku nur fuer EditBox zugesichert ("true, wenn fontFile
+-- eine gueltige Schrift ist"), fuer FontString steht dort nur "boolean?".
+local probeBox
+function S.FontProbe(path)
+    if not probeBox then
+        probeBox = CreateFrame("EditBox", nil, UIParent)
+        probeBox:Hide()
+    end
+    return probeBox:SetFont(path, 10, "") and true or false
+end
+
+-- Erster Kandidat, den `probe` bestaetigt; sonst `fallback`.
+function S.PickFont(probe, candidates, fallback)
+    for _, path in ipairs(candidates) do
+        local ok, valid = pcall(probe, path)
+        if ok and valid then return path end
+    end
+    return fallback
+end
+
+-- Die Schrift der Oberflaeche. Bleibt die des Clients: sie traegt alle
+-- Sonderzeichen, mit denen die Oberflaeche arbeitet. Der erste Versuch am
+-- 2026-09-07 stellte das ganze Fenster auf die kyrillische Schrift um -- dann
+-- wurde aus jedem Mittelpunkt "·" in der Oberflaeche ein leeres Kaestchen.
+-- FRIZQT___CYR kann Kyrillisch, aber nicht alles andere.
+function S.FontPath()
+    return STANDARD_TEXT_FONT
+end
+
+-- Die Schrift fuer SPIELERNAMEN. Nur dort steht Fremdsprachiges: alle
+-- Oberflaechentexte kommen in der Sprache des Clients, Namen nicht.
+--
+-- Wird einmal ermittelt und gemerkt; der erste Aufruf passiert beim Laden der
+-- UI-Dateien, nicht beim Laden dieser Datei -- Style.lua bleibt frei von
+-- API-Aufrufen.
+function S.NameFontPath()
+    if not nameFontPath then
+        nameFontPath = S.PickFont(S.FontProbe, S.FONT_CANDIDATES, STANDARD_TEXT_FONT)
+    end
+    return nameFontPath
+end
+
+-- Nur fuer Tests und fuer die Schriftpruefung: erzwingt eine neue Ermittlung.
+function S.ResetFont()
+    nameFontPath = nil
+end
+
+-- Kurzformen im Addon-Namensraum: die UI-Dateien halten `KR`, aber nicht alle
+-- ein `S`. Ein Zugriff, der ueberall gleich aussieht.
+NS.FontPath     = S.FontPath
+NS.NameFontPath = S.NameFontPath
+
 -- Einfarbige Flaeche.
 function S.Tex(parent, layer, col)
     local t = parent:CreateTexture(nil, layer)
