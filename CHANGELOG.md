@@ -19,6 +19,40 @@ both versions.
 
 Nothing yet.
 
+## [1.0.3] - 2026-09-16
+
+### Added
+
+- **Crafted items are labelled again in the Gear tab.** They arrive from the simulation
+  profile carrying `crafted_stats` but no bonus IDs — and without bonus IDs their item link
+  has no crafting-quality icon, which is what the addon used to recognise them by. So the
+  source column simply stayed blank for them. The data now carries the fact directly.
+- **A "Dock" button in the header** puts the window back against the right edge of the
+  character sheet. Once you drag the window anywhere, it is pinned to the screen instead and
+  stops following the character sheet — so it ends up in the way when the game moves that
+  sheet aside for a merchant or bank window. The button appears only while a free position
+  is stored, and dragging the window works exactly as before.
+
+### Changed
+
+- Data rebuilt: bloodmallet distributions of 2026-09-16, SimulationCraft profiles at
+  `66096c1`. Spec coverage is unchanged at 28 specs in 56 entries.
+- Secondary stat priorities moved for nine spec/content combinations. The leading stat
+  changed for three: Protection Paladin (M+, `haste > crit` became `crit > haste`),
+  Assassination Rogue (Raid, likewise), and Destruction Warlock (Raid, `mastery > crit`
+  became `crit > mastery`).
+- The other six reshuffled ranks below the top: Retribution Paladin (M+), Outlaw Rogue
+  (Raid), Shadow Priest (M+), Enhancement Shaman (Raid), Frost Mage (Raid) and Destruction
+  Warlock (M+).
+- Twenty-eight further entries kept their order but shifted in the underlying ratings.
+- Reference gear changed in five entries across 13 slots.
+
+### Known limitation
+
+- Crafted items still show their **base** item level in the game's own item tooltip, because
+  their link carries no upgrade bonus ID and the addon will not invent one. The reference
+  level from the simulation is shown in MetaMirror's own tooltip line.
+
 ## [1.0.2] - 2026-09-14
 
 Weekly data refresh. Built from bloodmallet distributions of 2026-09-14 and
@@ -119,7 +153,8 @@ First public release.
 - Specs the source has no current profile for show an honest note instead of stale data.
 - Every tab header carries the data date, e.g. `sim reference · 5 targets · 2026-09-05`.
 
-[Unreleased]: https://github.com/bartpirat90/MetaMirror/compare/bdb929c...HEAD
+[Unreleased]: https://github.com/bartpirat90/MetaMirror/compare/1.0.3...HEAD
+[1.0.3]: https://github.com/bartpirat90/MetaMirror/compare/bdb929c...HEAD
 [1.0.2]: https://github.com/bartpirat90/MetaMirror/compare/8bc7be5...bdb929c
 [1.0.1]: https://github.com/bartpirat90/MetaMirror/compare/v1.0.0...8bc7be5
 [1.0.0]: https://github.com/bartpirat90/MetaMirror/releases/tag/v1.0.0
