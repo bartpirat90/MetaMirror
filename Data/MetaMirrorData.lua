@@ -1,9 +1,9 @@
 -- Generiert von der MetaMirror-Pipeline. NICHT von Hand bearbeiten.
 MetaMirrorData = {
-    version = "sim-2026-09-16",
+    version = "sim-2026-09-21",
     season = "Midnight-S2",
     fightStyles = { mythicplus = "castingpatchwerk5", raid = "castingpatchwerk" },
-    generated = "2026-09-16",
+    generated = "2026-09-21",
     simcHash = "66096c1",
     sources = { gear = "SimulationCraft MID2 profiles", stats = "bloodmallet.com secondary distributions" },
     attribution = "Data from bloodmallet.com (SimulationCraft)",
